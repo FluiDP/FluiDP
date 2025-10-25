@@ -1,0 +1,46 @@
+.env
+.env.local
+.env.*
+!.env.example
+!.env.template
+*.log
+*.key
+*.pem
+
+node_modules/
+npm-debug.log*
+yarn-error.log
+
+/dist
+/build
+/out
+/.next/
+/.nuxt/
+/.svelte-kit/
+/target/ # Java (Maven)
+/bin/   # .NET
+/obj/   # .NET
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.idea/
+*.iml
+.code-workspace
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+
+pycache/
+*.pyc
+.venv/
+venv/
+env/
+instance/
+*.egg-info/
+
+*.sqlite
+*.sqlite3
+*.db
