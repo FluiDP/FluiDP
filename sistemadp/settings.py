@@ -24,8 +24,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'core',
     'tailwind',
-
     'theme',
 ]
 
@@ -93,3 +93,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles_prod"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = '/admin/login/'
+
+AUTH_USER_MODEL = 'core.CustomUser'
+
+AUTHENTICATION_BACKENDS = [
+    'core.backends.MatriculaBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
