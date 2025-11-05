@@ -1,24 +1,24 @@
-# Sistema DP
+# FluiDP
 
-O **Sistema DP** é um gerenciador de fluxo de solicitações ao Departamento Pessoal (DP). Essas solicitações são vinculadas aos colaboradores interessados e ao tipo do documento, além de passar pela aprovação da chefia imediata, do diretor responsável e do DP.
+O **FluiDP** é um gerenciador de fluxo de solicitações ao Departamento Pessoal (DP). Essas solicitações são vinculadas aos colaboradores interessados e ao tipo do documento, além de passar pela aprovação da chefia imediata, do diretor responsável e do DP.
 
 ## Iniciando com o projeto
 
-### Se for a 1ª vez iniciando:
+### Na 1ª vez iniciando o projeto:
 
 1. Clone o repositório na sua máquina:
     ```bash
-    git clone https://github.com/Sistema-DP/Sistema-DP/
+    git clone https://github.com/FluiDP/Sistema-DP/
     ```
 
 2. Crie o ambiente virtual:
     ```bash
-    python -m venv venv
+    python -m venv .venv
     ```
 
 3. Entre no ambiente virtual:
     ```bash
-    & C:/Users/Ramom/Documents/sistemadp/venv/Scripts/Activate.ps1
+    .\.venv\Scripts\Activate.ps1
     ```
 
 4. Instale as dependências:
@@ -32,7 +32,7 @@ O **Sistema DP** é um gerenciador de fluxo de solicitações ao Departamento Pe
 
 1. Entre no ambiente virtual:
     ```bash
-    & C:/Users/Ramom/Documents/sistemadp/venv/Scripts/Activate.ps1
+    .\.venv\Scripts\Activate.ps1
     ```
 
 2. Ative o Tailwind:
