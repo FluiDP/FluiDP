@@ -9,7 +9,7 @@ class CustomUserAdmin(UserAdmin):
         ("Personal info", {"fields": ("first_name", "last_name", "email")}),
 
         ("Dados Institucionais (ERS)", {
-            "fields": ("matricula", "cpf", "id_cargo", "id_lotacao"),
+            "fields": ("matricula", "cpf", "cargo", "lotacao"),
         }),
         
         ("Permissions", {
@@ -25,7 +25,7 @@ class CustomUserAdmin(UserAdmin):
     )
     
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'matricula')
-    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups', 'id_lotacao', 'id_cargo')
+    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups', 'lotacao', 'cargo')
     search_fields = ('username', 'first_name', 'last_name', 'email', 'matricula')
 
 admin.site.register(CustomUser, CustomUserAdmin)
@@ -37,9 +37,9 @@ class CargoAdmin(admin.ModelAdmin):
 
 @admin.register(Lotacao)
 class LotacaoAdmin(admin.ModelAdmin):
-    list_display = ('nome_lotacao', 'id_gestor_imediato', 'id_diretor_responsavel', 'id_lotacao_pai')
+    list_display = ('nome_lotacao', 'chefia', 'chefia_secundaria', 'lotacao_pai')
     search_fields = ('nome_lotacao',)
-    list_filter = ('id_gestor_imediato', 'id_diretor_responsavel')
+    list_filter = ('chefia', 'chefia_secundaria')
     
 @admin.register(TipoDocumento)
 class TipoDocumentoAdmin(admin.ModelAdmin):
@@ -48,12 +48,12 @@ class TipoDocumentoAdmin(admin.ModelAdmin):
 
 @admin.register(Solicitacao)
 class SolicitacaoAdmin(admin.ModelAdmin):
-    list_display = ('id', '__str__', 'status', 'id_colaborador', 'id_aprovador_atual')
-    search_fields = ('id_colaborador__username', 'id_tipo_documento__nome_documento')
-    list_filter = ('status', 'id_tipo_documento')
+    list_display = ('id', '__str__', 'status', 'colaborador', 'aprovador_atual')
+    search_fields = ('colaborador__username', 'tipo_documento__nome_documento')
+    list_filter = ('status', 'tipo_documento')
 
 @admin.register(LogAprovacao)
 class LogAprovacaoAdmin(admin.ModelAdmin):
-    list_display = ('id_solicitacao', 'acao', 'id_ator', 'data_acao')
+    list_display = ('solicitacao', 'acao', 'ator', 'data_acao')
     list_filter = ('acao',)
-    readonly_fields = ('id_solicitacao', 'id_ator', 'acao', 'data_acao', 'detalhes')
+    readonly_fields = ('solicitacao', 'ator', 'acao', 'data_acao', 'detalhes')

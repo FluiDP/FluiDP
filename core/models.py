@@ -3,7 +3,18 @@ from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 
 class Cargo(models.Model):
+
+    class HierarquiaChoices(models.IntegerChoices):
+        DIRETOR = 1, 'Diretor'
+        GERENTE = 2, 'Gerente'
+        COORDENADOR = 3, 'Coordenador'
+        PADRAO = 4, 'Padrão'
+
     nome_cargo = models.CharField(max_length=100)
+    hierarquia = models.IntegerField(
+        choices=HierarquiaChoices.choices,
+        default=HierarquiaChoices.PADRAO
+    )
 
     def __str__(self):
         return self.nome_cargo
@@ -11,7 +22,7 @@ class Cargo(models.Model):
 class Lotacao(models.Model):
     nome_lotacao = models.CharField(max_length=100)
 
-    id_gestor_imediato = models.ForeignKey(
+    chefia = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         null=True,
@@ -19,7 +30,7 @@ class Lotacao(models.Model):
         related_name="lotacoes_gerenciadas"
     )
 
-    id_diretor_responsavel = models.ForeignKey(
+    chefia_secundaria = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         null=True,
@@ -27,7 +38,7 @@ class Lotacao(models.Model):
         related_name="lotacoes_dirigidas"
     )
 
-    id_lotacao_pai = models.ForeignKey(
+    lotacao_pai = models.ForeignKey(
         'self',
         on_delete=models.PROTECT,
         null=True,
@@ -40,15 +51,17 @@ class Lotacao(models.Model):
 class CustomUser(AbstractUser):
     cpf = models.CharField(max_length=11, unique=True, null=True, blank=True)
     matricula = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    ausencia_inicio = models.DateField(null=True, blank=True)
+    ausencia_fim = models.DateField(null=True, blank=True)
 
-    id_cargo = models.ForeignKey(
+    cargo = models.ForeignKey(
         Cargo,
         on_delete=models.PROTECT,
         null=True,
         blank=True
     )
 
-    id_lotacao = models.ForeignKey(
+    lotacao = models.ForeignKey(
         Lotacao,
         on_delete=models.PROTECT,
         null=True,
@@ -86,13 +99,13 @@ class Solicitacao(models.Model):
         default=StatusChoices.PENDENTE_GESTOR
     )
 
-    id_colaborador = models.ForeignKey(
+    colaborador = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name='solicitacoes_criadas'
     )
     
-    id_colaborador_secundario = models.ForeignKey(
+    colaborador_secundario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         null=True,
@@ -100,12 +113,12 @@ class Solicitacao(models.Model):
         related_name='solicitacoes_secundarias'
     )
     
-    id_tipo_documento = models.ForeignKey(
+    tipo_documento = models.ForeignKey(
         TipoDocumento,
         on_delete=models.PROTECT
     )
     
-    id_aprovador_atual = models.ForeignKey(
+    aprovador_atual = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         null=True,
@@ -116,7 +129,7 @@ class Solicitacao(models.Model):
     dados_preenchidos = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
-        return f"Solicitação {self.id} - {self.id_tipo_documento.nome_documento} - {self.status}"
+        return f"Solicitação {self.id} - {self.tipo_documento.nome_documento} - {self.status}"
 
 class LogAprovacao(models.Model):
     
@@ -137,13 +150,13 @@ class LogAprovacao(models.Model):
         
         COMENTARIO = 'COMENTARIO', 'Comentário Adicionado'
 
-    id_solicitacao = models.ForeignKey(
+    solicitacao = models.ForeignKey(
         Solicitacao,
         on_delete=models.CASCADE,
         related_name='logs'
     )
     
-    id_ator = models.ForeignKey(
+    ator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT
     )
@@ -154,4 +167,4 @@ class LogAprovacao(models.Model):
     detalhes = models.TextField(blank=True)
 
     def __str__(self):
-        return f"Log {self.acao} por {self.id_ator} em {self.data_acao}"
+        return f"Log {self.acao} por {self.ator} em {self.data_acao}"
