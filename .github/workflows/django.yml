@@ -22,6 +22,8 @@ jobs:
           POSTGRES_DB: ${{ env.DB_NAME_CI }}
           POSTGRES_USER: ${{ env.DB_USER_CI }}
           POSTGRES_PASSWORD: ${{ env.DB_PASSWORD_CI }}
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -59,5 +61,5 @@ jobs:
         DB_USER: ${{ env.DB_USER_CI }}
         DB_PASSWORD: ${{ env.DB_PASSWORD_CI }}
         
-        DB_HOST: 'postgres'
+        DB_HOST: '127.0.0.1'
         DB_PORT: '5432'
