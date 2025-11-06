@@ -1,5 +1,9 @@
 {% extends 'painel.html' %}
 
+{% block painel_name %}
+    <h1 class="text-2xl font-bold">Painel do Colaborador</h1>
+{% endblock painel_name %}
+
 {% block menu_actions %}
     <a href="{% url 'colaborador:home' %}"
         class="flex items-center  rounded-lg hover:bg-indigo-100 p-2"
@@ -16,11 +20,7 @@
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
     >
-        <ion-icon class="text-slate-500" name="home-outline"></ion-icon>
+        <ion-icon class="text-slate-500" name="document-text-outline"></ion-icon>
         <span class="ml-3" :class="sidebarOpen ? 'block' : 'hidden'">Solicitações</span>
     </a>
 {% endblock menu_actions %}
-
-{% block painel_name %}
-    <h1 class="text-2xl font-bold">Início</h1>
-{% endblock painel_name %}

@@ -1,5 +1,9 @@
 {% extends 'painel.html' %}
 
+{% block painel_name %}
+    <h1 class="text-2xl font-bold">Painel do Aprovador</h1>
+{% endblock painel_name %}
+
 {% block menu_actions %}
     <a href="{% url 'aprovador:home' %}"
         class="flex items-center  rounded-lg hover:bg-indigo-100 p-2"

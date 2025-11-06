@@ -75,6 +75,9 @@ class TipoDocumento(models.Model):
     nome_documento = models.CharField(max_length=100)
     requer_aprovacao_gestor = models.BooleanField(default=False)
     requer_aprovacao_diretor = models.BooleanField(default=False)
+    data_inicio = models.DateField(null=True, blank=True)
+    data_fim = models.DateField(null=True, blank=True)
+    limite_dias_antecedencia = models.IntegerField(null=True, blank=True)
     definicao_formulario = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
