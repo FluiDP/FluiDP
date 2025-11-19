@@ -1,7 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from .models import Cargo
 from django.contrib.auth import logout as auth_logout
 
@@ -34,6 +34,28 @@ def painel_view(request):
         return redirect('aprovador:home')
 
     return redirect('colaborador:home')
+
+@login_required
+def perfil_view(request):
+    context = {
+        'usuario': request.user,
+    }
+
+    if not request.user.cargo:
+        return render(request, 'painel/colaborador/perfil.html', context)
+
+    hierarquia = request.user.cargo.hierarquia
+
+    if request.user.groups.filter(name='DP').exists() or hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+        return render(request, 'painel/dp/perfil.html', context)
+
+    if hierarquia in [
+        Cargo.HierarquiaChoices.GERENTE,
+        Cargo.HierarquiaChoices.COORDENADOR
+    ]:
+        return render(request, 'painel/aprovador/perfil.html', context)
+
+    return render(request, 'painel/colaborador/perfil.html', context)
 
 def logout_view(request):
     auth_logout(request)

@@ -1,42 +1,75 @@
 from functools import wraps
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import login_required
-from .models import Cargo
+from django.shortcuts import get_object_or_404
+from .models import Cargo, Solicitacao
 
 def permission_required(test_func):
     def decorator(view_func):
         @wraps(view_func)
         @login_required(login_url='login')
         def _wrapped_view(request, *args, **kwargs):
-            if not test_func(request.user):
+            if not test_func(request, **kwargs):
                 raise PermissionDenied
             return view_func(request, *args, **kwargs)
         return _wrapped_view
     return decorator
 
-def check_is_colaborador(user):
+def check_is_colaborador(request, **kwargs):
+    user = request.user
     has_no_cargo = not user.cargo
     is_padrao = user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.PADRAO
-    
-    return has_no_cargo or is_padrao
+    return has_no_cargo or is_padrao or check_is_aprovador
 
-def check_is_aprovador(user):
+def check_is_aprovador(request, **kwargs):
+    user = request.user
     if not user.cargo:
         return False
-        
     is_aprovador = user.cargo.hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
         Cargo.HierarquiaChoices.COORDENADOR,
     ]
-    
     return is_aprovador
 
-def check_is_dp(user):
+def check_is_dp(request, **kwargs):
+    user = request.user
     is_dp_group = user.groups.filter(name='DP').exists()
     is_diretor = user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
-    
     return is_dp_group or is_diretor
+
+def check_aprove_permission(request, **kwargs):
+    user = request.user
+    
+    solicitacao_id = kwargs.get('solicitacao_id')
+    if not solicitacao_id:
+        return False
+
+    try:
+        solicitacao = Solicitacao.objects.get(id=solicitacao_id)
+    except Solicitacao.DoesNotExist:
+        return False
+    
+    if (solicitacao.status == Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO and
+        solicitacao.colaborador_secundario == user):
+        return True
+
+    elif (solicitacao.status == Solicitacao.StatusChoices.PENDENTE_GESTOR and
+          solicitacao.aprovador_atual == user):
+        return True
+    
+    elif (solicitacao.status == Solicitacao.StatusChoices.PENDENTE_DIRETOR and
+          user.cargo and 
+          user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR):
+        return True
+
+    elif (solicitacao.status == Solicitacao.StatusChoices.PENDENTE_DP and
+          user.groups.filter(name='DP').exists()):
+        return True
+        
+    return False
 
 colaborador_required = permission_required(check_is_colaborador)
 aprovador_required = permission_required(check_is_aprovador)
 dp_required = permission_required(check_is_dp)
+
+is_aprovador_solicitacao = permission_required(check_aprove_permission)

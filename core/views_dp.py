@@ -13,6 +13,7 @@ def dp_painel_view(request):
 
     context = {
         'usuario': request.user,
+        'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
     }
 
     if request.htmx:
