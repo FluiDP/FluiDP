@@ -1,5 +1,5 @@
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 from django.http import HttpResponse
 from .models import Solicitacao, Cargo
@@ -9,6 +9,8 @@ from . import services
 
 @aprovador_required
 def aprovador_painel_view(request):
+
+    return redirect('colaborador:home')
 
     is_aprovador = request.user.cargo and request.user.cargo.hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
@@ -37,7 +39,7 @@ def aprovar_solicitacao_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     
     try:
-        services.aprovar_solicitacao(solicitacao, ator=request.user)
+        services.aprovar_solicitacao(solicitacao, ator=request.user, request_user=request.user)
         
         return HttpResponse("""
             <div class="p-6 bg-green-100 text-green-800 rounded-2xl text-center">

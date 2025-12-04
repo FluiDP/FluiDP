@@ -12,6 +12,12 @@ class CustomLoginView(auth_views.LoginView):
     def get_success_url(self):
         return reverse_lazy('painel')
 
+class CustomPasswordResetView(auth_views.PasswordResetView):
+    template_name = 'login/reset.html'
+    html_email_template_name = 'emails/_reset_password.html'
+    subject_template_name = 'emails/_reset_password_subject.txt'
+    success_url = reverse_lazy('login')
+
 def index_view(request):
     if request.user.is_authenticated:
         return redirect('painel')
@@ -41,13 +47,13 @@ def perfil_view(request):
         'usuario': request.user,
     }
 
+    if request.htmx:
+        return render(request, 'painel/_content_perfil.html', context)
+
     if not request.user.cargo:
         return render(request, 'painel/colaborador/perfil.html', context)
 
     hierarquia = request.user.cargo.hierarquia
-
-    if request.user.groups.filter(name='DP').exists() or hierarquia == Cargo.HierarquiaChoices.DIRETOR:
-        return render(request, 'painel/dp/perfil.html', context)
 
     if hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
@@ -55,7 +61,10 @@ def perfil_view(request):
     ]:
         return render(request, 'painel/aprovador/perfil.html', context)
 
-    return render(request, 'painel/colaborador/perfil.html', context)
+    if request.user.groups.filter(name='DP').exists() or hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+        return render(request, 'painel/dp/perfil.html', context)
+        
+    return redirect('painel')
 
 def logout_view(request):
     auth_logout(request)

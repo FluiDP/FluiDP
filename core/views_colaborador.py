@@ -22,23 +22,27 @@ def colaborador_painel_view(request):
 
     q_usuario_envolvido = Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
 
+    q_solicitacoes_pendentes = (
+        (Q(status=Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO) & Q(colaborador_secundario=request.user)) |
+        (Q(status=Solicitacao.StatusChoices.PENDENTE_GESTOR) & Q(aprovador_atual=request.user))
+    )
+
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
         
         'solicitacoes': Solicitacao.objects.filter(
             colaborador=q_usuario_envolvido
-        ).distinct(),
+        ).distinct().order_by('-data'),
         
         'solicitacoes_ativas': Solicitacao.objects.filter(
             colaborador=request.user,
             status__in=status_pendentes_ativos
-        ).distinct(),
+        ).distinct().order_by('-data'),
         
         'solicitacoes_pendentes': Solicitacao.objects.filter(
-            status=Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
-            colaborador_secundario=request.user
-        )
+            q_solicitacoes_pendentes
+        ).distinct().order_by('-data')
     }
 
     if request.htmx:
@@ -57,7 +61,7 @@ def colaborador_solicitacoes_view(request):
         
         'solicitacoes': Solicitacao.objects.filter(
             q_usuario_envolvido
-        ).distinct(),
+        ).distinct().order_by('-data'),
     }
 
     if request.htmx:
@@ -72,7 +76,7 @@ def get_create_solicitacao_select_view(request):
         'tipos_documento': TipoDocumento.objects.all(),
     }
     
-    return render(request, 'partials/_create_select_doc.html', context)
+    return render(request, 'partials/_solicitacao_create_select_doc.html', context)
 
 @colaborador_required
 def get_create_solicitacao_form_view(request, tipo_doc_id):
@@ -101,7 +105,7 @@ def get_create_solicitacao_form_view(request, tipo_doc_id):
         'colaboradores_lotacao': colaboradores 
     }
     
-    return render(request, 'partials/_create_form.html', context)
+    return render(request, 'partials/_solicitacao_create_form.html', context)
 
 
 @colaborador_required
@@ -143,7 +147,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     user = request.user
     
     pode_aprovar = False
-    pode_aprovar = services._pode_ator_aprovar(solicitacao, user)
+    pode_aprovar = services._pode_ator_aprovar(solicitacao, user, request.user)
     campos_schema = solicitacao.dados_preenchidos.get('schema', [])
     dados_preenchidos = solicitacao.dados_preenchidos.get('values', {})
     
@@ -177,11 +181,3 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     }
     
     return render(request, 'partials/_solicitacao_detalhes.html', context)
-
-@colaborador_required
-def colaborador_perfil_view(request):
-    context = {
-        'colaborador': request.user
-    }
-
-    return render(request, 'painel/colaborador/perfil.html')

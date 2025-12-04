@@ -11,7 +11,7 @@ if env_path.exists():
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.2.45']
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS').split(',')
 
 TAILWIND_APP_NAME = 'theme'
 
@@ -105,3 +105,20 @@ AUTHENTICATION_BACKENDS = [
     'core.backends.MatriculaBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+
+# serviço de email
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
+
+SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000')
+
+if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
+    print("Variáveis de e-mail não encontradas no arquivo .env")

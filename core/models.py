@@ -6,7 +6,6 @@ from django.forms import ValidationError
 from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
 from jsonschema import validate
 
-# ... (FORM_SCHEMA e Cargo mantêm-se iguais) ...
 FORM_SCHEMA = {
     "type": "array",
     "items": {
@@ -76,7 +75,7 @@ class Lotacao(models.Model):
         blank=True
     )
 
-    def find_gestor_disponivel(self, visited=None):
+    def find_gestor_disponivel(self, solicitante=None, visited=None):
         """Sobe recursivamente na hierarquia procurando uma chefia (Gestor) que não esteja ausente."""
         if visited is None:
             visited = set()
@@ -85,10 +84,10 @@ class Lotacao(models.Model):
             return None 
         visited.add(self.pk)
 
-        if self.chefia and not self.chefia.is_ausente:
+        if self.chefia and not self.chefia.is_ausente and self.chefia != solicitante:
             return self.chefia
 
-        if self.chefia_secundaria and not self.chefia_secundaria.is_ausente:
+        if self.chefia_secundaria and not self.chefia_secundaria.is_ausente and self.chefia != solicitante:
             return self.chefia_secundaria
 
         if self.lotacao_pai:
@@ -96,7 +95,7 @@ class Lotacao(models.Model):
             
         return None
 
-    def lotacao_nome(self, separador=' > ', _vistos=None):
+    def lotacao_fullname(self, separador=' > ', _vistos=None):
         if _vistos is None:
             _vistos = set()
             
@@ -108,7 +107,7 @@ class Lotacao(models.Model):
         _vistos.add(identificador)
         
         if self.lotacao_pai:
-            return self.lotacao_pai.lotacao_nome(separador, _vistos) + separador + self.nome_lotacao
+            return self.lotacao_pai.lotacao_fullname(separador, _vistos) + separador + self.nome_lotacao
             
         return self.nome_lotacao
 

@@ -44,3 +44,17 @@ O **FluiDP** é um gerenciador de fluxo de solicitações ao Departamento Pessoa
     ```bash
     python manage.py runserver
     ```
+
+## Importando tabelas (csv/xlsx)
+
+A importação deve ser feita via interface gráfica (em implementação) ou linha de comando.
+
+Para realizar a importação via linha de comando, utilize o comando `import`:
+```
+python manage.py import [tipo] [arquivo]
+```
+
+Sendo que:
+- `tipo`: corresponde a tabela a ser alimentada (cargo, usuario, lotacao).
+- `arquivo`: o caminho referente à tabela a ser importada.
+

@@ -1,6 +1,17 @@
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from .models import LogAprovacao, Solicitacao, Cargo, CustomUser
+from .models import LogAprovacao, Solicitacao, Cargo, CustomUser, Lotacao
+import pandas as pd
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.contrib.auth import get_user_model
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.urls import reverse
 
 def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogAprovacao.AcaoChoices, detalhes: str = ""):
     """
@@ -13,33 +24,34 @@ def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogApro
         detalhes=detalhes
     )
 
-def _pode_ator_aprovar(solicitacao: Solicitacao, ator: CustomUser) -> bool:
+def _pode_ator_aprovar(solicitacao: Solicitacao, ator: CustomUser, request_user: CustomUser) -> bool:
     """
     Valida se o ator tem permissão para aprovar a solicitação no status atual.
     """
     status = solicitacao.status
 
-    if status == Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO:
-        return solicitacao.colaborador_secundario == ator
+    if solicitacao.colaborador != request_user:
+        if status == Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO:
+            return solicitacao.colaborador_secundario == ator
 
-    if status == Solicitacao.StatusChoices.PENDENTE_GESTOR:
-        return solicitacao.aprovador_atual == ator
+        if status == Solicitacao.StatusChoices.PENDENTE_GESTOR:
+            return solicitacao.aprovador_atual == ator
 
-    if status == Solicitacao.StatusChoices.PENDENTE_DIRETOR:
-        return ator.cargo and ator.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
+        if status == Solicitacao.StatusChoices.PENDENTE_DIRETOR:
+            return ator.cargo and ator.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
 
-    if status == Solicitacao.StatusChoices.PENDENTE_DP:
-        return ator.groups.filter(name='DP').exists()
+        if status == Solicitacao.StatusChoices.PENDENTE_DP:
+            return ator.groups.filter(name='DP').exists()
 
     return False
 
 @transaction.atomic
-def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, detalhes: str = ""):
+def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, request_user: CustomUser, detalhes: str = ""):
     """
     Executa a lógica de aprovação, move para o próximo status e define o próximo aprovador.
     """
     
-    if not _pode_ator_aprovar(solicitacao, ator):
+    if not _pode_ator_aprovar(solicitacao, ator, request_user):
         raise PermissionError(f"O usuário {ator} não tem permissão para aprovar esta solicitação no status {solicitacao.status}.")
 
     status_atual = solicitacao.status
@@ -51,7 +63,7 @@ def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, detalhes: st
         novo_status = Solicitacao.StatusChoices.PENDENTE_GESTOR
         acao_log = LogAprovacao.AcaoChoices.ACEITE_SECUNDARIO
         
-        novo_aprovador = solicitacao.colaborador.lotacao.find_gestor_disponivel()
+        novo_aprovador = solicitacao.colaborador.lotacao.find_gestor_disponivel(restrict = ator)
         
         if not novo_aprovador:
             raise ValidationError("Não foi possível encontrar um Gestor disponível (não ausente) na hierarquia da lotação.")
@@ -148,7 +160,7 @@ def criar_solicitacao(colaborador: CustomUser, tipo_documento, dados_preenchidos
     else:
         nova_solicitacao.status = Solicitacao.StatusChoices.PENDENTE_GESTOR
         
-        gestor = colaborador.lotacao.find_gestor_disponivel()
+        gestor = colaborador.lotacao.find_gestor_disponivel(solicitante=colaborador)
         if not gestor:
             raise ValidationError("Não foi possível encontrar um gestor disponível na sua hierarquia.")
         
@@ -164,3 +176,124 @@ def criar_solicitacao(colaborador: CustomUser, tipo_documento, dados_preenchidos
     )
 
     return nova_solicitacao
+
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+import pandas as pd
+
+def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_busca_fk=None):
+    """
+    Importa dados de arquivos Excel ou CSV para um modelo Django, com tratamento para chaves estrangeiras e usuários.
+    """
+    User = get_user_model()
+
+    if nome_arquivo.lower().endswith('.csv'):
+        df = pd.read_csv(arquivo_io, sep=',', encoding='utf-8')
+    elif nome_arquivo.lower().endswith(('.xls', '.xlsx')):
+        df = pd.read_excel(arquivo_io)
+    else:
+        raise ValidationError("Formato inválido. Use .csv ou .xlsx")
+
+    df.columns = df.columns.str.strip()
+    
+    sucesso = 0
+    erros = []
+
+    try:
+        with transaction.atomic():
+            for index, row in df.iterrows():
+                linha = index + 2
+                dados_para_salvar = {}
+
+                try:
+                    for coluna_excel, config_modelo in mapa_de_campos.items():
+                        valor_celula = row.get(coluna_excel)
+                        
+                        if pd.isna(valor_celula):
+                            valor_celula = None
+
+                        if isinstance(config_modelo, str):
+                            dados_para_salvar[config_modelo] = valor_celula
+
+                        elif isinstance(config_modelo, tuple):
+                            campo_no_modelo, model_fk, campo_busca = config_modelo
+                            
+                            if valor_celula:
+                                obj_fk = model_fk.objects.filter(**{campo_busca: valor_celula}).first()
+                                if not obj_fk:
+                                    raise ValueError(f"FK não encontrada: '{valor_celula}' para {campo_no_modelo}")
+                                dados_para_salvar[campo_no_modelo] = obj_fk
+                            else:
+                                dados_para_salvar[campo_no_modelo] = None
+                    
+                    is_usuario = (model_class == User) or (model_class.__name__ == 'CustomUser')
+
+                    if is_usuario:
+                        if ('username' not in dados_para_salvar or not dados_para_salvar['username']) and 'email' in dados_para_salvar:
+                            dados_para_salvar['username'] = dados_para_salvar['email']
+                        
+                        if 'is_active' not in dados_para_salvar:
+                            dados_para_salvar['is_active'] = True
+
+                    if campo_busca_fk:
+                        filtro_busca = {k: dados_para_salvar[k] for k in campo_busca_fk if k in dados_para_salvar}
+                        obj, created = model_class.objects.update_or_create(
+                            defaults=dados_para_salvar,
+                            **filtro_busca
+                        )
+                    else:
+                        obj = model_class.objects.create(**dados_para_salvar)
+
+                    if is_usuario:
+                        if not obj.password or not obj.has_usable_password():
+                            obj.set_password('Ti!@0101')
+                            obj.save()
+
+                    sucesso += 1
+
+                except Exception as e:
+                    erros.append(f"Linha {linha}: {e}")
+
+    except Exception as e:
+        return {'sucesso': 0, 'erros': [f"Erro Crítico: {e}"]}
+
+    return {'sucesso': sucesso, 'erros': erros}
+
+def new_collaborator_email(instance):
+    """
+    Gera um token de definição de senha e envia um e-mail de boas-vindas 
+    para o novo colaborador (instance).
+    """
+    user = instance
+    
+    try:
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+        link_relativo = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
+        link_completo = f"{settings.SITE_URL}{link_relativo}"
+        
+        contexto = {
+            'nome_usuario': user.first_name or user.username,
+            'link_definicao_senha': link_completo,
+            'email_usuario': user.email,
+        }
+        
+        html_content = render_to_string('emails/_new_collaborators.html', contexto)
+        text_content = strip_tags(html_content)
+        
+        email = EmailMultiAlternatives(
+            subject="Boas vindas ao FluiDP | São Camilo Crato",
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email]
+        )
+        email.attach_alternative(html_content, "text/html")
+        
+        email.send()
+        return True
+
+    except Exception as e:
+        print(f"Erro ao enviar e-mail de boas-vindas para {user.email}: {e}")
+        return False
