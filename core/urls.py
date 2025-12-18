@@ -13,5 +13,5 @@ urlpatterns = [
 
     path('administracao/', include('core.urls_dp')),
     path('colaborador/', include('core.urls_colaborador')),
-    path('aprovador/', include('core.urls_aprovador')),
+    path('gestor/', include('core.urls_gestor')),
 ]

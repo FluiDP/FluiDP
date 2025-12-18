@@ -11,45 +11,41 @@
                         <label for="profile_nome" class="block text-sm font-medium text-gray-700">Nome Completo</label>
                         <input type="text" id="profile_nome" disabled 
                                 value="{{ user.get_full_name }}" 
-                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
+                                class="p-2 mb-2 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
                     </div>
 
                     <div>
                         <label for="profile_matricula" class="block text-sm font-medium text-gray-700">Matrícula</label>
                         <input type="text" id="profile_matricula" disabled 
-                                value="{{ user.username }}" 
-                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
+                                value="{{ user.matricula }}" 
+                                class="p-2 mb-2 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
                     </div>
 
                     <div>
-                        <label for="profile_email" class="block text-sm font-medium text-gray-700">Email</G</label>
+                        <label for="profile_email" class="block text-sm font-medium text-gray-700">Email</label>
                         <input type="email" id="profile_email" disabled 
                                 value="{{ user.email }}" 
-                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
+                                class="p-2 mb-2 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
                     </div>
 
                     <div>
                         <label for="profile_lotacao" class="block text-sm font-medium text-gray-700">Lotação / Setor</label>
                         <input type="text" id="profile_lotacao" disabled 
                                 value="{{ user.lotacao|default:'Não definida' }}" 
-                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
+                                class="p-2 mb-2 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
                     </div>
 
                     <div>
                         <label for="profile_cargo" class="block text-sm font-medium text-gray-700">Cargo</label>
                         <input type="text" id="profile_cargo" disabled 
                                 value="{{ user.cargo|default:'Não definido' }}" 
-                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
+                                class="p-2 mb-2 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 text-gray-500 focus:ring-0">
                     </div>
 
-                    <div class="pt-4">
-                        <button type="button" 
-                                hx-get="" 
-                                hx-target="#modal-spot" 
-                                hx-swap="innerHTML"
-                                class="justify-center rounded-full bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
-                            Alterar Senha
-                        </button>
+                    <div class="mt-4">
+                        <a href="{% url 'reset_password' %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                            Redefinir senha
+                        </a>
                     </div>
                 </div>
             </div>

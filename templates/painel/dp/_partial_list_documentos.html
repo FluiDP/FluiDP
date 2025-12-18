@@ -1,0 +1,21 @@
+{% for documento in documentos %}
+<tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+    <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ documento.nome_documento }}</td>
+    {% if documento.data_inicio %}
+        <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ documento.data_inicio }} - {{ documento.data_fim }}</td>
+    {% else %}
+        <td class="p-2">Todo período</td>
+    {% endif %}
+    {% if documento.data_inicio %}
+        <td class="p-2">{{ documento.limite_dias_antecedencia }} dias antes</td>
+    {% else %}
+        <td class="p-2">Sem limite mínimo</td>
+    {% endif %}
+    <td class="p-2"></td>
+    <td class="p-2 first:rounded-l-full last:rounded-r-full"></td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" class="py-2 text-center">Nenhum documento encontrado.</td>
+</tr>
+{% endfor %}

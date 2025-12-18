@@ -63,7 +63,7 @@ def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, request_user
         novo_status = Solicitacao.StatusChoices.PENDENTE_GESTOR
         acao_log = LogAprovacao.AcaoChoices.ACEITE_SECUNDARIO
         
-        novo_aprovador = solicitacao.colaborador.lotacao.find_gestor_disponivel(restrict = ator)
+        novo_aprovador = solicitacao.colaborador.lotacao.find_gestor_disponivel(solicitante=solicitacao.colaborador)
         
         if not novo_aprovador:
             raise ValidationError("Não foi possível encontrar um Gestor disponível (não ausente) na hierarquia da lotação.")

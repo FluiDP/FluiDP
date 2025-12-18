@@ -37,7 +37,7 @@ def painel_view(request):
         Cargo.HierarquiaChoices.GERENTE,
         Cargo.HierarquiaChoices.COORDENADOR
     ]:
-        return redirect('aprovador:home')
+        return redirect('gestor:home')
 
     return redirect('colaborador:home')
 
@@ -45,24 +45,25 @@ def painel_view(request):
 def perfil_view(request):
     context = {
         'usuario': request.user,
+        'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
     }
+
+    hierarquia = Cargo.objects.get(id=request.user.cargo.id).hierarquia
 
     if request.htmx:
         return render(request, 'painel/_content_perfil.html', context)
 
-    if not request.user.cargo:
-        return render(request, 'painel/colaborador/perfil.html', context)
-
-    hierarquia = request.user.cargo.hierarquia
+    if request.user.groups.filter(name='DP').exists() or hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+        return render(request, 'painel/dp/perfil.html', context)
 
     if hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
         Cargo.HierarquiaChoices.COORDENADOR
     ]:
-        return render(request, 'painel/aprovador/perfil.html', context)
-
-    if request.user.groups.filter(name='DP').exists() or hierarquia == Cargo.HierarquiaChoices.DIRETOR:
-        return render(request, 'painel/dp/perfil.html', context)
+        return render(request, 'painel/colaborador/perfil.html', context)
+    
+    if not request.user.cargo:
+        return render(request, 'painel/colaborador/perfil.html', context)
         
     return redirect('painel')
 

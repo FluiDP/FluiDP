@@ -25,7 +25,7 @@
          @click.stop
          class="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all">
         
-        <div class="max-h-[90vh] overflow-y-auto">
+        <div hx-target="#modal-spot" class="max-h-[90vh] overflow-y-auto">
             
             <div class="flex justify-between items-center">
                 <h3 class="text-xl text-center font-bold text-gray-900">
@@ -116,22 +116,25 @@
             
             <div class="mt-8 text-right flex flex-1 gap-2">
                 {% if pode_aprovar %}
+                    
                     <button type="button"
-                            hx-post="{% url 'aprovador:aprovar_solicitacao' solicitacao.id %}"
-                            hx-target="#modal-content" 
+                            x-init="open = true"
+                            hx-post="{% url 'gestor:recusar_solicitacao' solicitacao.id %}"
+                            hx-target="#modal-spot"
+                            hx-swap="innerHTML"
+                            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                            class="flex flex-1 justify-center rounded-full bg-red-50 border border-red-600 px-6 py-3 text-base font-semibold text-red-600 shadow-sm hover:bg-red-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600">
+                        Declinar
+                    </button>
+
+                    <button type="button"
+                            x-init="open = true"
+                            hx-post="{% url 'gestor:aprovar_solicitacao' solicitacao.id %}"
+                            hx-target="#modal-spot" 
                             hx-swap="innerHTML"
                             hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
                             class="flex flex-1 justify-center rounded-full bg-green-50 border border-green-600 px-6 py-3 text-base font-semibold text-green-600 shadow-sm hover:bg-green-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-green-600">
                         Aprovar
-                    </button>
-                    
-                    <button type="button" 
-                            hx-post="{% url 'aprovador:recusar_solicitacao' solicitacao.id %}"
-                            hx-target="#modal-content"
-                            hx-swap="innerHTML"
-                            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-                            class="flex flex-1 justify-center rounded-full bg-red-50 border border-red-600 px-6 py-3 text-base font-semibold text-red-600 shadow-sm hover:bg-red-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600">
-                        Recusar
                     </button>
                 
                 {% else %}

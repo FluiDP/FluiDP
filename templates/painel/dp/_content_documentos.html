@@ -1,37 +1,30 @@
-{% url 'dp:create_documento' as url_criar_cargo %}
+{% url 'dp:create_documento' as url_criar_documento %}
 
 <section class="flex-1 flex flex-col gap-2 h-full">
     <header class="p-2">
-        <h2 class="text-2xl font-bold">Gerenciar Cargos</h2>
+        <h2 class="text-2xl font-bold">Gerenciar Documentos</h2>
     </header>
     <div class="flex flex-1 flex-col gap-2 min-h-0">
-        <div class="flex flex-row gap-2">{% include "partials/_search_bar.html" with target_ids="cargos-list" placeholder="Buscar cargos..." %}{% include "partials/_generic_create_button.html" with url=url_criar_cargo text="Novo Cargo" icon_name="briefcase-outline" %}</div>
+        <div class="flex flex-row gap-2">{% include "partials/_search_bar.html" with target_ids="documentos-list" placeholder="Buscar documentos..." %}{% include "partials/_generic_create_button.html" with url=url_criar_documento text="Novo Documento" icon_name="briefcase-outline" %}</div>
         <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
             <div class="flex flex-col flex-1 min-h-0">
-                <h3 class="text-xl font-semibold pt-2 pb-2">Cargos</h3>
+                <h3 class="text-xl font-semibold pt-2 pb-2">Documentos</h3>
                 <div class="p-5 bg-slate-50 text-slate-600 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto min-h-0">
                     <table class="w-full border-separate border-spacing-y-2">
                         <thead>
                             <tr class="px-2">
                                 <th class="p-2 text-left font-semibold">Nome</th>
-                                <th class="p-2 text-left font-semibold"></th>
-                                <th class="p-2 text-left font-semibold">Chefia Imediata</th>
+                                <th class="p-2 text-left font-semibold">Período</th>
+                                <th class="p-2 text-left font-semibold">Tempo de Antecedência</th>
                                 <th class="p-2 text-left font-semibold">Editar</th>
+                                <th class="p-2 text-left font-semibold">Formulário</th>
                             </tr>
                         </thead>
-                        <tbody id="cargos-list">
-                            {% for cargo in cargos %}
-                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
-                                <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ cargo.nome_cargo }}</td>
-                                <td class="p-2 text-slate-400 italic">{{ cargo.cargo_fullname }}</td>
-                                <td class="p-2">{{ cargo.chefia }}</td>
-                                <td class="p-2 first:rounded-l-full last:rounded-r-full"></td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="py-2 text-center">Nenhum cargo encontrado.</td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="documentos-list"
+                               hx-get="{% url 'dp:documentos_list' %}"
+                               hx-trigger="updateDocumentosList from:body"
+                               hx-swap="innerHTML">
+                            {% include "painel/dp/_partial_list_documentos.html" with documentos=documentos %}
                         </tbody>
                     </table>
                 </div>

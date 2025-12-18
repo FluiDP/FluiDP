@@ -10,11 +10,12 @@
      @click="open = false" 
      class="fixed inset-0 z-50 flex items-center justify-center p-4">
 
-    <div x-show="open"
+    <div x-show="open" 
          class="fixed inset-0 bg-[rgba(0,0,0,0.5)] bg-opacity-70 backdrop-blur-md transition-opacity">
     </div>
 
-    <div x-show="open"
+    <div id="modal-content"
+         x-show="open"
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0 scale-95"
          x-transition:enter-end="opacity-100 scale-100"
@@ -22,7 +23,7 @@
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
          @click.stop
-         class="relative w-full max-w-lg max-h-[90vh] overflow-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
+         class="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all">
         
         <form hx-post="{{ action_url }}" 
               hx-swap="innerHTML" 

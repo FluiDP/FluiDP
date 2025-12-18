@@ -1,12 +1,15 @@
-from django.core.exceptions import PermissionDenied, ValidationError
+import copy
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
-from .models import Cargo, Solicitacao, TipoDocumento, Lotacao
+from django.views.decorators.http import require_POST
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+from django.utils.safestring import mark_safe
+
+from .models import Solicitacao, TipoDocumento
 from .decorators import colaborador_required
 from . import services
-from django.views.decorators.http import require_POST
-from django.http import HttpResponse
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -81,32 +84,29 @@ def get_create_solicitacao_select_view(request):
 @colaborador_required
 def get_create_solicitacao_form_view(request, tipo_doc_id):
     tipo_doc = get_object_or_404(TipoDocumento, id=tipo_doc_id)
-    campos_json = tipo_doc.definicao_formulario
+    campos_json = copy.deepcopy(tipo_doc.definicao_formulario)
     
-    colaboradores = None
-
     for campo in campos_json:
         source = campo.get("options_source")
         
         if source == "colaboradores_lotacao":
-            q_filtro = Q(lotacao=request.user.lotacao) | Q(cargo=request.user.cargo)
-            
-            colaboradores = User.objects.filter(
-                q_filtro
-            ).exclude(
-                id=request.user.id
-            ).filter(
-                is_active=True
-            ).distinct().order_by('first_name')
 
+            users = User.objects.filter(
+                lotacao=request.user.lotacao,
+                is_active=True
+            ).exclude(id=request.user.id).order_by('first_name')
+
+            campo['options'] = [
+                {'value': str(u.id), 'label': f"{u.first_name} {u.last_name or ''}"} 
+                for u in users
+            ]
+            
     context = {
         'tipo_documento': tipo_doc,
         'campos_formulario': campos_json,
-        'colaboradores_lotacao': colaboradores 
     }
     
     return render(request, 'partials/_solicitacao_create_form.html', context)
-
 
 @colaborador_required
 @require_POST 
@@ -133,13 +133,31 @@ def salvar_solicitacao_view(request, tipo_doc_id):
             esquema_formulario=schema_no_momento
         )
 
-        return HttpResponse('<div class="p-4 bg-green-100 text-green-800 rounded-lg border border-green-200">Solicitação enviada com sucesso!</div>')
+        msg = mark_safe('Solicitação enviada com sucesso!')
+        
+        response = render(request, 'partials/_message_sucess.html', {
+            'message': msg
+        })
+        
+        response['HX-Trigger'] = 'updateSolicitacoesList'
+        
+        return response
 
     except ValidationError as ve:
-        return HttpResponse(f'<div class="p-4 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">Atenção: {ve.message}</div>')
+        url_retry = reverse('colaborador:get_create_solicitacao_form', args=[tipo_doc_id]) 
+        
+        return render(request, 'partials/_message_error.html', {
+            'message': ve.message,
+            'url_retry': url_retry
+        })
 
     except Exception as e:
-        return HttpResponse(f'<div class="p-4 bg-red-100 text-red-800 rounded-lg border border-red-200">Erro ao salvar: {e}</div>')
+        url_retry = reverse('colaborador:get_create_solicitacao_form', args=[tipo_doc_id])
+        
+        return render(request, 'partials/_message_error.html', {
+            'message': f'Erro ao salvar: {e}',
+            'url_retry': url_retry
+        })
 
 @colaborador_required
 def get_solicitacao_detalhes_view(request, solicitacao_id):
@@ -148,7 +166,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     
     pode_aprovar = False
     pode_aprovar = services._pode_ator_aprovar(solicitacao, user, request.user)
-    campos_schema = solicitacao.dados_preenchidos.get('schema', [])
+    campos_schema = copy.deepcopy(solicitacao.dados_preenchidos.get('schema', []))
     dados_preenchidos = solicitacao.dados_preenchidos.get('values', {})
     
     campos_com_valores = []
@@ -181,3 +199,15 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     }
     
     return render(request, 'partials/_solicitacao_detalhes.html', context)
+
+@colaborador_required
+def solicitacoes_list_view(request):
+    q_usuario_envolvido = Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
+
+    context = {
+        'solicitacoes': Solicitacao.objects.filter(
+            q_usuario_envolvido
+        ).distinct().order_by('-data'),
+    }
+
+    return render(request, 'painel/colaborador/_partial_list_solicitacoes.html', context)
