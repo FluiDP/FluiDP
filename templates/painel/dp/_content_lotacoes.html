@@ -1,4 +1,4 @@
-{% url 'dp:create_lotacao' as url_criar_lotacao %}
+{% url 'administracao:create_lotacao' as url_criar_lotacao %}
 
 <section class="flex-1 flex flex-col gap-2 h-full">
     <header class="p-2">
@@ -20,7 +20,7 @@
                             </tr>
                         </thead>
                         <tbody id="lotacoes-list"
-                               hx-get="{% url 'dp:lotacoes_list' %}"
+                               hx-get="{% url 'administracao:lotacoes_list' %}"
                                hx-trigger="updateLotacoesList from:body"
                                hx-swap="innerHTML">
                             {% include "painel/dp/_partial_list_lotacoes.html" with lotacoes=lotacoes %}

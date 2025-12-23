@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from .models import Solicitacao, TipoDocumento
+from .models import LogAprovacao, Solicitacao, TipoDocumento
 from .decorators import colaborador_required
 from . import services
 
@@ -211,3 +211,15 @@ def solicitacoes_list_view(request):
     }
 
     return render(request, 'painel/colaborador/_partial_list_solicitacoes.html', context)
+
+@colaborador_required
+def get_solicitacao_logs_view(request, solicitacao_id):
+    solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
+    logs = LogAprovacao.objects.filter(solicitacao=solicitacao).order_by('-data_acao')
+
+    context = {
+        'solicitacao': solicitacao,
+        'logs': logs,
+    }
+
+    return render(request, 'partials/_solicitacao_detalhes_logs.html', context)

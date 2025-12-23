@@ -1,4 +1,4 @@
-{% url 'dp:create_documento' as url_criar_documento %}
+{% url 'administracao:create_documento' as url_criar_documento %}
 
 <section class="flex-1 flex flex-col gap-2 h-full">
     <header class="p-2">
@@ -21,7 +21,7 @@
                             </tr>
                         </thead>
                         <tbody id="documentos-list"
-                               hx-get="{% url 'dp:documentos_list' %}"
+                               hx-get="{% url 'administracao:documentos_list' %}"
                                hx-trigger="updateDocumentosList from:body"
                                hx-swap="innerHTML">
                             {% include "painel/dp/_partial_list_documentos.html" with documentos=documentos %}

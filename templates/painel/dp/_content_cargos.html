@@ -1,4 +1,4 @@
-{% url 'dp:create_cargo' as url_criar_cargo %}
+{% url 'administracao:create_cargo' as url_criar_cargo %}
 
 <section class="flex-1 flex flex-col gap-2 h-full">
     <header class="p-2">
@@ -19,7 +19,7 @@
                             </tr>
                         </thead>
                         <tbody id="cargos-list"
-                               hx-get="{% url 'dp:cargos_list' %}"
+                               hx-get="{% url 'administracao:cargos_list' %}"
                                hx-trigger="updateCargosList from:body"
                                hx-swap="innerHTML">
                             {% include "painel/dp/_partial_list_cargos.html" with cargos=cargos %}

@@ -1,4 +1,4 @@
-{% url 'dp:create_colaborador' as url_criar_colaborador %}
+{% url 'administracao:create_colaborador' as url_criar_colaborador %}
 
 <section class="flex-1 flex flex-col gap-2 h-full">
     <header class="p-2">
@@ -21,7 +21,7 @@
                             </tr>
                         </thead>
                         <tbody id="colaboradores-list"
-                               hx-get="{% url 'dp:colaboradores_list' %}"
+                               hx-get="{% url 'administracao:colaboradores_list' %}"
                                hx-trigger="updateColaboradoresList from:body"
                                hx-swap="innerHTML">
                             {% include "painel/dp/_partial_list_colaboradores.html" with colaboradores=colaboradores %}

@@ -5,16 +5,29 @@
 {% endblock painel_name %}
 
 {% block menu_actions %}
-    <a href="{% url 'dp:home' %}"
-        class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+    {% if user.cargo.hierarquia == 2 or user.cargo.hierarquia == 3 %}
+    <a href="{% url 'administracao:dashboard' %}"
+        class="flex items-center rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
     >
-        <ion-icon  name="home-outline"></ion-icon>
-        <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Início</span>
+        <ion-icon name="pie-chart-outline" class="text-xl"></ion-icon>
+        <span class="ml-3 whitespace-nowrap" :class="sidebarOpen ? 'block' : 'hidden'">Dashboard</span>
     </a>
-    <a href="{% url 'dp:lotacoes' %}"
+    {% else %}
+    <a href="{% url 'colaborador:home' %}"
+        class="flex items-center rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2 transition-colors"
+        hx-target="#content-swap" 
+        hx-swap="innerHTML"
+        :class="sidebarOpen ? 'justify-start' : 'justify-center'"
+    >
+        <ion-icon name="home-outline" class="text-xl"></ion-icon>
+        <span class="ml-3 whitespace-nowrap" :class="sidebarOpen ? 'block' : 'hidden'">Início</span>
+    </a>
+    {% endif %}
+    
+    <a href="{% url 'administracao:lotacoes' %}"
         class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
@@ -23,7 +36,7 @@
         <ion-icon  name="layers-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Gerenciar Lotações</span>
     </a>
-    <a href="{% url 'dp:colaboradores' %}"
+    <a href="{% url 'administracao:colaboradores' %}"
         class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
@@ -32,7 +45,7 @@
         <ion-icon  name="people-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Gerenciar Colaboradores</span>
     </a>
-    <a href="{% url 'dp:documentos' %}"
+    <a href="{% url 'administracao:documentos' %}"
         class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
@@ -41,7 +54,7 @@
         <ion-icon  name="reader-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Gerenciar Documentos</span>
     </a>
-    <a href="{% url 'dp:cargos' %}"
+    <a href="{% url 'administracao:cargos' %}"
         class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
@@ -50,7 +63,7 @@
         <ion-icon  name="grid-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Gerenciar Cargos</span>
     </a>
-    <a href="{% url 'dp:solicitacoes' %}"
+    <a href="{% url 'administracao:solicitacoes' %}"
         class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
         hx-target="#content-swap" 
         hx-swap="innerHTML"

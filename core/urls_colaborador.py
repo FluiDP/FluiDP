@@ -26,4 +26,5 @@ urlpatterns = [
      path('solicitacoes/lista/',
           views.solicitacoes_list_view,
           name='solicitacoes_list'),
+     path('solicitacoes/logs/<int:solicitacao_id>/', views.get_solicitacao_logs_view, name='solicitacao_logs'),
 ]

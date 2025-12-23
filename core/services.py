@@ -177,11 +177,6 @@ def criar_solicitacao(colaborador: CustomUser, tipo_documento, dados_preenchidos
 
     return nova_solicitacao
 
-from django.db import transaction
-from django.core.exceptions import ValidationError
-from django.contrib.auth import get_user_model
-import pandas as pd
-
 def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_busca_fk=None):
     """
     Importa dados de arquivos Excel ou CSV para um modelo Django, com tratamento para chaves estrangeiras e usuários.
@@ -199,6 +194,8 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
     
     sucesso = 0
     erros = []
+    
+    SENHA_PADRAO = 'Ti!@0101'
 
     try:
         with transaction.atomic():
@@ -208,6 +205,10 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
 
                 try:
                     for coluna_excel, config_modelo in mapa_de_campos.items():
+                        
+                        if coluna_excel not in df.columns:
+                            continue
+
                         valor_celula = row.get(coluna_excel)
                         
                         if pd.isna(valor_celula):
@@ -222,12 +223,13 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                             if valor_celula:
                                 obj_fk = model_fk.objects.filter(**{campo_busca: valor_celula}).first()
                                 if not obj_fk:
-                                    raise ValueError(f"FK não encontrada: '{valor_celula}' para {campo_no_modelo}")
+                                    raise ValueError(f"FK não encontrada: '{valor_celula}' para o campo {campo_no_modelo}")
                                 dados_para_salvar[campo_no_modelo] = obj_fk
                             else:
                                 dados_para_salvar[campo_no_modelo] = None
                     
                     is_usuario = (model_class == User) or (model_class.__name__ == 'CustomUser')
+                    senha_foi_injetada = False
 
                     if is_usuario:
                         if ('username' not in dados_para_salvar or not dados_para_salvar['username']) and 'email' in dados_para_salvar:
@@ -236,18 +238,37 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                         if 'is_active' not in dados_para_salvar:
                             dados_para_salvar['is_active'] = True
 
+                        if 'password' not in dados_para_salvar or not dados_para_salvar['password']:
+                            dados_para_salvar['password'] = SENHA_PADRAO
+                            senha_foi_injetada = True
+
                     if campo_busca_fk:
+
                         filtro_busca = {k: dados_para_salvar[k] for k in campo_busca_fk if k in dados_para_salvar}
+                        
+                        if not filtro_busca:
+                             raise ValueError("Campos chaves para atualização não foram encontrados na linha.")
+
                         obj, created = model_class.objects.update_or_create(
                             defaults=dados_para_salvar,
                             **filtro_busca
                         )
                     else:
                         obj = model_class.objects.create(**dados_para_salvar)
+                        created = True
 
                     if is_usuario:
-                        if not obj.password or not obj.has_usable_password():
-                            obj.set_password('Ti!@0101')
+                        precisa_salvar_senha = False
+                        
+                        if senha_foi_injetada or created:
+                            precisa_salvar_senha = True
+
+                        elif obj.password == SENHA_PADRAO:
+                            precisa_salvar_senha = True
+
+                        if precisa_salvar_senha:
+                            obj.set_password(SENHA_PADRAO)
+                            obj.precisa_trocar_senha = True
                             obj.save()
 
                     sucesso += 1
@@ -256,14 +277,13 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                     erros.append(f"Linha {linha}: {e}")
 
     except Exception as e:
-        return {'sucesso': 0, 'erros': [f"Erro Crítico: {e}"]}
+        return {'sucesso': 0, 'erros': [f"Erro Crítico na Importação: {e}"]}
 
     return {'sucesso': sucesso, 'erros': erros}
 
 def new_collaborator_email(instance):
     """
-    Gera um token de definição de senha e envia um e-mail de boas-vindas 
-    para o novo colaborador (instance).
+    Gera um token de definição de senha e envia um e-mail de boas-vindas.
     """
     user = instance
     
@@ -272,7 +292,9 @@ def new_collaborator_email(instance):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
 
         link_relativo = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
-        link_completo = f"{settings.SITE_URL}{link_relativo}"
+        
+        site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+        link_completo = f"{site_url}{link_relativo}"
         
         contexto = {
             'nome_usuario': user.first_name or user.username,

@@ -1,3 +1,4 @@
+import re
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
@@ -52,6 +53,10 @@ FORM_SCHEMA = {
 }
 
 class Cargo(models.Model):
+    class Meta:
+        verbose_name = "Cargo"
+        verbose_name_plural = "Cargos"
+
     class HierarquiaChoices(models.IntegerChoices):
         DIRETOR = 1, 'Diretor'
         GERENTE = 2, 'Gerente'
@@ -68,6 +73,10 @@ class Cargo(models.Model):
         return self.nome_cargo
 
 class Lotacao(models.Model):
+    class Meta:
+        verbose_name = "Lotação"
+        verbose_name_plural = "Lotações"
+
     nome_lotacao = models.CharField(max_length=100)
 
     chefia = models.ForeignKey(
@@ -124,11 +133,33 @@ class Lotacao(models.Model):
         if self.lotacao_pai:
             return self.lotacao_pai.lotacao_nome(separador, _vistos) + separador + self.nome_lotacao
         return self.nome_lotacao
+    
+    def get_descendentes(self, include_self=False, _vistos=None):
+        if _vistos is None:
+            _vistos = set()
+        identificador = self.pk if self.pk is not None else id(self)
+        if identificador in _vistos:
+            return []
+        _vistos.add(identificador)
+        
+        descendentes = []
+        if include_self:
+            descendentes.append(self)
+            
+        filhos = Lotacao.objects.filter(lotacao_pai=self)
+        for filho in filhos:
+            descendentes.extend(filho.get_descendentes(include_self=True, _vistos=_vistos))
+            
+        return descendentes
 
     def __str__(self):
         return self.nome_lotacao
 
 class CustomUser(AbstractUser):
+    class Meta:
+        verbose_name = "Usuário"
+        verbose_name_plural = "Usuários"
+        
     cpf = models.CharField(max_length=11, unique=True, null=True, blank=True)
     matricula = models.CharField(max_length=10, unique=True, null=True, blank=True)
     ausencia_inicio = models.DateField(null=True, blank=True)
@@ -157,10 +188,48 @@ class CustomUser(AbstractUser):
             return self.ausencia_inicio <= today <= self.ausencia_fim
         return False
 
+    def get_cpf_formatado(self):
+        """
+        Retorna o CPF formatado como 000.000.000-00.
+        Se não houver CPF, retorna string vazia.
+        """
+        if not self.cpf or len(self.cpf) != 11:
+            return self.cpf or ""
+        return f"{self.cpf[:3]}.{self.cpf[3:6]}.{self.cpf[6:9]}-{self.cpf[9:]}"
+
+    @property
+    def cpf_mascarado(self):
+        """
+        Retorna o CPF parcialmente oculto para exibição segura.
+        Ex: ***.456.789-**
+        """
+        if not self.cpf or len(self.cpf) != 11:
+            return ""
+        return f"***.{self.cpf[3:6]}.{self.cpf[6:9]}-**"
+
+    def clean(self):
+        super().clean()
+        if self.cpf:
+            self.cpf = re.sub(r'[^0-9]', '', str(self.cpf))
+
+            if self.cpf.isdigit():
+                self.cpf = self.cpf.zfill(11)
+
+            if len(self.cpf) != 11:
+                raise ValidationError({'cpf': 'O CPF deve conter exatamente 11 dígitos numéricos.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.first_name + ' ' + self.last_name if self.first_name and self.last_name else self.username
 
 class TipoDocumento(models.Model):
+    class Meta:
+        verbose_name = "Tipo de Documento"
+        verbose_name_plural = "Tipos de Documento"
+        
     nome_documento = models.CharField(max_length=100)
     requer_aprovacao_gestor = models.BooleanField(default=False)
     requer_aprovacao_diretor = models.BooleanField(default=False)
@@ -269,7 +338,10 @@ class TipoDocumento(models.Model):
         return self.nome_documento
 
 class Solicitacao(models.Model):
-    
+    class Meta:
+        verbose_name = "Solicitação"
+        verbose_name_plural = "Solicitações"
+
     class StatusChoices(models.TextChoices):
         PENDENTE_ACEITE_SECUNDARIO = 'PENDENTE_ACEITE', 'Aguardando Aceite do Colega'
         PENDENTE_GESTOR = 'PENDENTE_GESTOR', 'Pendente (Gestor)'
@@ -363,6 +435,10 @@ class Solicitacao(models.Model):
         return f"Solicitação {self.id} - {self.tipo_documento.nome_documento} - {self.status}"
 
 class LogAprovacao(models.Model):
+    class Meta:
+        verbose_name = "Log de Aprovação"
+        verbose_name_plural = "Logs de Aprovação"
+
     class AcaoChoices(models.TextChoices):
         CRIACAO = 'CRIACAO', 'Criação da Solicitação'
         CANCELAMENTO = 'CANCELAMENTO', 'Cancelado pelo Solicitante'

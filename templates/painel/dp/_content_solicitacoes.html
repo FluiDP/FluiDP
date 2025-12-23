@@ -20,7 +20,7 @@
                             </tr>
                         </thead>
                         <tbody id="solicitacoes-list"
-                               hx-get="{% url 'dp:solicitacoes_list' %}"
+                               hx-get="{% url 'administracao:solicitacoes_list' %}"
                                hx-trigger="updateSolicitacoesList from:body"
                                hx-swap="innerHTML">
                             {% include "painel/dp/_partial_list_solicitacoes.html" with solicitacoes=solicitacoes %}

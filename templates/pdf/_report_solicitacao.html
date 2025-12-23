@@ -1,0 +1,211 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Solicitação #{{ solicitacao.id }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+            @frame footer_frame {           
+                -pdf-frame-content: footerContent;
+                bottom: 1cm;
+                margin-left: 2cm;
+                margin-right: 2cm;
+                height: 1cm;
+            }
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse; 
+        }
+        td {
+            vertical-align: top;
+            padding: 5px;
+        }
+        
+        .header-title {
+            color: #4F46E5;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .header-meta {
+            text-align: right;
+            font-size: 10px;
+            color: #666;
+        }
+        .divider {
+            border-bottom: 2px solid #4F46E5;
+            margin-bottom: 15px;
+            margin-top: 5px;
+        }
+
+        .section-box {
+            margin-bottom: 15px;
+        }
+        .section-header {
+            background-color: #f3f4f6;
+            color: #000;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 5px;
+            border-left: 5px solid #4F46E5;
+            margin-bottom: 8px;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #555;
+            font-size: 10px;
+            display: block;
+        }
+        .value {
+            font-size: 11px;
+            color: #000;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .table-logs th {
+            background-color: #e5e7eb;
+            text-align: left;
+            padding: 4px;
+            font-size: 10px;
+            border-bottom: 1px solid #999;
+        }
+        .table-logs td {
+            border-bottom: 1px solid #eee;
+            padding: 4px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <table>
+        <tr>
+            <td width="60%">
+                <div class="header-title">Solicitação de {{ solicitacao.tipo_documento.nome_documento }}</div>
+                <div style="font-size: 10px;">Protocolo: #{{ solicitacao.id }}</div>
+            </td>
+            <td width="40%" align="right">
+                <div class="header-meta">
+                    Gerado em: {{ data_impressao|date:"d/m/Y H:i" }}<br/>
+                    Status Atual: <b>{{ solicitacao.get_status_display }}</b>
+                </div>
+            </td>
+        </tr>
+    </table>
+    <div class="divider"></div>
+
+    <div class="section-box">
+        <div class="section-header">DADOS DO COLABORADOR</div>
+        <table>
+            <tr>
+                <td width="50%">
+                    <span class="label">Nome Completo:</span>
+                    <span class="value">{{ solicitacao.colaborador.get_full_name }}</span>
+                </td>
+                <td width="50%">
+                    <span class="label">CPF:</span>
+                    <span class="value">{{ solicitacao.colaborador.get_cpf_formatado }}</span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="label">Matrícula:</span>
+                    <span class="value">{{ solicitacao.colaborador.matricula }}</span>
+                </td>
+                <td>
+                    <span class="label">Cargo / Lotação:</span>
+                    <span class="value">{{ solicitacao.colaborador.cargo }} - {{ solicitacao.colaborador.lotacao }}</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    {% if solicitacao.colaborador_secundario %}
+    <div class="section-box">
+        <div class="section-header">COLABORADOR SUBSTITUTO / SECUNDÁRIO</div>
+        <table>
+            <tr>
+                <td width="50%">
+                    <span class="label">Nome:</span>
+                    <span class="value">{{ solicitacao.colaborador_secundario.get_full_name }}</span>
+                </td>
+                <td width="50%">
+                    <span class="label">Matrícula:</span>
+                    <span class="value">{{ solicitacao.colaborador_secundario.matricula }}</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="section-box">
+        <div class="section-header">DADOS DA SOLICITAÇÃO</div>
+        <table>
+            <tr>
+                <td width="50%">
+                    <span class="label">Data de Abertura:</span>
+                    <span class="value">{{ solicitacao.data|date:"d/m/Y H:i" }}</span>
+                </td>
+                <td width="50%">
+                    <span class="label">Status:</span>
+                    <span class="value">{{ solicitacao.get_status_display }}</span>
+                </td>
+            </tr>
+            
+            {% for row in campos_rows %}
+            <tr>
+                {% for campo in row %}
+                <td width="50%">
+                    <span class="label">{{ campo.label }}:</span>
+                    <span class="value">{{ campo.valor_exibicao|default:"-"|linebreaksbr }}</span>
+                </td>
+                {% endfor %}
+                
+                {% if row|length == 1 %}
+                <td width="50%"></td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="section-box">
+        <div class="section-header">HISTÓRICO DE AÇÕES</div>
+        <table class="table-logs">
+            <thead>
+                <tr>
+                    <th width="20%">Data/Hora</th>
+                    <th width="25%">Ação</th>
+                    <th width="25%">Responsável</th>
+                    <th width="30%">Detalhes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.data_acao|date:"d/m/Y H:i" }}</td>
+                    <td>{{ log.get_acao_display }}</td>
+                    <td>{{ log.ator.get_full_name|default:log.ator.username }}</td>
+                    <td>{{ log.detalhes|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="footerContent" style="text-align: center; color: #999; font-size: 9px; padding-top: 10px; border-top: 1px solid #ccc;">
+        Documento gerado eletronicamente pelo Sistema DP - Usuário: {{ usuario_impressao.username }}
+    </div>
+
+</body>
+</html>
