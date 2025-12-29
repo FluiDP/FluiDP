@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from .models import LogAprovacao, Solicitacao, TipoDocumento
+from .models import LogAprovacao, Solicitacao, TipoDocumento, Cargo
 from .decorators import colaborador_required
 from . import services
 
@@ -61,11 +61,22 @@ def colaborador_solicitacoes_view(request):
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
-        
         'solicitacoes': Solicitacao.objects.filter(
             q_usuario_envolvido
         ).distinct().order_by('-data'),
     }
+
+    if request.user.cargo.hierarquia in [
+        Cargo.HierarquiaChoices.GERENTE,
+        Cargo.HierarquiaChoices.COORDENADOR,
+        Cargo.HierarquiaChoices.DIRETOR
+    ]:
+        context['solicitacoes'] = Solicitacao.objects.filter(
+            colaborador__lotacao__in=request.user.lotacao.get_descendentes(include_self=True)
+        ).order_by('-data')
+    
+    elif request.user.groups.filter(name='DP').exists() or request.user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+        context['solicitacoes'] = Solicitacao.objects.all().order_by('-data')
 
     if request.htmx:
         return render(request, 'painel/colaborador/_content_solicitacoes.html', context)
@@ -139,7 +150,7 @@ def salvar_solicitacao_view(request, tipo_doc_id):
             'message': msg
         })
         
-        response['HX-Trigger'] = 'updateSolicitacoesList'
+        response['HX-Trigger'] = 'updateContent'
         
         return response
 
@@ -199,18 +210,6 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     }
     
     return render(request, 'partials/_solicitacao_detalhes.html', context)
-
-@colaborador_required
-def solicitacoes_list_view(request):
-    q_usuario_envolvido = Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
-
-    context = {
-        'solicitacoes': Solicitacao.objects.filter(
-            q_usuario_envolvido
-        ).distinct().order_by('-data'),
-    }
-
-    return render(request, 'painel/colaborador/_partial_list_solicitacoes.html', context)
 
 @colaborador_required
 def get_solicitacao_logs_view(request, solicitacao_id):

@@ -9,7 +9,7 @@
     <div id="dashboard-content"
          class="flex flex-1"
          hx-get="{% url 'administracao:dashboard' %}" 
-         hx-trigger="updateSolicitacoesList from:body"
+         hx-trigger="updateContent from:body"
          hx-swap="innerHTML">
          
          {% include 'painel/dp/_content_dashboard.html' %}

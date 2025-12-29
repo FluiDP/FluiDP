@@ -460,9 +460,6 @@
   .max-h-\[90vh\] {
     max-height: 90vh;
   }
-  .max-h-screen {
-    max-height: 100vh;
-  }
   .min-h-0 {
     min-height: calc(var(--spacing) * 0);
   }

@@ -1,6 +1,10 @@
 {% url 'administracao:create_colaborador' as url_criar_colaborador %}
 
-<section class="flex-1 flex flex-col gap-2 h-full">
+<section id="colaboradores"
+         hx-get="{% url 'administracao:colaboradores' %}"
+         hx-trigger="updateContent from:body"
+         hx-swap="innerHTML"
+         class="flex-1 flex flex-col gap-2 h-full">
     <header class="p-2">
         <h2 class="text-2xl font-bold">Gerenciar Colaboradores</h2>
     </header>
@@ -20,11 +24,22 @@
                                 <th class="p-2 text-left font-semibold">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="colaboradores-list"
-                               hx-get="{% url 'administracao:colaboradores_list' %}"
-                               hx-trigger="updateColaboradoresList from:body"
-                               hx-swap="innerHTML">
-                            {% include "painel/dp/_partial_list_colaboradores.html" with colaboradores=colaboradores %}
+                        <tbody>
+                            {% for colaborador in colaboradores %}
+                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ colaborador.matricula }}</td>
+                                <td class="p-2">{{ colaborador.first_name }} {{ colaborador.last_name }}</td>
+                                <td class="p-2">{{ colaborador.cargo }}</td>
+                                <td class="p-2">{{ colaborador.lotacao.lotacao_fullname }}</td>
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">
+                                    {% comment %} ações {% endcomment %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="py-2 text-center">Nenhum colaborador encontrado.</td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>

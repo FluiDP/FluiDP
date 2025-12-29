@@ -1,4 +1,8 @@
-<section class="flex flex-1 flex-col gap-2 min-h-0">
+<section id="solicitacoes"
+         hx-get="{% url 'administracao:solicitacoes' %}"
+         hx-trigger="updateContent from:body"
+         hx-swap="innerHTML"
+         class="flex flex-1 flex-col gap-2 min-h-0">
     <header class="p-2">
         <h2 class="text-2xl font-bold">Histórico de Solicitações</h2>
     </header>
@@ -19,11 +23,27 @@
                                 <th class="p-2 text-left font-semibold">Status</th>
                             </tr>
                         </thead>
-                        <tbody id="solicitacoes-list"
-                               hx-get="{% url 'administracao:solicitacoes_list' %}"
-                               hx-trigger="updateSolicitacoesList from:body"
-                               hx-swap="innerHTML">
-                            {% include "painel/dp/_partial_list_solicitacoes.html" with solicitacoes=solicitacoes %}
+                        <tbody>
+                            {% for solicitacao in solicitacoes %}
+                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ solicitacao.colaborador }}</td>
+                                <td class="p-2">{{ solicitacao.colaborador.lotacao }}</td>
+                                <td class="p-2">{{ solicitacao.tipo_documento }}</td>
+                                <td class="p-2">{{ solicitacao.data }}</td>
+                                
+                                <td class="p-2">
+                                    {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
+                                </td>
+                                
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="py-2 text-center">Nenhuma solicitação encontrada.</td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>

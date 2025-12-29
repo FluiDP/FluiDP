@@ -1,4 +1,8 @@
-<div class="flex flex-1 flex-col space-y-2.5 animate-fade-in">
+<div id="dashboard"
+     hx-get="{% url 'gestor:dashboard' %}"
+     hx-trigger="updateContent from:body"
+     hx-swap="innerHTML"
+     class="flex flex-1 flex-col space-y-2.5 animate-fade-in">
     
     <div class="grid grid-cols-1 md:grid-cols-3 space-x-2.5">
         <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
@@ -103,6 +107,7 @@
 
     </div>
 </div>
+<div id="modal-spot"></div>
 
 <script>
     function renderRankingChart() {

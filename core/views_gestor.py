@@ -38,7 +38,7 @@ def aprovar_solicitacao_view(request, solicitacao_id):
             'message': msg
         })
         
-        response['HX-Trigger'] = 'updateSolicitacoesList'
+        response['HX-Trigger'] = 'updateContent'
         
         return response
         
@@ -80,7 +80,7 @@ def recusar_solicitacao_view(request, solicitacao_id):
             'message': msg
         })
         
-        response['HX-Trigger'] = 'updateSolicitacoesList'
+        response['HX-Trigger'] = 'updateContent'
         
         return response
         
@@ -96,15 +96,25 @@ def recusar_solicitacao_view(request, solicitacao_id):
 def gestor_dashboard_view(request):
     user = request.user
 
-    minhas_lotacoes = Lotacao.objects.filter(
-        Q(chefia=user) | Q(chefia_secundaria=user)
+    q_minhas_lotacoes = Lotacao.objects.filter(
+        Q(chefia=user) |
+        (
+            Q(chefia__isnull=True) &
+            Q(chefia_secundaria=user)
+        )
     )
-    
+
+    minhas_lotacoes = set(q_minhas_lotacoes)
+
+    for lotacao in q_minhas_lotacoes:
+        descendentes = lotacao.get_descendentes(include_self=True)
+        minhas_lotacoes.update(descendentes)
+        
     minha_equipe = CustomUser.objects.filter(
         lotacao__in=minhas_lotacoes,
         is_active=True
     ).exclude(id=user.id)
-
+    
     # KPI 1: Pendências na minha mesa
     pendencias_comigo = Solicitacao.objects.filter(
         status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
@@ -129,7 +139,8 @@ def gestor_dashboard_view(request):
     ).order_by('data')
 
     # KPI 5: Distribuição por Tipo (Gráfico)
-    ranking_query = Solicitacao.objects.values('tipo_documento__nome_documento') \
+    ranking_query = Solicitacao.objects.filter(colaborador__in=minha_equipe) \
+        .values('tipo_documento__nome_documento') \
         .annotate(total=Count('id')) \
         .order_by('-total')
 

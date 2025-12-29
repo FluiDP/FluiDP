@@ -114,17 +114,6 @@ def dp_lotacoes_view(request):
     return render(request, 'painel/dp/lotacoes.html', context)
 
 @dp_required
-def lotacoes_list_view(request):
-    """View Parcial: Retorna apenas as linhas <tr> para a tabela (Busca/Update)"""
-    lotacoes = Lotacao.objects.all().order_by('nome_lotacao')
-    
-    q = request.GET.get('q')
-    if q:
-        lotacoes = lotacoes.filter(nome_lotacao__icontains=q)
-
-    return render(request, 'painel/dp/_partial_list_lotacoes.html', {'lotacoes': lotacoes})
-
-@dp_required
 def create_lotacao_model_view(request):
     """View Modal: Criação com Trigger de Atualização e Feedback visual"""
     form = LotacaoForm(request.POST or None)
@@ -135,7 +124,7 @@ def create_lotacao_model_view(request):
         response = render(request, 'partials/_message_sucess.html', {
             'message': f"Lotação <strong>{obj.nome_lotacao}</strong> criada com sucesso!"
         })
-        response['HX-Trigger'] = 'updateLotacoesList'
+        response['HX-Trigger'] = 'updateContent'
         return response
 
     return render(request, 'partials/_generic_create_form.html', {
@@ -161,17 +150,6 @@ def dp_cargos_view(request):
     return render(request, 'painel/dp/cargos.html', context)
 
 @dp_required
-def cargos_list_view(request):
-    """View Parcial: Linhas da tabela de Cargos"""
-    cargos = Cargo.objects.all().order_by('hierarquia', 'nome_cargo')
-    
-    q = request.GET.get('q')
-    if q:
-        cargos = cargos.filter(nome_cargo__icontains=q)
-
-    return render(request, 'painel/dp/_partial_list_cargos.html', {'cargos': cargos})
-
-@dp_required
 def create_cargo_model_view(request):
     form = CargoForm(request.POST or None)
     
@@ -181,7 +159,7 @@ def create_cargo_model_view(request):
         response = render(request, 'partials/_message_sucess.html', {
             'message': f"Cargo <strong>{obj.nome_cargo}</strong> criado com sucesso!"
         })
-        response['HX-Trigger'] = 'updateCargosList'
+        response['HX-Trigger'] = 'updateContent'
         return response
 
     return render(request, 'partials/_generic_create_form.html', {
@@ -209,21 +187,6 @@ def dp_colaboradores_view(request):
     return render(request, 'painel/dp/colaboradores.html', context)
 
 @dp_required
-def colaboradores_list_view(request):
-    """View Parcial: Linhas da tabela de Colaboradores"""
-    colaboradores = CustomUser.objects.all().order_by('first_name')
-    
-    q = request.GET.get('q')
-    if q:
-        colaboradores = colaboradores.filter(
-            Q(first_name__icontains=q) | 
-            Q(email__icontains=q) | 
-            Q(matricula__icontains=q)
-        )
-
-    return render(request, 'painel/dp/_partial_list_colaboradores.html', {'colaboradores': colaboradores})
-
-@dp_required
 def dp_documentos_view(request):
     return redirect('indisponibilidade') # temporariamente indisponível
 
@@ -241,17 +204,6 @@ def dp_documentos_view(request):
     return render(request, 'painel/dp/documentos.html', context)
 
 @dp_required
-def documentos_list_view(request):
-    """View Parcial: Linhas da tabela de Documentos"""
-    documentos = TipoDocumento.objects.all().order_by('nome_documento')
-    
-    q = request.GET.get('q')
-    if q:
-        documentos = documentos.filter(nome_documento__icontains=q)
-
-    return render(request, 'painel/dp/_partial_list_documentos.html', {'documentos': documentos})
-
-@dp_required
 def dp_solicitacoes_view(request):
     solicitacoes = Solicitacao.objects.all().order_by('-data')
     
@@ -265,17 +217,3 @@ def dp_solicitacoes_view(request):
         return render(request, 'painel/dp/_content_solicitacoes.html', context)
     
     return render(request, 'painel/dp/solicitacoes.html', context)
-
-@dp_required
-def solicitacoes_list_view(request):
-    """View Parcial: Linhas da tabela de Solicitações (Atualização e Busca)"""
-    solicitacoes = Solicitacao.objects.all().order_by('-data')
-    
-    q = request.GET.get('q')
-    if q:
-        solicitacoes = solicitacoes.filter(
-            Q(colaborador__first_name__icontains=q) | 
-            Q(tipo_documento__nome_documento__icontains=q)
-        )
-
-    return render(request, 'painel/dp/_partial_list_solicitacoes.html', {'solicitacoes': solicitacoes})

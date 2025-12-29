@@ -1,6 +1,10 @@
 {% url 'administracao:create_cargo' as url_criar_cargo %}
 
-<section class="flex-1 flex flex-col gap-2 h-full">
+<section id="cargos"
+         hx-get="{% url 'administracao:cargos' %}"
+         hx-trigger="updateContent from:body"
+         hx-swap="innerHTML"
+         class="flex-1 flex flex-col gap-2 h-full">
     <header class="p-2">
         <h2 class="text-2xl font-bold">Gerenciar Cargos</h2>
     </header>
@@ -18,11 +22,20 @@
                                 <th class="p-2 text-left font-semibold">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="cargos-list"
-                               hx-get="{% url 'administracao:cargos_list' %}"
-                               hx-trigger="updateCargosList from:body"
-                               hx-swap="innerHTML">
-                            {% include "painel/dp/_partial_list_cargos.html" with cargos=cargos %}
+                        <tbody>
+                            {% for cargo in cargos %}
+                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ cargo.nome_cargo }}</td>
+                                <td class="p-2">{{ cargo.get_hierarquia_display }}</td>
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">
+                                    {% comment %} ações {% endcomment %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="py-2 text-center">Nenhum cargo encontrado.</td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>

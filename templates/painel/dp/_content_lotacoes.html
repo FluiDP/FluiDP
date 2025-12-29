@@ -1,6 +1,10 @@
 {% url 'administracao:create_lotacao' as url_criar_lotacao %}
 
-<section class="flex-1 flex flex-col gap-2 h-full">
+<section id="lotacoes"
+         hx-get="{% url 'administracao:lotacoes' %}"
+         hx-trigger="updateContent from:body"
+         hx-swap="innerHTML"
+         class="flex-1 flex flex-col gap-2 h-full">
     <header class="p-2">
         <h2 class="text-2xl font-bold">Gerenciar Lotações</h2>
     </header>
@@ -19,11 +23,19 @@
                                 <th class="p-2 text-left font-semibold">Editar</th>
                             </tr>
                         </thead>
-                        <tbody id="lotacoes-list"
-                               hx-get="{% url 'administracao:lotacoes_list' %}"
-                               hx-trigger="updateLotacoesList from:body"
-                               hx-swap="innerHTML">
-                            {% include "painel/dp/_partial_list_lotacoes.html" with lotacoes=lotacoes %}
+                        <tbody>
+                            {% for lotacao in lotacoes %}
+                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ lotacao.nome_lotacao }}</td>
+                                <td class="p-2 text-slate-400 italic">{{ lotacao.lotacao_fullname }}</td>
+                                <td class="p-2">{{ lotacao.chefia }}</td>
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full"></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="py-2 text-center">Nenhuma lotação encontrada.</td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
