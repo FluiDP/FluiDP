@@ -68,6 +68,8 @@ class Cargo(models.Model):
         choices=HierarquiaChoices.choices,
         default=HierarquiaChoices.PADRAO
     )
+    
+    arquivado = models.BooleanField(default=False)
 
     def __str__(self):
         return self.nome_cargo
@@ -101,6 +103,8 @@ class Lotacao(models.Model):
         null=True,
         blank=True
     )
+    
+    arquivado = models.BooleanField(default=False)
 
     def find_gestor_disponivel(self, solicitante=None, visited=None):
         if visited is None:
@@ -167,6 +171,8 @@ class CustomUser(AbstractUser):
     
     precisa_trocar_senha = models.BooleanField(default=False, help_text="Se True, obriga o usuário a trocar a senha no próximo login.")
 
+    arquivado = models.BooleanField(default=False)
+
     cargo = models.ForeignKey(
         Cargo,
         on_delete=models.PROTECT,
@@ -229,18 +235,20 @@ class TipoDocumento(models.Model):
     class Meta:
         verbose_name = "Tipo de Documento"
         verbose_name_plural = "Tipos de Documento"
-        
+    
     nome_documento = models.CharField(max_length=100)
     requer_aprovacao_gestor = models.BooleanField(default=False)
     requer_aprovacao_diretor = models.BooleanField(default=False)
     
     dia_inicio = models.PositiveSmallIntegerField(
+        default=1,
         null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(31)],
         help_text="Dia do mês que inicia o período (1-31). Ex: 1"
     )
 
     dia_fim = models.PositiveSmallIntegerField(
+        default=31,
         null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(31)],
         help_text="Dia do mês que encerra o período (1-31). Configure 31 para ir até o fim de qualquer mês."
@@ -252,6 +260,13 @@ class TipoDocumento(models.Model):
     )
     
     definicao_formulario = models.JSONField(default=list, blank=True)
+
+    disponivel = models.BooleanField(default=False, help_text="Se ativo, este tipo de documento pode ser selecionado para novas solicitações.")
+    
+    arquivado = models.BooleanField(default=False)
+
+    def ativo(self):
+        return self.disponivel and self.esta_no_periodo() and not self.arquivado
 
     def clean(self):
         super().clean()
@@ -275,7 +290,7 @@ class TipoDocumento(models.Model):
                 fonte = campo.get('options_source')
                 
                 if not fonte and len(opcoes) == 0:
-                     raise ValidationError(f"O campo '{campo.get('label')}' é do tipo seleção mas não possui opções nem fonte de dados.")
+                      raise ValidationError(f"O campo '{campo.get('label')}' é do tipo seleção mas não possui opções nem fonte de dados.")
         
         if (self.dia_inicio and not self.dia_fim) or (self.dia_fim and not self.dia_inicio):
             raise ValidationError("Para restringir datas, preencha tanto o Dia de Início quanto o Dia de Fim.")
@@ -306,6 +321,11 @@ class TipoDocumento(models.Model):
         1. Janela de Abertura (Dia do Mês).
         2. Antecedência Mínima (baseada no campo marcado com is_event_date).
         """
+        
+        if self.arquivado:
+             raise ValidationError(
+                f"O tipo de documento '{self.nome_documento}' foi descontinuado e não aceita novas solicitações."
+            )
 
         if not self.esta_no_periodo():
             raise ValidationError(
@@ -415,19 +435,14 @@ class Solicitacao(models.Model):
         """
         super().clean()
         if self.tipo_documento_id:
-            # Extrai apenas os valores do JSON (ignorando a definição de schema se estiver aninhada)
-            # Supondo estrutura: {'schema': [...], 'values': {'campo': 'valor'}}
             valores = self.dados_preenchidos.get('values', {})
             
-            # Se não houver chave 'values' (formato plano), usa o próprio dict
             if not valores and isinstance(self.dados_preenchidos, dict):
                 valores = self.dados_preenchidos
 
             self.tipo_documento.validar_regras(valores)
 
     def save(self, *args, **kwargs):
-        # Garante que as validações sejam executadas ao salvar,
-        # caso quem chame o save() não tenha chamado full_clean() antes.
         self.full_clean()
         super().save(*args, **kwargs)
 

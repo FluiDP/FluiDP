@@ -73,6 +73,21 @@
                                     <option value="{{ option.value }}">{{ option.label }}</option>
                                 {% endfor %}
                             </select>
+                            <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+                            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+
+                            <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const selects = document.querySelectorAll('select[data-searchable]');
+                                selects.forEach(select => {
+                                    new Choices(select, {
+                                        searchEnabled: true,
+                                        removeItemButton: true,
+                                        placeholderValue: 'Pesquise uma opção...'
+                                    });
+                                });
+                            });
+                            </script>
 
                         {% elif campo.type == 'radio' %}
                             <div class="mt-2 space-y-2">

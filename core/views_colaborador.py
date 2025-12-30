@@ -95,29 +95,42 @@ def get_create_solicitacao_select_view(request):
 @colaborador_required
 def get_create_solicitacao_form_view(request, tipo_doc_id):
     tipo_doc = get_object_or_404(TipoDocumento, id=tipo_doc_id)
-    campos_json = copy.deepcopy(tipo_doc.definicao_formulario)
     
-    for campo in campos_json:
-        source = campo.get("options_source")
-        
-        if source == "colaboradores_lotacao":
+    try:
+        if not tipo_doc.ativo():
+            raise Exception("Documento indisponível ou fora do prazo de solicitação.")
 
-            users = User.objects.filter(
-                lotacao=request.user.lotacao,
-                is_active=True
-            ).exclude(id=request.user.id).order_by('first_name')
-
-            campo['options'] = [
-                {'value': str(u.id), 'label': f"{u.first_name} {u.last_name or ''}"} 
-                for u in users
-            ]
+        campos_json = copy.deepcopy(tipo_doc.definicao_formulario)
+    
+        for campo in campos_json:
+            source = campo.get("options_source")
             
-    context = {
-        'tipo_documento': tipo_doc,
-        'campos_formulario': campos_json,
-    }
+            if source == "colaboradores_lotacao":
+
+                users = User.objects.filter(
+                    lotacao=request.user.lotacao,
+                    is_active=True
+                ).exclude(id=request.user.id).order_by('first_name')
+
+                campo['options'] = [
+                    {'value': str(u.id), 'label': f"{u.first_name} {u.last_name or ''}"} 
+                    for u in users
+                ]
+                
+        context = {
+            'tipo_documento': tipo_doc,
+            'campos_formulario': campos_json,
+        }
+        
+        return render(request, 'partials/_solicitacao_create_form.html', context)
     
-    return render(request, 'partials/_solicitacao_create_form.html', context)
+    except Exception as e:
+        url_retry = reverse('colaborador:get_create_solicitacao_form', args=[tipo_doc_id])
+        
+        return render(request, 'partials/_message_error.html', {
+            'message': f'Erro ao carregar o formulário: {e}',
+            'url_retry': url_retry
+        })
 
 @colaborador_required
 @require_POST 

@@ -26,6 +26,16 @@ class CustomPasswordResetView(auth_views.PasswordResetView):
     subject_template_name = 'emails/_reset_password_subject.txt'
     success_url = reverse_lazy('login')
 
+class CustomPasswordResetDoneView(auth_views.PasswordResetDoneView):
+    template_name = 'login/password_reset_done.html'
+
+class CustomPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
+    template_name = 'login/password_reset_confirm.html'
+    success_url = reverse_lazy('password_reset_complete')
+
+class CustomPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
+    template_name = 'login/password_reset_complete.html'
+
 def index_view(request):
     if request.user.is_authenticated:
         return redirect('painel')
