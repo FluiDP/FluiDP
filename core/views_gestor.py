@@ -113,7 +113,7 @@ def gestor_dashboard_view(request):
     minha_equipe = CustomUser.objects.filter(
         lotacao__in=minhas_lotacoes,
         is_active=True
-    ).exclude(id=user.id)
+    )
     
     # KPI 1: Pendências na minha mesa
     pendencias_comigo = Solicitacao.objects.filter(
@@ -149,7 +149,7 @@ def gestor_dashboard_view(request):
 
     context = {
         'usuario': user,
-        'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'is_aprovador': True,
         'kpi_pendencias': pendencias_comigo,
         'kpi_direcao': pendencias_direcao,
@@ -158,6 +158,7 @@ def gestor_dashboard_view(request):
         'solicitacoes_pendentes': solicitacoes_pendentes,
         'ranking_labels': ranking_labels,
         'ranking_data': ranking_data,
+        'active_link': 'dashboard',
     }
 
     if request.htmx:

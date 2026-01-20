@@ -2,91 +2,103 @@
      hx-get="{% url 'administracao:dashboard' %}"
      hx-trigger="updateContent from:body"
      hx-swap="innerHTML"
-     class="flex flex-1 flex-col space-y-2.5 animate-fade-in">
-    
-    <div class="grid grid-cols-1 md:grid-cols-3 space-x-2.5">
-        <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
-            <div class="z-10">
-                <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes do DP</p>
-                <h3 class="text-4xl font-bold text-indigo-600 mb-2">{{ kpi_pendencias }}</h3>
-                <p class="text-xs text-gray-400">Total de pendências do DP</p>
-            </div>
-            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-                <ion-icon name="time-outline" class="w-6 h-6"></ion-icon>
-            </div>
-        </div>
+     class="w-full h-full flex flex-col space-y-2.5">
 
-        <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
-            <div class="z-10">
-                <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes da Direção</p>
-                <h3 class="text-4xl font-bold text-orange-500 mb-2">{{ kpi_direcao }}</h3>
-                <p class="text-xs text-gray-400">Total de pendências da direção</p>
+    <div class="flex flex-col space-y-2.5 animate-fade-in">
+        <div class="grid grid-cols-1 md:grid-cols-3 space-x-2.5">
+            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
+                <div class="z-10">
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes do DP</p>
+                    <h3 class="text-4xl font-bold text-indigo-600 mb-2">{{ kpi_pendencias }}</h3>
+                    <p class="text-xs text-gray-400">Total de pendências do DP</p>
+                </div>
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <ion-icon name="time-outline" class="w-6 h-6"></ion-icon>
+                </div>
             </div>
-            <div class="p-3 bg-orange-50 text-orange-500 rounded-xl">
-                <ion-icon name="airplane-outline" class="w-6 h-6"></ion-icon>
-            </div>
-        </div>
 
-        <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
-            <div class="z-10">
-                <p class="text-sm font-semibold text-gray-500 mb-1">Solicitações em Fluxo</p>
-                <h3 class="text-4xl font-bold text-gray-700 mb-2">{{ kpi_fluxo }}</h3>
-                <p class="text-xs text-gray-400">Total de solicitações em aberto</p>
+            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
+                <div class="z-10">
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes da Direção</p>
+                    <h3 class="text-4xl font-bold text-orange-500 mb-2">{{ kpi_direcao }}</h3>
+                    <p class="text-xs text-gray-400">Total de pendências da direção</p>
+                </div>
+                <div class="p-3 bg-orange-50 text-orange-500 rounded-xl">
+                    <ion-icon name="hourglass-outline" class="w-6 h-6"></ion-icon>
+                </div>
             </div>
-            <div class="p-3 bg-gray-50 text-gray-600 rounded-xl">
-                <ion-icon name="hourglass-outline" class="w-6 h-6"></ion-icon>
+
+            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
+                <div class="z-10">
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Solicitações em Fluxo</p>
+                    <h3 class="text-4xl font-bold text-gray-700 mb-2">{{ kpi_fluxo }}</h3>
+                    <p class="text-xs text-gray-400">Total de solicitações em aberto</p>
+                </div>
+                <div class="p-3 bg-gray-50 text-gray-600 rounded-xl">
+                    <ion-icon name="document-attach-outline" class="w-6 h-6"></ion-icon>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 space-x-2.5 flex-1 h-full">
+    <div class="grid grid-cols-1 lg:grid-cols-3 space-x-2.5 flex-1 min-h-0">
         
-        <div class="lg:col-span-2 p-6 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col">
-            <h3 class="text-xl font-semibold pt-2 pb-2">Solicitações pendentes de minha aprovação</h3>
-            <div class="p-5 bg-slate-50 text-slate-600 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto">
-                <table class="w-full border-separate border-spacing-y-2">
-                    <thead>
-                        <tr class="x-2">
-                            <th class="p-2 text-left font-semibold">Solicitante</th>
-                            <th class="p-2 text-left font-semibold">Lotação</th>
-                            <th class="p-2 text-left font-semibold">Documento</th>
-                            <th class="p-2 text-left font-semibold">Data</th>
-                            <th class="p-2 text-left font-semibold">Informações</th>
-                            <th class="p-2 text-left font-semibold">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pendencias-list">
-                        {% for solicitacao in solicitacoes_pendentes %}
-                        <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
-                            <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ solicitacao.colaborador }}</td>
-                            <td class="p-2">{{ solicitacao.colaborador.lotacao }}</td>
-                            <td class="p-2">{{ solicitacao.tipo_documento }}</td>
-                            <td class="p-2">{{ solicitacao.data | date:'d/m/y' }}</td>
-                            
-                            <td class="p-2">
-                                {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
-                            </td>
-                            
-                            <td class="p-2 first:rounded-l-full last:rounded-r-full">
-                                {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="py-2 text-center">Nenhuma solicitação encontrada.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="lg:col-span-2 p-6 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col flex-1">
+            <div class="flex flex-1 flex-col h-full">
+                <h3 class="text-xl font-semibold pt-2 pb-2">Solicitações pendentes de minha aprovação</h3>
+                <div class="p-5 bg-slate-50 text-slate-600 box-border mt-1 mb-1 rounded-lg overflow-auto flex-1 min-h-0">
+                    <table class="w-full border-separate border-spacing-y-2">
+                        <thead>
+                            <tr class="x-2">
+                                <th class="p-2 text-left font-semibold">Solicitante</th>
+                                <th class="p-2 text-left font-semibold">Lotação</th>
+                                <th class="p-2 text-left font-semibold">Documento</th>
+                                <th class="p-2 text-left font-semibold">Data</th>
+                                <th class="p-2 text-left font-semibold">Informações</th>
+                                <th class="p-2 text-left font-semibold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendencias-list">
+                            {% for solicitacao in solicitacoes_pendentes %}
+                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">{{ solicitacao.colaborador }}</td>
+                                <td class="p-2 whitespace-nowrap">{{ solicitacao.colaborador.lotacao }}</td>
+                                <td class="p-2 whitespace-nowrap">{{ solicitacao.tipo_documento }}</td>
+                                <td class="p-2 whitespace-nowrap">{{ solicitacao.data | date:'d/m/y' }}</td>
+                                
+                                <td class="p-2 whitespace-nowrap">
+                                    {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
+                                </td>
+                                
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="py-2 text-center">Nenhuma solicitação encontrada.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <div class="flex flex-col space-y-2.5 lg:h-full">
+        <div class="flex flex-col space-y-2.5">
             
             <div class="bg-white rounded-2xl shadow-sm border border-white flex flex-col flex-1 p-6">
-                <div class="border-b border-gray-50 pb-2 mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">Por Tipo</h3>
-                    <p class="text-sm text-gray-400">Volume por documento</p>
+                <div class="flex pb-2 justify-between border-b border-gray-50">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">Por Tipo</h3>
+                        <p class="text-sm text-gray-400">Volume por documento</p>
+                    </div>
+
+                    <a href="{% url 'relatorio_geral' %}" target="_blank" 
+                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                        <ion-icon name="document-text-outline" class="w-4 h-4"></ion-icon>
+                        Relatório Completo
+                    </a>
                 </div>
                 <div class="flex-1 relative w-full min-h-[200px]">
                     {% if distribuicao_tipos %}
@@ -100,10 +112,19 @@
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-white flex flex-col flex-1 p-6">
-                <div class="border-b border-gray-50 pb-2 mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">Por Setor</h3>
-                    <p class="text-sm text-gray-400">Top 5 setores solicitantes</p>
+                <div class="flex pb-2 justify-between border-b border-gray-50">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">Por Setor</h3>
+                        <p class="text-sm text-gray-400">Top 5 setores solicitantes</p>
+                    </div>
+
+                    <a href="{% url 'relatorio_geral' %}" target="_blank" 
+                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                        <ion-icon name="document-text-outline" class="w-4 h-4"></ion-icon>
+                        Relatório Completo
+                    </a>
                 </div>
+                
                 <div class="flex-1 relative w-full min-h-[200px]">
                     {% if distribuicao_setores %}
                         <canvas id="setorChart"></canvas>

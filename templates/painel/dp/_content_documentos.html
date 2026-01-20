@@ -20,26 +20,51 @@
                                 <th class="p-2 text-left font-semibold">Nome</th>
                                 <th class="p-2 text-left font-semibold">Período</th>
                                 <th class="p-2 text-left font-semibold">Tempo de Antecedência</th>
-                                <th class="p-2 text-left font-semibold">Editar</th>
-                                <th class="p-2 text-left font-semibold">Formulário</th>
+                                <th class="p-2 text-left font-semibold">Status</th>
+                                <th class="p-2 text-left font-semibold">Visualizar</th>
+                                <th class="p-2 text-left font-semibold">Ações</th>
                             </tr>
                         </thead>
                         <tbody >
                             {% for documento in documentos %}
+                            
+                            {% url 'administracao:edit_documento' documento.id as url_editar_documento %}
+                            {% url 'administracao:archive_documento' documento.id as url_arquivar_documento %}
+                            {% url 'administracao:delete_documento' documento.id as url_deletar_documento %}
+
                             <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ documento.nome_documento }}</td>
-                                {% if documento.data_inicio %}
-                                    <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ documento.data_inicio }} - {{ documento.data_fim }}</td>
+                                {% if documento.dia_inicio != 1 or documento.dia_fim != 31 %}
+                                    <td class="p-2 first:rounded-l-full last:rounded-r-full">Desde o dia {{ documento.dia_inicio }} até o dia {{ documento.dia_fim }}</td>
                                 {% else %}
                                     <td class="p-2">Todo período</td>
                                 {% endif %}
-                                {% if documento.data_inicio %}
+                                {% if documento.limite_dias_antecedencia > 0 %}
                                     <td class="p-2">{{ documento.limite_dias_antecedencia }} dias antes</td>
                                 {% else %}
                                     <td class="p-2">Sem limite mínimo</td>
                                 {% endif %}
-                                <td class="p-2"></td>
-                                <td class="p-2 first:rounded-l-full last:rounded-r-full"></td>
+                                <td class="p-2">
+                                    {% if documento.disponivel %}
+                                        {% if documento.is_empty_form %}
+                                            <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">Sem formulário definido</span>
+                                        {% else %}
+                                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Disponível para o colaborador</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">Indisponível para o colaborador</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-2">
+                                    {% include "partials/_documento_visualizer_button.html" %}
+                                </td>
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">
+                                    <div>
+                                        {% include "partials/_generic_edit_button.html" with item=documento url=url_editar_documento %}
+                                        {% include "partials/_generic_archive_button.html" with item=documento url=url_arquivar_documento %}
+                                        {% include "partials/_generic_delete_button.html" with item=documento url=url_deletar_documento %}
+                                    </div>
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>

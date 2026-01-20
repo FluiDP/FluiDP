@@ -1,3 +1,4 @@
+import datetime
 from django.utils import timezone
 from django.utils.text import slugify
 from shutil import copy
@@ -9,8 +10,9 @@ from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from core.views_colaborador import User
-from .models import Cargo, Solicitacao
+from .models import Cargo, CustomUser, Lotacao, Solicitacao, TipoDocumento
 from django.contrib.auth import logout as auth_logout
+from django.db.models import Count, Q
 from xhtml2pdf import pisa
 
 class CustomLoginView(auth_views.LoginView):
@@ -62,7 +64,7 @@ def painel_view(request):
 def perfil_view(request):
     context = {
         'usuario': request.user,
-        'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
     }
 
     hierarquia = Cargo.objects.get(id=request.user.cargo.id).hierarquia
@@ -90,7 +92,7 @@ def logout_view(request):
 def indisponibilidade_view(request):
     context = {
         'usuario': request.user,
-        'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
     }
 
     hierarquia = Cargo.objects.get(id=request.user.cargo.id).hierarquia
@@ -119,7 +121,7 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
     campos_formatados = []
     
     colaboradores_lotacao = {
-        str(u.id): f"{u.first_name} {u.last_name or ''}".strip() or u.username 
+        str(u.id): f"{u.first_name}".strip() or u.username 
         for u in User.objects.filter(lotacao=solicitacao.colaborador.lotacao)
     }
 
@@ -174,3 +176,88 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
        return HttpResponse('Ocorreu um erro ao gerar o PDF <pre>' + html_string + '</pre>')
     
     return response
+
+@login_required
+def relatorio_geral_view(request):
+    user = request.user
+    
+    minhas_lotacoes = set()
+    q_lotacoes = Lotacao.objects.filter(
+        Q(chefia=user) | Q(chefia_secundaria=user, chefia__isnull=True)
+    )
+    
+    for lotacao in q_lotacoes:
+        if not lotacao.arquivado:
+            minhas_lotacoes.add(lotacao)
+            minhas_lotacoes.update(lotacao.get_descendentes(include_self=True))
+
+    if (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR) or user.groups.filter(name='DP').exists():
+        minhas_lotacoes = set(Lotacao.objects.filter(arquivado=False))
+
+    hoje = timezone.now().date()
+    padrao_inicio = hoje.replace(day=1)
+    proximo_mes = (padrao_inicio.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
+    padrao_fim = proximo_mes - datetime.timedelta(days=1)
+    
+    data_inicio_str = request.GET.get('data_inicio', padrao_inicio.strftime('%Y-%m-%d'))
+    data_fim_str = request.GET.get('data_fim', padrao_fim.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.datetime.strptime(data_inicio_str, '%Y-%m-%d')
+        data_fim_base = datetime.datetime.strptime(data_fim_str, '%Y-%m-%d')
+        data_fim = data_fim_base.replace(hour=23, minute=59, second=59)
+    except ValueError:
+        data_inicio = datetime.datetime.combine(padrao_inicio, datetime.time.min)
+        data_fim = datetime.datetime.combine(padrao_fim, datetime.time.max)
+
+    qs_base = Solicitacao.objects.filter(
+        colaborador__lotacao__in=minhas_lotacoes,
+        arquivado=False,
+        data__range=(data_inicio, data_fim)
+    )
+
+    docs_scoped = qs_base.values('tipo_documento__nome_documento')\
+        .annotate(total=Count('id')).order_by('-total')[:5]
+    
+    lotacoes_scoped = qs_base.values('colaborador__lotacao__nome_lotacao')\
+        .annotate(total=Count('id')).order_by('-total')[:5]
+
+    ranking_data = []
+    
+    colab_ids = qs_base.values_list('colaborador', flat=True).distinct()
+    colaboradores = CustomUser.objects.filter(id__in=colab_ids)
+    
+    for colab in colaboradores:
+        qs_colab = qs_base.filter(colaborador=colab)
+        total = qs_colab.count()
+        
+        top_tipos = qs_colab.values('tipo_documento__nome_documento')\
+            .annotate(qtd=Count('id'))\
+            .order_by('-qtd')
+            
+        lista_textos = [f"{t['tipo_documento__nome_documento']} ({t['qtd']})" for t in top_tipos]
+        texto_principais = ", ".join(lista_textos)
+        
+        ranking_data.append({
+            'colaborador': colab,
+            'total': total,
+            'texto_principais': texto_principais
+        })
+    
+    ranking_data.sort(key=lambda x: x['total'], reverse=True)
+    
+    for idx, item in enumerate(ranking_data, 1):
+        item['posicao'] = idx
+
+    context = {
+        'ranking_data': ranking_data,
+        'data_inicio': data_inicio_str,
+        'data_fim': data_fim_str,
+        'chart_docs_labels': [x['tipo_documento__nome_documento'] for x in docs_scoped],
+        'chart_docs_data': [x['total'] for x in docs_scoped],
+        'chart_lot_labels': [x['colaborador__lotacao__nome_lotacao'] for x in lotacoes_scoped],
+        'chart_lot_data': [x['total'] for x in lotacoes_scoped],
+        'data_impressao': timezone.now()
+    }
+
+    return render(request, 'pdf/_report_geral.html', context)

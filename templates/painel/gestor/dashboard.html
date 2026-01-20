@@ -7,7 +7,7 @@
 {% block page_content %}
     
     <div id="dashboard-content"
-         class="flex flex-1"
+         class="flex flex-1 h-full space-y-2.5"
          hx-get="{% url 'gestor:dashboard' %}" 
          hx-trigger="updateContent from:body"
          hx-swap="innerHTML">

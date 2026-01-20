@@ -26,13 +26,22 @@
                         </thead>
                         <tbody>
                             {% for colaborador in colaboradores %}
+                            
+                            {% url 'administracao:edit_colaborador' colaborador.id as url_editar_colaborador %}
+                            {% url 'administracao:archive_colaborador' colaborador.id as url_arquivar_colaborador %}
+                            {% url 'administracao:delete_colaborador' colaborador.id as url_deletar_colaborador %}
+
                             <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ colaborador.matricula }}</td>
-                                <td class="p-2">{{ colaborador.first_name }} {{ colaborador.last_name }}</td>
+                                <td class="p-2">{{ colaborador.first_name }}</td>
                                 <td class="p-2">{{ colaborador.cargo }}</td>
-                                <td class="p-2">{{ colaborador.lotacao.lotacao_fullname }}</td>
+                                <td class="p-2">{{ colaborador.lotacao }}</td>
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">
-                                    {% comment %} ações {% endcomment %}
+                                    <div>
+                                        {% include "partials/_generic_edit_button.html" with item=colaborador url=url_editar_colaborador %}
+                                        {% include "partials/_generic_archive_button.html" with item=colaborador url=url_arquivar_colaborador %}
+                                        {% include "partials/_generic_delete_button.html" with item=colaborador url=url_deletar_colaborador %}
+                                    </div>
                                 </td>
                             </tr>
                             {% empty %}

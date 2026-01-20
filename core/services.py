@@ -42,6 +42,12 @@ def _pode_ator_aprovar(solicitacao: Solicitacao, ator: CustomUser, request_user:
 
         if status == Solicitacao.StatusChoices.PENDENTE_DP:
             return ator.groups.filter(name='DP').exists()
+        
+    if status == Solicitacao.StatusChoices.PENDENTE_DP:
+        return ator.groups.filter(name='DP').exists()
+    
+    if solicitacao.aprovador_atual == ator:
+        return ator.cargo and ator.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
 
     return False
 

@@ -32,7 +32,7 @@ def colaborador_painel_view(request):
 
     context = {
         'usuario': request.user,
-        'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         
         'solicitacoes': Solicitacao.objects.filter(
             colaborador=q_usuario_envolvido
@@ -45,7 +45,8 @@ def colaborador_painel_view(request):
         
         'solicitacoes_pendentes': Solicitacao.objects.filter(
             q_solicitacoes_pendentes
-        ).distinct().order_by('-data')
+        ).distinct().order_by('-data'),
+        'active_link': 'dashboard'
     }
 
     if request.htmx:
@@ -60,10 +61,11 @@ def colaborador_solicitacoes_view(request):
 
     context = {
         'usuario': request.user,
-        'usuario_tagname': request.user.first_name.split()[-1] if request.user.first_name else request.user.username,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'solicitacoes': Solicitacao.objects.filter(
             q_usuario_envolvido
         ).distinct().order_by('-data'),
+        'active_link': 'solicitacoes'
     }
 
     if request.user.cargo.hierarquia in [
@@ -88,6 +90,7 @@ def get_create_solicitacao_select_view(request):
     
     context = {
         'tipos_documento': TipoDocumento.objects.all(),
+        'active_link': 'solicitacoes',
     }
     
     return render(request, 'partials/_solicitacao_create_select_doc.html', context)
@@ -113,13 +116,14 @@ def get_create_solicitacao_form_view(request, tipo_doc_id):
                 ).exclude(id=request.user.id).order_by('first_name')
 
                 campo['options'] = [
-                    {'value': str(u.id), 'label': f"{u.first_name} {u.last_name or ''}"} 
+                    {'value': str(u.id), 'label': f"{u.first_name}"}
                     for u in users
                 ]
                 
         context = {
             'tipo_documento': tipo_doc,
             'campos_formulario': campos_json,
+            'active_link': 'solicitacoes',
         }
         
         return render(request, 'partials/_solicitacao_create_form.html', context)
@@ -202,7 +206,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     ).order_by('first_name')
 
     opcoes_colaboradores = [
-        {'value': str(c.id), 'label': f"{c.first_name} {c.last_name or ''}".strip() or c.username} 
+        {'value': str(c.id), 'label': f"{c.first_name}".strip() or c.username}
         for c in colaboradores_query
     ]
 
@@ -219,7 +223,8 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
         'solicitacao': solicitacao,
         'tipo_documento': solicitacao.tipo_documento,
         'campos_formulario': campos_com_valores,
-        'pode_aprovar': pode_aprovar
+        'pode_aprovar': pode_aprovar,
+        'active_link': 'solicitacoes',
     }
     
     return render(request, 'partials/_solicitacao_detalhes.html', context)
@@ -232,6 +237,7 @@ def get_solicitacao_logs_view(request, solicitacao_id):
     context = {
         'solicitacao': solicitacao,
         'logs': logs,
+        'active_link': 'solicitacoes',
     }
 
     return render(request, 'partials/_solicitacao_detalhes_logs.html', context)

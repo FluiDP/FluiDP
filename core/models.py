@@ -63,13 +63,14 @@ class Cargo(models.Model):
         COORDENADOR = 3, 'Coordenador'
         PADRAO = 4, 'Padrão'
 
-    nome_cargo = models.CharField(max_length=100)
+    nome_cargo = models.CharField(verbose_name="Nome do Cargo", max_length=100)
     hierarquia = models.IntegerField(
+        verbose_name="Nível Hierárquico",
         choices=HierarquiaChoices.choices,
         default=HierarquiaChoices.PADRAO
     )
-    
-    arquivado = models.BooleanField(default=False)
+
+    arquivado = models.BooleanField(verbose_name="Arquivar?", default=False)
 
     def __str__(self):
         return self.nome_cargo
@@ -79,10 +80,11 @@ class Lotacao(models.Model):
         verbose_name = "Lotação"
         verbose_name_plural = "Lotações"
 
-    nome_lotacao = models.CharField(max_length=100)
+    nome_lotacao = models.CharField(verbose_name="Nome da Lotação", max_length=100)
 
     chefia = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        verbose_name="Chefia da Lotação",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -91,6 +93,7 @@ class Lotacao(models.Model):
 
     chefia_secundaria = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        verbose_name="Chefia Secundária",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -99,12 +102,25 @@ class Lotacao(models.Model):
 
     lotacao_pai = models.ForeignKey(
         'self',
+        verbose_name="Lotação Pai",
         on_delete=models.PROTECT,
         null=True,
         blank=True
     )
     
-    arquivado = models.BooleanField(default=False)
+    arquivado = models.BooleanField(verbose_name="Arquivar?", default=False)
+
+    def get_lotacao_raiz(self, _vistos=None):
+        if _vistos is None:
+            _vistos = set()
+        identificador = self.pk if self.pk is not None else id(self)
+        if identificador in _vistos:
+            return self
+        _vistos.add(identificador)
+        
+        if self.lotacao_pai:
+            return self.lotacao_pai.get_lotacao_raiz(_vistos=_vistos)
+        return self
 
     def find_gestor_disponivel(self, solicitante=None, visited=None):
         if visited is None:
@@ -125,7 +141,7 @@ class Lotacao(models.Model):
         if self.lotacao_pai:
             return self.lotacao_pai.find_gestor_disponivel(solicitante=solicitante, visited=visited)
             
-        return None
+        return self.get_lotacao_raiz().chefia if self.get_lotacao_raiz().chefia else None
 
     def lotacao_nome(self, separador=' > ', _vistos=None):
         if _vistos is None:
@@ -164,17 +180,16 @@ class CustomUser(AbstractUser):
         verbose_name = "Usuário"
         verbose_name_plural = "Usuários"
         
-    cpf = models.CharField(max_length=11, unique=True, null=True, blank=True)
-    matricula = models.CharField(max_length=10, unique=True, null=True, blank=True)
-    ausencia_inicio = models.DateField(null=True, blank=True)
-    ausencia_fim = models.DateField(null=True, blank=True)
-    
-    precisa_trocar_senha = models.BooleanField(default=False, help_text="Se True, obriga o usuário a trocar a senha no próximo login.")
+    cpf = models.CharField(verbose_name="CPF", max_length=11, unique=True, null=True, blank=True)
+    matricula = models.CharField(verbose_name="Matrícula", max_length=10, unique=True, null=True, blank=True)
+    ausencia_inicio = models.DateField(verbose_name="Início do Período de Ausência", null=True, blank=True)
+    ausencia_fim = models.DateField(verbose_name="Fim do Período de Ausência", null=True, blank=True)
 
-    arquivado = models.BooleanField(default=False)
+    precisa_trocar_senha = models.BooleanField(verbose_name="Precisa trocar senha?", default=False, help_text="Se True, obriga o usuário a trocar a senha no próximo login.")
 
     cargo = models.ForeignKey(
         Cargo,
+        verbose_name="Cargo",
         on_delete=models.PROTECT,
         null=True,
         blank=True
@@ -182,6 +197,7 @@ class CustomUser(AbstractUser):
 
     lotacao = models.ForeignKey(
         Lotacao,
+        verbose_name="Lotação",
         on_delete=models.PROTECT,
         null=True,
         blank=True
@@ -229,19 +245,20 @@ class CustomUser(AbstractUser):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.first_name + ' ' + self.last_name if self.first_name and self.last_name else self.username
+        return self.first_name  + ' (' + self.matricula + ')' if self.first_name and self.matricula else self.first_name or self.username
 
 class TipoDocumento(models.Model):
     class Meta:
         verbose_name = "Tipo de Documento"
         verbose_name_plural = "Tipos de Documento"
     
-    nome_documento = models.CharField(max_length=100)
-    requer_aprovacao_gestor = models.BooleanField(default=False)
-    requer_aprovacao_diretor = models.BooleanField(default=False)
-    
+    nome_documento = models.CharField(verbose_name="Nome do Documento", max_length=100)
+    requer_aprovacao_gestor = models.BooleanField(verbose_name="Requer aprovação do gestor?", default=True)
+    requer_aprovacao_diretor = models.BooleanField(verbose_name="Requer aprovação do diretor?", default=True)
+
     dia_inicio = models.PositiveSmallIntegerField(
         default=1,
+        verbose_name="Dia do mês de início do período de solicitação",
         null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(31)],
         help_text="Dia do mês que inicia o período (1-31). Ex: 1"
@@ -249,21 +266,28 @@ class TipoDocumento(models.Model):
 
     dia_fim = models.PositiveSmallIntegerField(
         default=31,
+        verbose_name="Dia do mês de fim do período de solicitação",
         null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(31)],
         help_text="Dia do mês que encerra o período (1-31). Configure 31 para ir até o fim de qualquer mês."
     )
     
     limite_dias_antecedencia = models.IntegerField(
+        default=0,
+        verbose_name="Dias de antecedência necessários",
         null=True, blank=True,
         help_text="Mínimo de dias entre hoje e a data do evento (ex: troca de plantão)."
     )
     
     definicao_formulario = models.JSONField(default=list, blank=True)
 
-    disponivel = models.BooleanField(default=False, help_text="Se ativo, este tipo de documento pode ser selecionado para novas solicitações.")
+    disponivel = models.BooleanField(
+        default=True,
+        verbose_name="Documento disponível para o colaborador?",
+        help_text="Se ativo, este tipo de documento pode ser selecionado para novas solicitações."
+    )
     
-    arquivado = models.BooleanField(default=False)
+    arquivado = models.BooleanField(verbose_name="Arquivar?", default=False)
 
     def ativo(self):
         return self.disponivel and self.esta_no_periodo() and not self.arquivado
@@ -293,7 +317,7 @@ class TipoDocumento(models.Model):
                       raise ValidationError(f"O campo '{campo.get('label')}' é do tipo seleção mas não possui opções nem fonte de dados.")
         
         if (self.dia_inicio and not self.dia_fim) or (self.dia_fim and not self.dia_inicio):
-            raise ValidationError("Para restringir datas, preencha tanto o Dia de Início quanto o Dia de Fim.")
+            raise ValidationError("Para restringir datas, preencha tanto o dia de início quanto o dia de fim. Se não quiser restringir indique dia 1 como dia de início e dia 31 como dia de fim.")
             
         if self.dia_inicio and self.dia_fim:
             if self.dia_inicio > self.dia_fim:
@@ -354,6 +378,9 @@ class TipoDocumento(models.Model):
                     except ValueError:
                         pass 
 
+    def is_empty_form(self):
+        return len(self.definicao_formulario) == 0
+
     def __str__(self):
         return self.nome_documento
 
@@ -393,6 +420,7 @@ class Solicitacao(models.Model):
         return self.status == self.StatusChoices.APROVADO
     
     status = models.CharField(
+        verbose_name="Status da Solicitação",
         max_length=50,
         choices=StatusChoices.choices,
         default=StatusChoices.PENDENTE_GESTOR
@@ -400,12 +428,14 @@ class Solicitacao(models.Model):
 
     colaborador = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        verbose_name="Colaborador Solicitante",
         on_delete=models.PROTECT,
         related_name='solicitacoes_criadas'
     )
     
     colaborador_secundario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        verbose_name="Colaborador Secundário",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -414,19 +444,24 @@ class Solicitacao(models.Model):
     
     tipo_documento = models.ForeignKey(
         TipoDocumento,
+        verbose_name="Tipo de Documento",
         on_delete=models.PROTECT
     )
     
     aprovador_atual = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        verbose_name="Aprovador Atual",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name='aprovacoes_pendentes'
     )
 
-    dados_preenchidos = models.JSONField(default=dict, blank=True)
+    dados_preenchidos = models.JSONField(verbose_name="Dados Preenchidos", default=dict, blank=True)
+
     data = models.DateTimeField(auto_now_add=True)
+
+    arquivado = models.BooleanField(verbose_name="Arquivar?", default=False)
 
     def clean(self):
         """

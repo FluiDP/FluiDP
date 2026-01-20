@@ -47,3 +47,5 @@ instance/
 *.db
 
 import
+
+json_forms/
