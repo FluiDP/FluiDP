@@ -186,8 +186,10 @@ def criar_solicitacao(colaborador: CustomUser, tipo_documento, dados_preenchidos
 def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_busca_fk=None):
     """
     Importa dados de arquivos Excel ou CSV para um modelo Django, com tratamento para chaves estrangeiras e usuários.
+    Cria Lotações e Cargos automaticamente se não existirem (apenas no contexto de importação de Usuários).
     """
     User = get_user_model()
+    is_user_import = (model_class == User) or (model_class.__name__ == 'CustomUser')
 
     if nome_arquivo.lower().endswith('.csv'):
         df = pd.read_csv(arquivo_io, sep=',', encoding='utf-8')
@@ -208,6 +210,7 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
             for index, row in df.iterrows():
                 linha = index + 2
                 dados_para_salvar = {}
+                lotacao_recem_criada = None 
 
                 try:
                     for coluna_excel, config_modelo in mapa_de_campos.items():
@@ -228,16 +231,44 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                             
                             if valor_celula:
                                 obj_fk = model_fk.objects.filter(**{campo_busca: valor_celula}).first()
+                                
+                                if not obj_fk and is_user_import:
+                                    valor_str = str(valor_celula).strip()
+                                    valor_upper = valor_str.upper()
+
+                                    if model_fk.__name__ == 'Cargo':
+                                        hierarquia = 4
+                                        
+                                        if 'DIR' in valor_upper:
+                                            hierarquia = 1
+                                        elif 'GEREN' in valor_upper:
+                                            hierarquia = 2
+                                        elif 'COORD' in valor_upper:
+                                            hierarquia = 3
+                                        
+                                        obj_fk = model_fk.objects.create(**{
+                                            campo_busca: valor_str,
+                                            'hierarquia': hierarquia
+                                        })
+                                    
+                                    elif model_fk.__name__ == 'Lotacao':
+                                        obj_fk = model_fk.objects.create(**{
+                                            campo_busca: valor_str
+                                        })
+                                        
+                                        if campo_no_modelo == 'lotacao':
+                                            lotacao_recem_criada = obj_fk
+
                                 if not obj_fk:
-                                    raise ValueError(f"FK não encontrada: '{valor_celula}' para o campo {campo_no_modelo}")
+                                    raise ValueError(f"FK não encontrada e não pôde ser criada: '{valor_celula}' para o campo {campo_no_modelo}")
+                                
                                 dados_para_salvar[campo_no_modelo] = obj_fk
                             else:
                                 dados_para_salvar[campo_no_modelo] = None
                     
-                    is_usuario = (model_class == User) or (model_class.__name__ == 'CustomUser')
                     senha_foi_injetada = False
 
-                    if is_usuario:
+                    if is_user_import:
                         if ('username' not in dados_para_salvar or not dados_para_salvar['username']) and 'email' in dados_para_salvar:
                             dados_para_salvar['username'] = dados_para_salvar['email']
                         
@@ -249,7 +280,6 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                             senha_foi_injetada = True
 
                     if campo_busca_fk:
-
                         filtro_busca = {k: dados_para_salvar[k] for k in campo_busca_fk if k in dados_para_salvar}
                         
                         if not filtro_busca:
@@ -263,7 +293,29 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                         obj = model_class.objects.create(**dados_para_salvar)
                         created = True
 
-                    if is_usuario:
+                    if is_user_import and lotacao_recem_criada and obj.cargo:
+                        nome_cargo = obj.cargo.nome_cargo.upper()
+                        nome_lotacao = lotacao_recem_criada.nome_lotacao.upper()
+                        
+                        is_chefia = False
+                        
+                        # Regra 1: Diretor
+                        if ('DIR' in nome_cargo) and nome_lotacao.startswith('DIR'):
+                            is_chefia = True
+                        
+                        # Regra 2: Gerente
+                        elif ('GEREN' in nome_cargo) and nome_lotacao.startswith('GEREN'):
+                            is_chefia = True
+
+                        # Regra 3: Coordenador
+                        elif ('COORD' in nome_cargo) and nome_lotacao.startswith('COORD'):
+                            is_chefia = True
+                        
+                        if is_chefia:
+                            lotacao_recem_criada.chefia = obj
+                            lotacao_recem_criada.save()
+
+                    if is_user_import:
                         precisa_salvar_senha = False
                         
                         if senha_foi_injetada or created:

@@ -185,7 +185,7 @@ def archive_lotacao_modal_view(request, pk):
 
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Arquivar Lotação',
-        'message': f"Deseja arquivar a lotação <strong>{lotacao.nome_lotacao}</strong>?",
+        'message': f"Deseja arquivar a lotação {lotacao.nome_lotacao}?",
         'action_url': reverse('administracao:archive_lotacao', args=[pk]),
         'submit_text': 'Arquivar',
         'color': 'orange',
@@ -207,7 +207,7 @@ def delete_lotacao_view(request, pk):
 
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Excluir Lotação',
-        'message': f"Excluir permanentemente <strong>{lotacao.nome_lotacao}</strong>?",
+        'message': f"Excluir permanentemente {lotacao.nome_lotacao}?",
         'action_url': reverse('administracao:delete_lotacao', args=[pk]),
         'submit_text': 'Excluir',
         'color': 'red',
@@ -276,13 +276,13 @@ def archive_cargo_modal_view(request, pk):
     if request.method == 'POST':
         cargo.arquivado = True
         cargo.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo <strong>{cargo.nome_cargo}</strong> arquivado!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo {cargo.nome_cargo} arquivado!"})
         response['HX-Trigger'] = 'updateContent'
         return response
     
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Arquivar Cargo',
-        'message': f"Deseja arquivar o cargo <strong>{cargo.nome_cargo}</strong>?",
+        'message': f"Deseja arquivar o cargo {cargo.nome_cargo}?",
         'action_url': reverse('administracao:archive_cargo', args=[pk]),
         'submit_text': 'Arquivar',
         'color': 'orange',
@@ -297,7 +297,7 @@ def delete_cargo_view(request, pk):
         try:
             nome = cargo.nome_cargo
             cargo.delete()
-            response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo <strong>{nome}</strong> excluído!"})
+            response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo {nome} excluído!"})
             response['HX-Trigger'] = 'updateContent'
             return response
         except Exception:
@@ -305,7 +305,7 @@ def delete_cargo_view(request, pk):
     
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Excluir Cargo',
-        'message': f"Deseja excluir permanentemente o cargo <strong>{cargo.nome_cargo}</strong>?",
+        'message': f"Deseja excluir permanentemente o cargo {cargo.nome_cargo}?",
         'action_url': reverse('administracao:delete_cargo', args=[pk]),
         'submit_text': 'Excluir',
         'color': 'red',
@@ -387,7 +387,7 @@ def archive_colaborador_modal_view(request, pk):
         
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Arquivar Colaborador',
-        'message': f"Deseja arquivar <strong>{colaborador.get_full_name()}</strong>?",
+        'message': f"Deseja arquivar {colaborador.get_full_name()}?",
         'action_url': reverse('administracao:archive_colaborador', args=[pk]),
         'submit_text': 'Arquivar',
         'color': 'orange',
@@ -401,13 +401,13 @@ def delete_colaborador_view(request, pk):
     if request.method == 'POST':
         nome = colaborador.get_full_name()
         colaborador.delete()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador <strong>{nome}</strong> excluído!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador {nome} excluído!"})
         response['HX-Trigger'] = 'updateContent'
         return response
         
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Excluir Colaborador',
-        'message': f"Excluir permanentemente <strong>{colaborador.get_full_name()}</strong>?",
+        'message': f"Excluir permanentemente {colaborador.get_full_name()}?",
         'action_url': reverse('administracao:delete_colaborador', args=[pk]),
         'submit_text': 'Excluir',
         'color': 'red',
@@ -482,7 +482,7 @@ def archive_documento_modal_view(request, pk):
     
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Arquivar Documento',
-        'message': f"Deseja arquivar o documento <strong>{documento.nome_documento}</strong>?",
+        'message': f"Deseja arquivar o documento {documento.nome_documento}?",
         'action_url': reverse('administracao:archive_documento', args=[pk]),
         'submit_text': 'Arquivar',
         'color': 'orange',
@@ -497,7 +497,7 @@ def delete_documento_view(request, pk):
         try:
             nome = documento.nome_documento
             documento.delete()
-            response = render(request, 'partials/_message_sucess.html', {'message': f"Documento <strong>{nome}</strong> excluído!"})
+            response = render(request, 'partials/_message_sucess.html', {'message': f"Documento {nome} excluído!"})
             response['HX-Trigger'] = 'updateContent'
             return response
         except Exception:
@@ -505,7 +505,7 @@ def delete_documento_view(request, pk):
     
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Excluir Documento',
-        'message': f"ATENÇÃO: Deseja excluir permanentemente <strong>{documento.nome_documento}</strong>?",
+        'message': f"ATENÇÃO: Deseja excluir permanentemente {documento.nome_documento}?",
         'action_url': reverse('administracao:delete_documento', args=[pk]),
         'submit_text': 'Excluir',
         'color': 'red',
