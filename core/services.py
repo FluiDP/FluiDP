@@ -1,3 +1,4 @@
+import re
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from .models import LogAprovacao, Solicitacao, Cargo, CustomUser, Lotacao
@@ -185,11 +186,9 @@ def criar_solicitacao(colaborador: CustomUser, tipo_documento, dados_preenchidos
 
 def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_busca_fk=None):
     """
-    Importa dados de arquivos Excel ou CSV para um modelo Django, com tratamento para chaves estrangeiras e usuários.
-    Cria Lotações e Cargos automaticamente se não existirem (apenas no contexto de importação de Usuários).
+    Importa dados com tratamento para CPF numérico, Username=Matrícula e auto-criação de FKs.
     """
     User = get_user_model()
-    is_user_import = (model_class == User) or (model_class.__name__ == 'CustomUser')
 
     if nome_arquivo.lower().endswith('.csv'):
         df = pd.read_csv(arquivo_io, sep=',', encoding='utf-8')
@@ -203,14 +202,13 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
     sucesso = 0
     erros = []
     
-    SENHA_PADRAO = 'Ti!@0101'
+    SENHA_PADRAO = 'Mudar@123'
 
     try:
         with transaction.atomic():
             for index, row in df.iterrows():
                 linha = index + 2
                 dados_para_salvar = {}
-                lotacao_recem_criada = None 
 
                 try:
                     for coluna_excel, config_modelo in mapa_de_campos.items():
@@ -222,6 +220,10 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                         
                         if pd.isna(valor_celula):
                             valor_celula = None
+                        
+                        campo_destino = config_modelo if isinstance(config_modelo, str) else config_modelo[0]
+                        if campo_destino == 'cpf' and valor_celula:
+                            valor_celula = re.sub(r'[^0-9]', '', str(valor_celula))
 
                         if isinstance(config_modelo, str):
                             dados_para_salvar[config_modelo] = valor_celula
@@ -230,46 +232,20 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                             campo_no_modelo, model_fk, campo_busca = config_modelo
                             
                             if valor_celula:
-                                obj_fk = model_fk.objects.filter(**{campo_busca: valor_celula}).first()
-                                
-                                if not obj_fk and is_user_import:
-                                    valor_str = str(valor_celula).strip()
-                                    valor_upper = valor_str.upper()
-
-                                    if model_fk.__name__ == 'Cargo':
-                                        hierarquia = 4
-                                        
-                                        if 'DIR' in valor_upper:
-                                            hierarquia = 1
-                                        elif 'GEREN' in valor_upper:
-                                            hierarquia = 2
-                                        elif 'COORD' in valor_upper:
-                                            hierarquia = 3
-                                        
-                                        obj_fk = model_fk.objects.create(**{
-                                            campo_busca: valor_str,
-                                            'hierarquia': hierarquia
-                                        })
-                                    
-                                    elif model_fk.__name__ == 'Lotacao':
-                                        obj_fk = model_fk.objects.create(**{
-                                            campo_busca: valor_str
-                                        })
-                                        
-                                        if campo_no_modelo == 'lotacao':
-                                            lotacao_recem_criada = obj_fk
-
-                                if not obj_fk:
-                                    raise ValueError(f"FK não encontrada e não pôde ser criada: '{valor_celula}' para o campo {campo_no_modelo}")
-                                
+                                obj_fk, created_fk = model_fk.objects.get_or_create(
+                                    **{campo_busca: valor_celula}
+                                )
                                 dados_para_salvar[campo_no_modelo] = obj_fk
                             else:
                                 dados_para_salvar[campo_no_modelo] = None
                     
+                    is_usuario = (model_class == User) or (model_class.__name__ == 'CustomUser')
                     senha_foi_injetada = False
 
-                    if is_user_import:
-                        if ('username' not in dados_para_salvar or not dados_para_salvar['username']) and 'email' in dados_para_salvar:
+                    if is_usuario:
+                        if 'matricula' in dados_para_salvar and dados_para_salvar['matricula']:
+                            dados_para_salvar['username'] = str(dados_para_salvar['matricula'])
+                        elif 'email' in dados_para_salvar:
                             dados_para_salvar['username'] = dados_para_salvar['email']
                         
                         if 'is_active' not in dados_para_salvar:
@@ -283,7 +259,7 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                         filtro_busca = {k: dados_para_salvar[k] for k in campo_busca_fk if k in dados_para_salvar}
                         
                         if not filtro_busca:
-                             raise ValueError("Campos chaves para atualização não foram encontrados na linha.")
+                             raise ValueError(f"Campos chaves ({campo_busca_fk}) não encontrados na linha.")
 
                         obj, created = model_class.objects.update_or_create(
                             defaults=dados_para_salvar,
@@ -293,35 +269,12 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                         obj = model_class.objects.create(**dados_para_salvar)
                         created = True
 
-                    if is_user_import and lotacao_recem_criada and obj.cargo:
-                        nome_cargo = obj.cargo.nome_cargo.upper()
-                        nome_lotacao = lotacao_recem_criada.nome_lotacao.upper()
-                        
-                        is_chefia = False
-                        
-                        # Regra 1: Diretor
-                        if ('DIR' in nome_cargo) and nome_lotacao.startswith('DIR'):
-                            is_chefia = True
-                        
-                        # Regra 2: Gerente
-                        elif ('GEREN' in nome_cargo) and nome_lotacao.startswith('GEREN'):
-                            is_chefia = True
-
-                        # Regra 3: Coordenador
-                        elif ('COORD' in nome_cargo) and nome_lotacao.startswith('COORD'):
-                            is_chefia = True
-                        
-                        if is_chefia:
-                            lotacao_recem_criada.chefia = obj
-                            lotacao_recem_criada.save()
-
-                    if is_user_import:
+                    if is_usuario:
                         precisa_salvar_senha = False
                         
                         if senha_foi_injetada or created:
                             precisa_salvar_senha = True
-
-                        elif obj.password == SENHA_PADRAO:
+                        elif obj.check_password(SENHA_PADRAO):
                             precisa_salvar_senha = True
 
                         if precisa_salvar_senha:
@@ -351,13 +304,24 @@ def new_collaborator_email(instance):
 
         link_relativo = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
         
-        site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
-        link_completo = f"{site_url}{link_relativo}"
+        full_site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+        
+        if "://" in full_site_url:
+            protocol, domain = full_site_url.split("://", 1)
+        else:
+            protocol = "http"
+            domain = full_site_url
+            
+        domain = domain.rstrip('/')
+
+        link_completo = f"{protocol}://{domain}{link_relativo}"
         
         contexto = {
             'nome_usuario': user.first_name or user.username,
             'link_definicao_senha': link_completo,
             'email_usuario': user.email,
+            'protocol': protocol,
+            'domain': domain,
         }
         
         html_content = render_to_string('emails/_new_collaborators.html', contexto)

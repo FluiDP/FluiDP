@@ -4,6 +4,10 @@ from django.db.models import Q
 from django.urls import reverse
 from django.http import HttpResponse
 from django.db.models import Count
+from django.core.paginator import Paginator
+from django.contrib.auth import get_user_model
+
+from core.services import importar_dados
 
 from .models import Cargo, Solicitacao, TipoDocumento, CustomUser, Lotacao
 from .decorators import dp_required
@@ -12,7 +16,7 @@ from .forms import CustomUserForm, EditCustomUserForm, LotacaoForm, CargoForm, T
 @dp_required
 def dp_dashboard_view(request):
     user = request.user
-    is_gestor_dp = user.groups.filter(name='DP').exists() and (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.GERENTE or user.cargo.hierarquia == Cargo.HierarquiaChoices.COORDENADOR)
+    is_gestor_dp = (user.groups.filter(name='DP').exists() and (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.GERENTE or user.cargo.hierarquia == Cargo.HierarquiaChoices.COORDENADOR)) if user.cargo else False
 
     q_minhas_lotacoes = Lotacao.objects.filter(
         Q(chefia=user) |
@@ -38,17 +42,14 @@ def dp_dashboard_view(request):
     if is_gestor_dp:
         q_pendencias_dp = q_pendencias_dp | Q(colaborador__in=minha_equipe, status=Solicitacao.StatusChoices.PENDENTE_GESTOR)
 
-    # KPI 1: Pendências na minha mesa
     pendencias_comigo = Solicitacao.objects.filter(
         status=Solicitacao.StatusChoices.PENDENTE_DP
     ).count()
 
-    # KPI 2: Pendências da Direção
     pendencias_direcao = Solicitacao.objects.filter(
         status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
     ).count()
 
-    # KPI 3: Solicitações em fluxo
     fluxo_total = Solicitacao.objects.filter(
         status__in=[Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
                     Solicitacao.StatusChoices.PENDENTE_GESTOR,
@@ -79,12 +80,10 @@ def dp_dashboard_view(request):
         
     solicitacoes_pendentes = list(solicitacoes_pendentes.distinct().order_by('-data'))
 
-    # KPI 4: Distribuição por Tipo (Gráfico)
     ranking_query_docs = Solicitacao.objects.values('tipo_documento__nome_documento') \
         .annotate(total=Count('id')) \
         .order_by('-total')
 
-    # KPI 5: Distribuição por Setor (Gráfico)
     ranking_query_setores = Solicitacao.objects.values('colaborador__lotacao__nome_lotacao') \
         .annotate(total=Count('id')) \
         .order_by('-total')
@@ -117,19 +116,43 @@ def dp_dashboard_view(request):
 
     return render(request, 'painel/dp/dashboard.html', context)
 
-
-# --- LOTAÇÕES ---
-
 @dp_required
 def dp_lotacoes_view(request):
-
-    lotacoes = Lotacao.objects.filter(arquivado=False).order_by('nome_lotacao')
+    search_query = request.GET.get('q')
     
+    qs = Lotacao.objects.filter(arquivado=False)
+
+    if search_query:
+        qs = qs.filter(nome_lotacao__icontains=search_query).order_by('nome_lotacao')
+        
+        roots = list(qs)
+        for lot in roots:
+            lot.sub_lotacoes = []
+            
+    else:
+        all_lotacoes = qs.select_related('chefia', 'lotacao_pai').order_by('nome_lotacao')
+        lotacao_dict = {lot.id: lot for lot in all_lotacoes}
+        
+        for lot in all_lotacoes:
+            lot.sub_lotacoes = []
+
+        roots = []
+        for lot in all_lotacoes:
+            if lot.lotacao_pai_id:
+                parent = lotacao_dict.get(lot.lotacao_pai_id)
+                if parent:
+                    parent.sub_lotacoes.append(lot)
+                else:
+                    roots.append(lot)
+            else:
+                roots.append(lot)
+
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
-        'lotacoes': lotacoes,
+        'lotacoes': roots,
         'active_link': 'lotacoes',
+        'search_query': search_query,
     }
 
     if request.htmx:
@@ -185,7 +208,7 @@ def archive_lotacao_modal_view(request, pk):
 
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Arquivar Lotação',
-        'message': f"Deseja arquivar a lotação {lotacao.nome_lotacao}?",
+        'message': f"Deseja arquivar a lotação <strong>{lotacao.nome_lotacao}</strong>?",
         'action_url': reverse('administracao:archive_lotacao', args=[pk]),
         'submit_text': 'Arquivar',
         'color': 'orange',
@@ -207,26 +230,28 @@ def delete_lotacao_view(request, pk):
 
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Excluir Lotação',
-        'message': f"Excluir permanentemente {lotacao.nome_lotacao}?",
+        'message': f"Excluir permanentemente <strong>{lotacao.nome_lotacao}</strong>?",
         'action_url': reverse('administracao:delete_lotacao', args=[pk]),
         'submit_text': 'Excluir',
         'color': 'red',
         'icon_name': 'trash'
     })
 
-
-# --- CARGOS ---
-
 @dp_required
 def dp_cargos_view(request):
-
+    search_query = request.GET.get('q')
+    
     cargos = Cargo.objects.filter(arquivado=False).order_by('hierarquia', 'nome_cargo')
+    
+    if search_query:
+        cargos = cargos.filter(nome_cargo__icontains=search_query)
     
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'cargos': cargos,
         'active_link': 'cargos',
+        'search_query': search_query,
     }
 
     if request.htmx:
@@ -276,13 +301,13 @@ def archive_cargo_modal_view(request, pk):
     if request.method == 'POST':
         cargo.arquivado = True
         cargo.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo {cargo.nome_cargo} arquivado!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo <strong>{cargo.nome_cargo}</strong> arquivado!"})
         response['HX-Trigger'] = 'updateContent'
         return response
     
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Arquivar Cargo',
-        'message': f"Deseja arquivar o cargo {cargo.nome_cargo}?",
+        'message': f"Deseja arquivar o cargo <strong>{cargo.nome_cargo}</strong>?",
         'action_url': reverse('administracao:archive_cargo', args=[pk]),
         'submit_text': 'Arquivar',
         'color': 'orange',
@@ -297,34 +322,44 @@ def delete_cargo_view(request, pk):
         try:
             nome = cargo.nome_cargo
             cargo.delete()
-            response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo {nome} excluído!"})
+            response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo <strong>{nome}</strong> excluído permanentemente!"})
             response['HX-Trigger'] = 'updateContent'
             return response
         except Exception:
-            return render(request, 'partials/_message_error.html', {'message': "Não é possível excluir: Existem colaboradores vinculados."})
+            return render(request, 'partials/_message_error.html', {'message': "Não é possível excluir este cargo pois existem colaboradores vinculados."})
     
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Excluir Cargo',
-        'message': f"Deseja excluir permanentemente o cargo {cargo.nome_cargo}?",
+        'message': f"Deseja excluir permanentemente o cargo <strong>{cargo.nome_cargo}</strong>?",
         'action_url': reverse('administracao:delete_cargo', args=[pk]),
         'submit_text': 'Excluir',
         'color': 'red',
         'icon_name': 'trash'
     })
 
-
-# --- COLABORADORES ---
-
 @dp_required
 def dp_colaboradores_view(request):
+    search_query = request.GET.get('q', '')
+    page_number = request.GET.get('page')
 
     colaboradores = CustomUser.objects.filter(is_active=True).order_by('first_name')
+
+    if search_query:
+        colaboradores = colaboradores.filter(
+            Q(first_name__icontains=search_query) | 
+            Q(matricula__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
     
+    paginator = Paginator(colaboradores, 15)
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
-        'colaboradores': colaboradores,
+        'colaboradores': page_obj,
         'active_link': 'colaboradores',
+        'search_query': search_query,
     }
 
     if request.htmx:
@@ -356,9 +391,7 @@ def create_colaborador_modal_view(request):
 
 @dp_required
 def edit_colaborador_modal_view(request, pk):
-
     colaborador = get_object_or_404(CustomUser, pk=pk)
-    
     form = EditCustomUserForm(request.POST or None, instance=colaborador)
     
     if request.method == 'POST' and form.is_valid():
@@ -379,6 +412,7 @@ def archive_colaborador_modal_view(request, pk):
     colaborador = get_object_or_404(CustomUser, pk=pk)
     
     if request.method == 'POST':
+        colaborador.arquivado = True
         colaborador.is_active = False
         colaborador.save()
         response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador arquivado!"})
@@ -387,7 +421,7 @@ def archive_colaborador_modal_view(request, pk):
         
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Arquivar Colaborador',
-        'message': f"Deseja arquivar {colaborador.get_full_name()}?",
+        'message': f"Deseja arquivar <strong>{colaborador.get_full_name()}</strong>?",
         'action_url': reverse('administracao:archive_colaborador', args=[pk]),
         'submit_text': 'Arquivar',
         'color': 'orange',
@@ -401,32 +435,34 @@ def delete_colaborador_view(request, pk):
     if request.method == 'POST':
         nome = colaborador.get_full_name()
         colaborador.delete()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador {nome} excluído!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador <strong>{nome}</strong> excluído!"})
         response['HX-Trigger'] = 'updateContent'
         return response
         
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Excluir Colaborador',
-        'message': f"Excluir permanentemente {colaborador.get_full_name()}?",
+        'message': f"Excluir permanentemente <strong>{colaborador.get_full_name()}</strong>?",
         'action_url': reverse('administracao:delete_colaborador', args=[pk]),
         'submit_text': 'Excluir',
         'color': 'red',
         'icon_name': 'trash'
     })
 
-
-# --- DOCUMENTOS ---
-
 @dp_required
 def dp_documentos_view(request):
-
+    search_query = request.GET.get('q')
+    
     documentos = TipoDocumento.objects.filter(arquivado=False).order_by('nome_documento')
+    
+    if search_query:
+        documentos = documentos.filter(nome_documento__icontains=search_query)
     
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'documentos': documentos,
         'active_link': 'documentos',
+        'search_query': search_query,
     }
 
     if request.htmx:
@@ -482,7 +518,7 @@ def archive_documento_modal_view(request, pk):
     
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Arquivar Documento',
-        'message': f"Deseja arquivar o documento {documento.nome_documento}?",
+        'message': f"Deseja arquivar o documento <strong>{documento.nome_documento}</strong>?",
         'action_url': reverse('administracao:archive_documento', args=[pk]),
         'submit_text': 'Arquivar',
         'color': 'orange',
@@ -497,7 +533,7 @@ def delete_documento_view(request, pk):
         try:
             nome = documento.nome_documento
             documento.delete()
-            response = render(request, 'partials/_message_sucess.html', {'message': f"Documento {nome} excluído!"})
+            response = render(request, 'partials/_message_sucess.html', {'message': f"Documento <strong>{nome}</strong> excluído!"})
             response['HX-Trigger'] = 'updateContent'
             return response
         except Exception:
@@ -505,28 +541,116 @@ def delete_documento_view(request, pk):
     
     return render(request, 'partials/_generic_confirm_modal.html', {
         'modal_title': 'Excluir Documento',
-        'message': f"ATENÇÃO: Deseja excluir permanentemente {documento.nome_documento}?",
+        'message': f"ATENÇÃO: Deseja excluir permanentemente <strong>{documento.nome_documento}</strong>?",
         'action_url': reverse('administracao:delete_documento', args=[pk]),
         'submit_text': 'Excluir',
         'color': 'red',
         'icon_name': 'trash'
     })
 
-
-# --- SOLICITAÇÕES ---
-
 @dp_required
 def dp_solicitacoes_view(request):
-    solicitacoes = Solicitacao.objects.all().order_by('-data')
+    search_query = request.GET.get('q', '')
+    page_number = request.GET.get('page')
+
+    solicitacoes_list = Solicitacao.objects.all().order_by('-data')
+
+    if search_query:
+        solicitacoes_list = solicitacoes_list.filter(
+            Q(id__icontains=search_query) |
+            Q(colaborador__first_name__icontains=search_query) |
+            Q(tipo_documento__nome_documento__icontains=search_query)
+        )
+    
+    paginator = Paginator(solicitacoes_list, 15)
+    page_obj = paginator.get_page(page_number)
     
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
-        'solicitacoes': solicitacoes,
+        'solicitacoes': page_obj,
+        'num_pages': paginator.num_pages,
         'active_link': 'solicitacoes',
+        'search_query': search_query,
     }
 
     if request.htmx:
         return render(request, 'painel/dp/_content_solicitacoes.html', context)
     
     return render(request, 'painel/dp/solicitacoes.html', context)
+
+@dp_required
+def import_data_modal_view(request, tipo_dado):
+    config = {
+        'colaboradores': {'titulo': 'Importar Colaboradores', 'url': reverse('administracao:import_data', args=['colaboradores'])},
+        'lotacoes': {'titulo': 'Importar Lotações', 'url': reverse('administracao:import_data', args=['lotacoes'])},
+        'cargos': {'titulo': 'Importar Cargos', 'url': reverse('administracao:import_data', args=['cargos'])},
+    }
+
+    if request.method == 'POST':
+        arquivo = request.FILES.get('arquivo')
+        
+        if not arquivo:
+            return render(request, 'partials/_message_error.html', {'message': "Nenhum arquivo selecionado."})
+
+        mapa = {}
+        campo_chave = []
+        model = None
+        
+        try:
+            if tipo_dado == 'colaboradores':
+                model = get_user_model()
+                mapa = {
+                    'Nome': 'first_name',
+                    'Email': 'email',
+                    'Matricula': 'matricula',
+                    'CPF': 'cpf',
+                    'Cargo': ('cargo', Cargo, 'nome_cargo'), 
+                    'Lotacao': ('lotacao', Lotacao, 'nome_lotacao'),
+                }
+                campo_chave = ['cpf'] 
+
+            elif tipo_dado == 'lotacoes':
+                model = Lotacao
+                mapa = {
+                    'Nome': 'nome_lotacao',
+                    'Pai': ('lotacao_pai', Lotacao, 'nome_lotacao') 
+                }
+                campo_chave = ['nome_lotacao']
+
+            elif tipo_dado == 'cargos':
+                model = Cargo
+                mapa = {
+                    'Nome': 'nome_cargo',
+                    'Nivel': 'hierarquia' 
+                }
+                campo_chave = ['nome_cargo']
+            
+            resultado = importar_dados(
+                arquivo_io=arquivo,
+                nome_arquivo=arquivo.name,
+                model_class=model,
+                mapa_de_campos=mapa,
+                campo_busca_fk=campo_chave
+            )
+
+            if resultado['sucesso'] > 0:
+                msg = f"Sucesso! {resultado['sucesso']} registros processados."
+                if resultado['erros']:
+                    msg += f" (Com {len(resultado['erros'])} alertas)"
+                
+                response = render(request, 'partials/_message_sucess.html', {'message': msg})
+                response['HX-Trigger'] = 'updateContent'
+                return response
+            else:
+                erro_txt = resultado['erros'][0] if resultado['erros'] else "Erro desconhecido"
+                return render(request, 'partials/_message_error.html', {'message': f"Falha: {erro_txt}"})
+
+        except Exception as e:
+            return render(request, 'partials/_message_error.html', {'message': f"Erro interno: {str(e)}"})
+
+    ctx = config.get(tipo_dado)
+    return render(request, 'partials/_import_form.html', {
+        'modal_title': ctx['titulo'],
+        'action_url': ctx['url']
+    })

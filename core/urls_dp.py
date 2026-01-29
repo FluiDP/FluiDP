@@ -31,4 +31,6 @@ urlpatterns = [
     path('documentos/excluir/<int:pk>/', views.delete_documento_view, name='delete_documento'),
 
     path('solicitacoes', views.dp_solicitacoes_view, name='solicitacoes'),
+    
+    path('importar/<str:tipo_dado>/', views.import_data_modal_view, name='import_data'),
 ]

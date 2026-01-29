@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -22,7 +23,10 @@
                     
                     <tr>
                         <td style="padding: 40px 40px 0 40px; text-align: center;">
-                            <img src="https://via.placeholder.com/150x50?text=FluiDP" alt="FluiDP" style="height: 40px; width: auto;" border="0">
+                            <img src="{{ protocol|default:'http' }}://{{ domain|default:'127.0.0.1:8000' }}{% static 'images/header-logo.png' %}" 
+                                 alt="FluiDP" 
+                                 style="height: 45px; width: auto; display: block; margin: 0 auto;" 
+                                 border="0">
                         </td>
                     </tr>
 

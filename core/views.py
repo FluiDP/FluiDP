@@ -46,7 +46,7 @@ def index_view(request):
 @login_required
 def painel_view(request):
     
-    hierarquia = request.user.cargo.hierarquia
+    hierarquia = request.user.cargo.hierarquia if request.user.cargo else Cargo.HierarquiaChoices.PADRAO
 
     if request.user.groups.filter(name='DP').exists() or hierarquia == Cargo.HierarquiaChoices.DIRETOR:
         return redirect('administracao:dashboard')

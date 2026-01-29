@@ -174,8 +174,16 @@ def salvar_solicitacao_view(request, tipo_doc_id):
     except ValidationError as ve:
         url_retry = reverse('colaborador:get_create_solicitacao_form', args=[tipo_doc_id]) 
         
+        msg_erro = "Erro de validação."
+        if hasattr(ve, 'messages'):
+            msg_erro = "<br>".join(ve.messages)
+        elif hasattr(ve, 'message'):
+            msg_erro = ve.message
+        else:
+            msg_erro = str(ve)
+
         return render(request, 'partials/_message_error.html', {
-            'message': ve.message,
+            'message': mark_safe(msg_erro),
             'url_retry': url_retry
         })
 

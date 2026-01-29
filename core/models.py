@@ -179,7 +179,7 @@ class CustomUser(AbstractUser):
     class Meta:
         verbose_name = "Usuário"
         verbose_name_plural = "Usuários"
-        
+    
     cpf = models.CharField(verbose_name="CPF", max_length=11, unique=True, null=True, blank=True)
     matricula = models.CharField(verbose_name="Matrícula", max_length=10, unique=True, null=True, blank=True)
     ausencia_inicio = models.DateField(verbose_name="Início do Período de Ausência", null=True, blank=True)

@@ -1,0 +1,43 @@
+{% load static %}
+
+{% url 'administracao:edit_lotacao' lotacao.id as url_editar_lotacao %}
+{% url 'administracao:archive_lotacao' lotacao.id as url_arquivar_lotacao %}
+{% url 'administracao:delete_lotacao' lotacao.id as url_deletar_lotacao %}
+
+<div class="flex flex-col relative">
+    
+    <div class="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg hover:shadow-sm hover:border-indigo-100 transition-all mb-2 group">
+        
+        <div class="flex items-center gap-3">
+            <div class="text-indigo-500">
+                <ion-icon name="folder-open-outline" class="text-xl"></ion-icon>
+            </div>
+            
+            <div class="flex flex-col">
+                <span class="font-semibold text-slate-700">{{ lotacao.nome_lotacao }}</span>
+                {% if lotacao.chefia %}
+                    <span class="text-xs text-slate-400 flex items-center gap-1">
+                        <ion-icon name="person-outline"></ion-icon> {{ lotacao.chefia.get_full_name }}
+                    </span>
+                {% else %}
+                    <span class="text-xs text-orange-400 italic">Sem chefia definida</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+             {% include "partials/_generic_edit_button.html" with item=lotacao url=url_editar_lotacao %}
+             {% include "partials/_generic_archive_button.html" with item=lotacao url=url_arquivar_lotacao %}
+             {% include "partials/_generic_delete_button.html" with item=lotacao url=url_deletar_lotacao %}
+        </div>
+    </div>
+
+    {% if lotacao.sub_lotacoes %}
+        <div class="ml-6 pl-8 border-l-2 border-indigo-100 flex flex-col gap-1">
+            {% for filho in lotacao.sub_lotacoes %}
+                {% include "partials/_lotacao_tree_item.html" with lotacao=filho %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+</div>
