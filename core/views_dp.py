@@ -1,3 +1,4 @@
+import copy
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render, get_object_or_404
 from django.db.models import Q
@@ -12,6 +13,8 @@ from core.services import importar_dados
 from .models import Cargo, Solicitacao, TipoDocumento, CustomUser, Lotacao
 from .decorators import dp_required
 from .forms import CustomUserForm, EditCustomUserForm, LotacaoForm, CargoForm, TipoDocumentoForm
+
+User = get_user_model()
 
 @dp_required
 def dp_dashboard_view(request):
@@ -469,6 +472,44 @@ def dp_documentos_view(request):
         return render(request, 'painel/dp/_content_documentos.html', context)
     
     return render(request, 'painel/dp/documentos.html', context)
+
+@dp_required
+def visualize_documento_view(request, pk):
+    tipo_doc = get_object_or_404(TipoDocumento, id=pk)
+    
+    try:
+        campos_json = copy.deepcopy(tipo_doc.definicao_formulario)
+    
+        for campo in campos_json:
+            source = campo.get("options_source")
+            
+            if source == "colaboradores_lotacao":
+
+                users = User.objects.filter(
+                    lotacao=request.user.lotacao,
+                    is_active=True
+                ).exclude(id=request.user.id).order_by('first_name')
+
+                campo['options'] = [
+                    {'value': str(u.id), 'label': f"{u.first_name}"}
+                    for u in users
+                ]
+                
+        context = {
+            'tipo_documento': tipo_doc,
+            'campos_formulario': campos_json,
+            'active_link': 'documentos',
+        }
+        
+        return render(request, 'partials/_visualize_documento.html', context)
+    
+    except Exception as e:
+        url_retry = reverse('colaborador:get_create_solicitacao_form', args=[pk])
+        
+        return render(request, 'partials/_message_error.html', {
+            'message': f'Erro ao carregar o formulário: {e}',
+            'url_retry': url_retry
+        })
 
 @dp_required
 def create_documento_modal_view(request):

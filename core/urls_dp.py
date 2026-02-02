@@ -25,12 +25,13 @@ urlpatterns = [
     path('colaboradores/excluir/<int:pk>/', views.delete_colaborador_view, name='delete_colaborador'),
 
     path('documentos', views.dp_documentos_view, name='documentos'),
+    path('documentos/visualizar/<int:pk>/', views.visualize_documento_view, name='visualize_documento'),
     path('documentos/criar/', views.create_documento_modal_view, name='create_documento'),
     path('documentos/editar/<int:pk>/', views.edit_documento_modal_view, name='edit_documento'),
     path('documentos/arquivar/<int:pk>/', views.archive_documento_modal_view, name='archive_documento'),
     path('documentos/excluir/<int:pk>/', views.delete_documento_view, name='delete_documento'),
 
     path('solicitacoes', views.dp_solicitacoes_view, name='solicitacoes'),
-    
+
     path('importar/<str:tipo_dado>/', views.import_data_modal_view, name='import_data'),
 ]
