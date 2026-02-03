@@ -1,19 +1,15 @@
 import datetime
 from django.utils import timezone
-from django.utils.text import slugify
 from shutil import copy
 import copy
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import render_to_string
 from core.views_colaborador import User
-from .models import Cargo, CustomUser, Lotacao, Solicitacao, TipoDocumento
+from .models import Cargo, CustomUser, Lotacao, Solicitacao
 from django.contrib.auth import logout as auth_logout
 from django.db.models import Count, Q
-from xhtml2pdf import pisa
 
 class CustomLoginView(auth_views.LoginView):
     template_name = 'login/login.html'
