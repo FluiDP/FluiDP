@@ -122,3 +122,11 @@ SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000')
 
 if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
     print("Variáveis de e-mail não encontradas no arquivo .env")
+
+
+# configuração de timeout de sessão
+
+SESSION_COOKIE_AGE = 1800
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_NAME = 'fluidp_sessionid'

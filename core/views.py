@@ -113,6 +113,10 @@ def indisponibilidade_view(request):
 
 @login_required
 def gerar_pdf_solicitacao_view(request, solicitacao_id):
+    """
+    Exibe a solicitação em formato de impressão (HTML).
+    A impressão para PDF é feita pelo navegador (Ctrl+P).
+    """
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     
     campos_schema = copy.deepcopy(solicitacao.dados_preenchidos.get('schema', []))
@@ -145,11 +149,11 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
         campo['valor_exibicao'] = valor_exibicao
         campos_formatados.append(campo)
 
-    logs = solicitacao.logs.all().order_by('data_acao')
-
     campos_rows = []
     for i in range(0, len(campos_formatados), 2):
         campos_rows.append(campos_formatados[i:i+2])
+
+    logs = solicitacao.logs.all().order_by('data_acao')
 
     context = {
         'solicitacao': solicitacao,
@@ -159,23 +163,7 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
         'usuario_impressao': request.user
     }
 
-    html_string = render_to_string('pdf/_report_solicitacao.html', context)
-    response = HttpResponse(content_type='application/pdf')
-    
-    data_str = solicitacao.data.strftime('%Y-%m-%d')
-
-    nome_colab = slugify(solicitacao.colaborador.first_name)
-    tipo_doc = slugify(solicitacao.tipo_documento.nome_documento)
-    filename = f"{data_str}_{nome_colab}_{tipo_doc}.pdf"
-    
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-
-    pisa_status = pisa.CreatePDF(html_string, dest=response)
-
-    if pisa_status.err:
-       return HttpResponse('Ocorreu um erro ao gerar o PDF <pre>' + html_string + '</pre>')
-    
-    return response
+    return render(request, 'pdf/_report_solicitacao.html', context)
 
 @login_required
 def relatorio_geral_view(request):

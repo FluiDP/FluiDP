@@ -1,291 +1,111 @@
+{% extends 'pdf/print.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Solicitação #{{ solicitacao.id }}</title>
-    <style>
-        @page {
-            size: A4;
-            margin: 1.5cm; /* Margem ligeiramente menor para aproveitar espaço */
-            @frame footer_frame {           
-                -pdf-frame-content: footerContent;
-                bottom: 0.5cm;
-                margin-left: 1.5cm;
-                margin-right: 1.5cm;
-                height: 1cm;
-            }
-        }
 
-        body {
-            font-family: Helvetica, Arial, sans-serif;
-            font-size: 10pt;
-            color: #374151; /* Cinza escuro suave (Gray-700) */
-            line-height: 1.4;
-        }
+{% block title %}{{ solicitacao.data|date:"d.m.Y" }} - {{ solicitacao.tipo_documento.nome_documento }} - {{ solicitacao.colaborador }}{% endblock %}
 
-        /* Helpers de Layout */
-        table { width: 100%; border-collapse: collapse; }
-        td { vertical-align: top; padding: 4px; }
-        
-        /* Cabeçalho "Timbrado" */
-        .header-container {
-            background-color: #F9FAFB; /* Gray-50 */
-            border-top: 4px solid #4F46E5; /* Indigo-600 */
-            padding: 20px;
-            margin-bottom: 25px;
-            border-bottom: 1px solid #E5E7EB;
-        }
-        .header-title {
-            color: #111827; /* Gray-900 */
-            font-size: 16pt;
-            font-weight: bold;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-        .header-subtitle {
-            color: #6B7280; /* Gray-500 */
-            font-size: 9pt;
-        }
-        .header-meta {
-            text-align: right;
-            font-size: 9pt;
-            color: #4B5563;
-        }
-
-        /* Badge de Status */
-        .status-badge {
-            background-color: #EEF2FF; /* Indigo-50 */
-            color: #4F46E5; /* Indigo-600 */
-            border: 1px solid #C7D2FE;
-            padding: 4px 10px;
-            border-radius: 4px; /* Funciona em alguns geradores, degrada graciosamente */
-            font-weight: bold;
-            font-size: 8pt;
-            text-transform: uppercase;
-            display: inline-block;
-        }
-
-        /* Seções */
-        .section-box { margin-bottom: 25px; }
-        
-        .section-header {
-            color: #4F46E5;
-            font-weight: bold;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid #E5E7EB; /* Linha fina abaixo do título */
-            margin-bottom: 10px;
-            padding-bottom: 4px;
-        }
-
-        /* Key-Value Pairs */
-        .field-group { margin-bottom: 8px; }
-        .label {
-            display: block;
-            color: #6B7280; /* Gray-500 */
-            font-size: 8pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 2px;
-        }
-        .value {
-            display: block;
-            color: #111827; /* Gray-900 */
-            font-size: 10pt;
-            font-weight: normal;
-        }
-
-        /* Tabela de Histórico */
-        .table-logs { margin-top: 5px; width: 100%; border: 1px solid #E5E7EB; }
-        .table-logs th {
-            background-color: #F3F4F6; /* Gray-100 */
-            color: #374151;
-            font-weight: bold;
-            text-align: left;
-            padding: 8px;
-            font-size: 8pt;
-            text-transform: uppercase;
-            border-bottom: 2px solid #E5E7EB;
-        }
-        .table-logs td {
-            padding: 8px;
-            font-size: 9pt;
-            color: #4B5563;
-            border-bottom: 1px solid #F3F4F6;
-        }
-        /* Zebra Striping */
-        .row-even { background-color: #ffffff; }
-        .row-odd { background-color: #F9FAFB; }
-
-        /* Rodapé */
-        #footerContent {
-            color: #9CA3AF; /* Gray-400 */
-            font-size: 8pt;
-            text-align: right;
-            border-top: 1px solid #E5E7EB;
-            padding-top: 5px;
-        }
-    </style>
-</head>
-<body>
-
-    <div class="header-container">
-        <table>
-            <tr>
-                <td width="65%">
-                    <div class="header-title">{{ solicitacao.tipo_documento.nome_documento }}</div>
-                    <div class="header-subtitle">
-                        PROTOCOLO #{{ solicitacao.id }}
-                    </div>
-                </td>
-                <td width="35%" align="right" style="vertical-align: middle;">
-                    <div class="header-meta">
-                        <div>Gerado em: {{ data_impressao|date:"d/m/Y \à\s H:i" }}</div>
-                        <div style="margin-top: 5px;">
-                            <span class="status-badge">{{ solicitacao.get_status_display }}</span>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        </table>
+{% block content %}
+    <div class="flex justify-between items-start mb-8 border-b-2 border-indigo-600 pb-4">
+        <div>
+            <img src="{% static 'images/header-logo.png' %}" alt="FluiDP" class="h-6 mb-2">
+            <h2 class="text-2xl font-bold text-gray-900 uppercase">{{ solicitacao.tipo_documento.nome_documento }}</h2>
+        </div>
+        <div class="text-right">
+            <div class="inline-block px-3 py-1 rounded bg-gray-100 text-gray-700 font-bold text-sm border border-gray-200">
+                {{ solicitacao.get_status_display }}
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Data: {{ solicitacao.data|date:"d/m/Y" }}</p>
+        </div>
     </div>
 
-    <div class="section-box">
-        <div class="section-header">Dados do Colaborador</div>
-        <table>
-            <tr>
-                <td width="50%">
-                    <div class="field-group">
-                        <span class="label">Nome Completo</span>
-                        <span class="value">{{ solicitacao.colaborador.get_full_name }}</span>
-                    </div>
-                </td>
-                <td width="50%">
-                    <div class="field-group">
-                        <span class="label">CPF</span>
-                        <span class="value">{{ solicitacao.colaborador.get_cpf_formatado|default:"-" }}</span>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="field-group">
-                        <span class="label">Matrícula</span>
-                        <span class="value">{{ solicitacao.colaborador.matricula|default:"-" }}</span>
-                    </div>
-                </td>
-                <td>
-                    <div class="field-group">
-                        <span class="label">Lotação / Cargo</span>
-                        <span class="value">
-                            {{ solicitacao.colaborador.lotacao }} <br/>
-                            <span style="font-size: 8pt; color: #6B7280;">{{ solicitacao.colaborador.cargo }}</span>
-                        </span>
-                    </div>
-                </td>
-            </tr>
-        </table>
+    <div class="mb-8 break-inside-avoid">
+        <h3 class="text-sm font-bold text-indigo-700 uppercase mb-2 border-b border-gray-200 pb-1">
+            Dados do Colaborador
+        </h3>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div>
+                <span class="block text-xs text-gray-500 font-semibold uppercase">Nome</span>
+                <span class="block text-gray-900 font-medium">{{ solicitacao.colaborador.get_full_name }}</span>
+            </div>
+            <div>
+                <span class="block text-xs text-gray-500 font-semibold uppercase">Matrícula</span>
+                <span class="block text-gray-900">{{ solicitacao.colaborador.matricula }}</span>
+            </div>
+            <div>
+                <span class="block text-xs text-gray-500 font-semibold uppercase">Lotação</span>
+                <span class="block text-gray-900">{{ solicitacao.colaborador.lotacao }}</span>
+            </div>
+            <div>
+                <span class="block text-xs text-gray-500 font-semibold uppercase">Cargo</span>
+                <span class="block text-gray-900">{{ solicitacao.colaborador.cargo }}</span>
+            </div>
+        </div>
     </div>
 
     {% if solicitacao.colaborador_secundario %}
-    <div class="section-box">
-        <div class="section-header">Colaborador Substituto / Secundário</div>
-        <table>
-            <tr>
-                <td width="50%">
-                    <div class="field-group">
-                        <span class="label">Nome</span>
-                        <span class="value">{{ solicitacao.colaborador_secundario.get_full_name }}</span>
-                    </div>
-                </td>
-                <td width="50%">
-                    <div class="field-group">
-                        <span class="label">Matrícula</span>
-                        <span class="value">{{ solicitacao.colaborador_secundario.matricula|default:"-" }}</span>
-                    </div>
-                </td>
-            </tr>
-        </table>
+    <div class="mb-8 break-inside-avoid p-4 bg-gray-50 rounded-lg border border-gray-100">
+        <h3 class="text-sm font-bold text-gray-700 uppercase mb-2">
+            Colaborador Substituto / Secundário
+        </h3>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-500">Nome:</span>
+                <span class="font-medium ml-1">{{ solicitacao.colaborador_secundario.get_full_name }}</span>
+            </div>
+            <div>
+                <span class="text-gray-500">Matrícula:</span>
+                <span class="font-medium ml-1">{{ solicitacao.colaborador_secundario.matricula }}</span>
+            </div>
+        </div>
     </div>
     {% endif %}
 
-    <div class="section-box">
-        <div class="section-header">Detalhes da Solicitação</div>
-        <table>
-            <tr>
-                <td width="50%">
-                    <div class="field-group">
-                        <span class="label">Data de Abertura</span>
-                        <span class="value">{{ solicitacao.data|date:"d/m/Y \à\s H:i" }}</span>
-                    </div>
-                </td>
-                <td width="50%">
-                    <div class="field-group">
-                        <span class="label">Situação Atual</span>
-                        <span class="value">{{ solicitacao.get_status_display }}</span>
-                    </div>
-                </td>
-            </tr>
-            
+    <div class="mb-8 break-inside-avoid">
+        <h3 class="text-sm font-bold text-indigo-700 uppercase mb-4 border-b border-gray-200 pb-1">
+            Detalhes da Solicitação
+        </h3>
+        
+        <div class="grid grid-cols-1 gap-y-4">
             {% for row in campos_rows %}
-            <tr>
-                {% for campo in row %}
-                <td width="50%">
-                    <div class="field-group">
-                        <span class="label">{{ campo.label }}</span>
-                        <span class="value">{{ campo.valor_exibicao|default:"-"|linebreaksbr }}</span>
+                <div class="grid grid-cols-2 gap-6">
+                    {% for campo in row %}
+                    <div class="break-inside-avoid">
+                        <span class="block text-xs text-gray-500 font-semibold uppercase mb-1">{{ campo.label }}</span>
+                        <div class="text-sm text-gray-900 bg-gray-50 p-2 rounded border border-gray-100 min-h-10">
+                            {{ campo.valor_exibicao|default:"-"|linebreaksbr }}
+                        </div>
                     </div>
-                </td>
-                {% endfor %}
-                
-                {% if row|length == 1 %}
-                <td width="50%"></td>
-                {% endif %}
-            </tr>
+                    {% endfor %}
+                </div>
             {% endfor %}
-        </table>
+        </div>
     </div>
 
-    <div class="section-box" style="margin-top: 10px;">
-        <div class="section-header">Histórico de Movimentações</div>
-        <table class="table-logs" cellspacing="0" cellpadding="0">
+    <div class="mt-8 break-inside-avoid">
+        <h3 class="text-sm font-bold text-indigo-700 uppercase mb-2 border-b border-gray-200 pb-1">
+            Histórico e Assinaturas Digitais
+        </h3>
+        <table class="w-full text-sm border-collapse">
             <thead>
-                <tr>
-                    <th width="20%">Data</th>
-                    <th width="20%">Ação</th>
-                    <th width="25%">Responsável</th>
-                    <th width="35%">Observações</th>
+                <tr class="bg-gray-100 border-b border-gray-200 text-xs text-gray-600 uppercase">
+                    <th class="py-2 px-3 text-left font-semibold">Data/Hora</th>
+                    <th class="py-2 px-3 text-left font-semibold">Ação</th>
+                    <th class="py-2 px-3 text-left font-semibold">Responsável</th>
+                    <th class="py-2 px-3 text-left font-semibold">Observações</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-gray-100">
                 {% for log in logs %}
-                <tr class="{% cycle 'row-odd' 'row-even' %}">
-                    <td>{{ log.data_acao|date:"d/m/Y H:i" }}</td>
-                    <td style="font-weight: bold; color: #4F46E5;">{{ log.get_acao_display }}</td>
-                    <td>
-                        {{ log.ator.get_full_name|default:log.ator.username }}
-                        {% if log.ator.matricula %}
-                            <br/><span style="font-size: 7pt; color: #9CA3AF;">Mat: {{ log.ator.matricula }}</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ log.detalhes|default:"-"|linebreaksbr }}</td>
-                </tr>
-                {% empty %}
                 <tr>
-                    <td colspan="4" style="text-align: center; padding: 15px; color: #999;">
-                        Nenhum registro de histórico encontrado.
+                    <td class="py-2 px-3 text-gray-500 text-xs">{{ log.data_acao|date:"d/m/Y H:i" }}</td>
+                    <td class="py-2 px-3 font-bold text-indigo-600">{{ log.get_acao_display }}</td>
+                    <td class="py-2 px-3 text-gray-900">
+                        {{ log.ator.get_full_name }}
+                        <span class="text-xs text-gray-400 block">{{ log.ator.cargo }}</span>
                     </td>
+                    <td class="py-2 px-3 text-gray-500 text-xs italic">{{ log.detalhes|default:"-" }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-
-    <div id="footerContent">
-        Relatório emitido pelo Sistema DP em {{ data_impressao|date:"d/m/Y" }} por {{ usuario_impressao.get_full_name|default:usuario_impressao.username }} &bull; Página <pdf:pagenumber/> de <pdf:pagecount/>
-    </div>
-
-</body>
-</html>
+{% endblock %}
