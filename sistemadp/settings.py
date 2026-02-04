@@ -40,6 +40,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
+    'core.middleware.HtmxRedirectMiddleware',
 ]
 
 ROOT_URLCONF = 'sistemadp.urls'
