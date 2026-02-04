@@ -1,0 +1,8 @@
+{% if item and item.id %}
+<button hx-get="{{ url }}"
+        hx-target="#modal-spot" 
+        hx-swap="innerHTML"
+        class="rounded-full bg-indigo-400 p-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-300 transition-colors">
+    <ion-icon name="pencil-outline"></ion-icon>
+</button>
+{% endif %}

@@ -1,0 +1,196 @@
+<div id="dashboard"
+     hx-get="{% url 'gestor:dashboard' %}"
+     hx-trigger="updateContent from:body"
+     hx-swap="innerHTML"
+     class="w-full h-full flex flex-col space-y-2.5">
+
+    <div class="flex flex-col space-y-2.5 animate-fade-in">
+        <div class="grid grid-cols-1 md:grid-cols-3 space-x-2.5">
+            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
+                <div class="z-10">
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Aprovações Pendentes</p>
+                    <h3 class="text-4xl font-bold text-indigo-600 mb-2">{{ kpi_pendencias }}</h3>
+                    <p class="text-xs text-gray-400">Solicitações na sua mesa</p>
+                </div>
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <ion-icon name="time-outline" class="w-6 h-6"></ion-icon>
+                </div>
+            </div>
+
+            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
+                <div class="z-10">
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes da Direção</p>
+                    <h3 class="text-4xl font-bold text-orange-500 mb-2">{{ kpi_direcao }}</h3>
+                    <p class="text-xs text-gray-400">Solicitações da equipe</p>
+                </div>
+                <div class="p-3 bg-orange-50 text-orange-500 rounded-xl">
+                    <ion-icon name="hourglass-outline" class="w-6 h-6"></ion-icon>
+                </div>
+            </div>
+
+            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
+                <div class="z-10">
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Aguardando Colega</p>
+                    <h3 class="text-4xl font-bold text-gray-700 mb-2">{{ kpi_travados }}</h3>
+                    <p class="text-xs text-gray-400">Travados em substituição</p>
+                </div>
+                <div class="p-3 bg-gray-50 text-gray-600 rounded-xl">
+                    <ion-icon name="document-attach-outline" class="w-6 h-6"></ion-icon>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 space-x-2.5 flex-1 min-h-0">
+        
+        <div class="lg:col-span-2 p-6 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col flex-1">
+            <div class="flex flex-1 flex-col h-full">
+                <h3 class="text-xl font-semibold pt-2 pb-2">Solicitações pendentes de minha aprovação</h3>
+                <div class="p-5 bg-slate-50 text-slate-600 box-border mt-1 mb-1 rounded-lg overflow-auto flex-1 min-h-0">
+                    <table class="w-full border-separate border-spacing-y-2">
+                        <thead>
+                            <tr class="x-2">
+                                <th class="p-2 text-left font-semibold">Solicitante</th>
+                                <th class="p-2 text-left font-semibold">Lotação</th>
+                                <th class="p-2 text-left font-semibold">Documento</th>
+                                <th class="p-2 text-left font-semibold">Data</th>
+                                <th class="p-2 text-left font-semibold">Informações</th>
+                                <th class="p-2 text-left font-semibold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendencias-list">
+                            {% for solicitacao in solicitacoes_pendentes %}
+                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">{{ solicitacao.colaborador }}</td>
+                                <td class="p-2 whitespace-nowrap">{{ solicitacao.colaborador.lotacao }}</td>
+                                <td class="p-2 whitespace-nowrap">{{ solicitacao.tipo_documento }}</td>
+                                <td class="p-2 whitespace-nowrap">{{ solicitacao.data | date:'d/m/y' }}</td>
+                                
+                                <td class="p-2 whitespace-nowrap">
+                                    {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
+                                </td>
+                                
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="py-2 text-center">Nenhuma solicitação encontrada.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col space-y-2.5">
+
+            <div class="bg-white rounded-2xl shadow-sm border border-white flex flex-col flex-1 p-6">
+                <div class="flex pb-2 justify-between border-b border-gray-50">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">Solicitações por Tipo</h3>
+                        <p class="text-sm text-gray-400">Volume da sua equipe</p>
+                    </div>
+
+                    <a href="{% url 'relatorio_geral' %}" target="_blank" 
+                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                        <ion-icon name="document-text-outline" class="w-4 h-4"></ion-icon>
+                        Relatório Completo
+                    </a>
+                </div>
+
+                <div class="p-6 flex-1 flex flex-col">
+                    {% if distribuicao_tipos %}
+                        <div class="space-y-6">                         
+                            <div class="relative h-80 w-full">
+                                <canvas id="rankingChart"></canvas>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-gray-400 py-2">
+                            <ion-icon name="pie-chart-outline" class="w-12 h-12 mb-2 opacity-50"></ion-icon>
+                            <p>Sem dados suficientes.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<div id="modal-spot"></div>
+
+<script>
+    function renderRankingChart() {
+        const canvas = document.getElementById('rankingChart');
+        if (!canvas) return;
+
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) {
+            existingChart.destroy();
+        }
+
+        const rankingLabels = {{ ranking_labels|safe }};
+        const rankingData = {{ ranking_data|safe }};
+        const ctxRanking = canvas.getContext('2d');
+
+        new Chart(ctxRanking, {
+            type: 'bar',
+            data: {
+                labels: rankingLabels,
+                datasets: [{
+                    label: 'Quantidade',
+                    data: rankingData,
+                    backgroundColor: [
+                        '#4F46E5', '#10B981', '#F59E0B', '#EF4444', 
+                        '#06B6D4', '#8B5CF6', '#EC4899',
+                    ],
+                    borderRadius: 4,
+                    barThickness: 20,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.x + ' solicitações';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: { display: true }
+                    },
+                    y: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: {
+                            font: { size: 11, weight: '500' },
+                            color: '#4B5563',
+                            callback: function(value) {
+                                const label = this.getLabelForValue(value);
+                                const limit = 15;
+                                if (typeof label === 'string' && label.length > limit) {
+                                    return label.substring(0, limit) + '...';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    renderRankingChart();
+</script>

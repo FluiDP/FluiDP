@@ -1,0 +1,21 @@
+{% extends 'painel/dp/_painel_dp.html' %}
+
+{% block painel_name %}
+    <h1 class="text-2xl font-bold">Dashboard</h1>
+{% endblock painel_name %}
+
+{% block page_content %}
+    
+    <div id="dashboard-content"
+         class="flex flex-1 h-full space-y-2.5"
+         hx-get="{% url 'administracao:dashboard' %}" 
+         hx-trigger="updateContent from:body"
+         hx-swap="innerHTML">
+         
+         {% include 'painel/dp/_content_dashboard.html' %}
+         
+    </div>
+    
+    <div id="modal-spot"></div>
+
+{% endblock page_content %}

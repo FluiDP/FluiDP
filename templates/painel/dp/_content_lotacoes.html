@@ -1,0 +1,41 @@
+{% url 'administracao:create_lotacao' as url_criar_lotacao %}
+
+<section id="lotacoes"
+         hx-get="{% url 'administracao:lotacoes' %}"
+         hx-trigger="updateContent from:body"
+         hx-swap="outerHTML"
+         class="flex-1 flex flex-col gap-2 h-full">
+         
+    <header class="p-2 flex justify-between items-center">
+        <h2 class="text-2xl font-bold">Gerenciar Lotações</h2>
+    </header>
+
+    <div class="flex flex-1 flex-col gap-2 min-h-0">
+
+        <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="flex flex-col flex-1 min-h-0">
+                
+                <div class="flex flex-row gap-2 justify-between">
+                    <h3 class="text-xl font-semibold pt-2 pb-4 text-slate-700">Estrutura Organizacional</h3>
+                    {% include "partials/_generic_create_button.html" with url=url_criar_lotacao text="" icon_name="add-circle-outline" %}
+                </div>
+                
+                <div id="lotacoes-tree" class="p-4 bg-slate-50 border border-slate-100 rounded-xl overflow-y-auto min-h-0 flex-1">
+                    
+                    {% for lotacao in lotacoes %}
+                        {% include "partials/_lotacao_tree_item.html" with lotacao=lotacao %}
+                    
+                    {% empty %}
+                        <div class="flex flex-col items-center justify-center h-full text-slate-400">
+                            <ion-icon name="file-tray-outline" class="text-4xl mb-2"></ion-icon>
+                            <p>Nenhuma lotação encontrada.</p>
+                        </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+        </main>
+    </div>
+</section>
+
+<div id="modal-spot"></div>

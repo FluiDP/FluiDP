@@ -1,0 +1,56 @@
+{% url 'administracao:create_cargo' as url_criar_cargo %}
+
+<section id="cargos"
+         hx-get="{% url 'administracao:cargos' %}"
+         hx-trigger="updateContent from:body"
+         hx-swap="innerHTML"
+         class="flex-1 flex flex-col gap-2 h-full">
+    <header class="p-2">
+        <h2 class="text-2xl font-bold">Gerenciar Cargos</h2>
+    </header>
+    <div class="flex flex-1 flex-col gap-2 min-h-0">
+        <div class="flex flex-row gap-2">{% include "partials/_search_bar.html" with target_ids="cargos" placeholder="Buscar cargos..." %}{% include "partials/_generic_create_button.html" with url=url_criar_cargo text="Novo Cargo" icon_name="briefcase-outline" %}</div>
+        <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="flex flex-col flex-1 min-h-0">
+                <h3 class="text-xl font-semibold pt-2 pb-2">Cargos</h3>
+                <div class="p-5 bg-slate-50 text-slate-600 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto min-h-0">
+                    <table class="w-full border-separate border-spacing-y-2">
+                        <thead>
+                            <tr class="px-2">
+                                <th class="p-2 text-left font-semibold">Nome</th>
+                                <th class="p-2 text-left font-semibold">Nível Hierárquico</th>
+                                <th class="p-2 text-left font-semibold">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cargo in cargos %}
+                            
+                            {% url 'administracao:edit_cargo' cargo.id as url_editar_cargo %}
+                            {% url 'administracao:archive_cargo' cargo.id as url_arquivar_cargo %}
+                            {% url 'administracao:delete_cargo' cargo.id as url_deletar_cargo %}
+                            
+                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ cargo.nome_cargo }}</td>
+                                <td class="p-2">{{ cargo.get_hierarquia_display }}</td>
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">
+                                    <div>
+                                        {% include "partials/_generic_edit_button.html" with item=cargo url=url_editar_cargo %}
+                                        {% include "partials/_generic_archive_button.html" with item=cargo url=url_arquivar_cargo %}
+                                        {% include "partials/_generic_delete_button.html" with item=cargo url=url_deletar_cargo %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="py-2 text-center">Nenhum cargo encontrado.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</section>
+
+<div id="modal-spot"></div>

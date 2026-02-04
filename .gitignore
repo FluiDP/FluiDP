@@ -34,6 +34,7 @@ desktop.ini
 !.vscode/launch.json
 
 pycache/
+__pycache__/
 *.pyc
 .venv/
 venv/
@@ -44,3 +45,7 @@ instance/
 *.sqlite
 *.sqlite3
 *.db
+
+import
+
+json_forms/

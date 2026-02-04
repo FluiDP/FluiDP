@@ -1,0 +1,9 @@
+{% if item and item.id and url %}
+<button hx-get="{{ url }}"
+        hx-target="#modal-spot" 
+        hx-swap="innerHTML"
+        class="rounded-full bg-blue-400 p-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-300 transition-colors"
+        title="Visualizar">
+    <ion-icon name="eye-outline" class="w-4 h-4"></ion-icon>
+</button>
+{% endif %}

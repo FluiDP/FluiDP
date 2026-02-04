@@ -1,0 +1,119 @@
+<section id="solicitacoes"
+         hx-get="{% url 'administracao:solicitacoes' %}"
+         hx-trigger="updateContent from:body"
+         hx-swap="outerHTML"
+         class="flex flex-1 flex-col gap-2 min-h-0">
+         <header class="p-2">
+        <h2 class="text-2xl font-bold">Histórico de Solicitações</h2>
+    </header>
+
+    <div class="flex flex-1 flex-col gap-2 min-h-0">
+        <div class="flex flex-row gap-2">
+            {% include "partials/_search_bar.html" with target_ids="solicitacoes" placeholder="Buscar solicitações..." %}
+            {% include "partials/_solicitacao_create_button.html" with colaborador=usuario %}
+        </div>
+
+        <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="flex flex-col flex-1 min-h-0">
+                <h3 class="text-xl font-semibold pt-2 pb-2">Solicitações</h3>
+                
+                <div class="p-5 bg-slate-50 text-slate-600 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto min-h-0">
+                    <table class="w-full border-separate border-spacing-y-2">
+                        <thead>
+                            <tr class="px-2">
+                                <th class="p-2 text-left font-semibold">Solicitante</th>
+                                <th class="p-2 text-left font-semibold">Lotação</th>
+                                <th class="p-2 text-left font-semibold">Documento</th>
+                                <th class="p-2 text-left font-semibold">Data</th>
+                                <th class="p-2 text-left font-semibold">Informações</th>
+                                <th class="p-2 text-left font-semibold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for solicitacao in solicitacoes %}
+                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2 transition-all">
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ solicitacao.colaborador }}</td>
+                                <td class="p-2">{{ solicitacao.colaborador.lotacao }}</td>
+                                <td class="p-2">{{ solicitacao.tipo_documento }}</td>
+                                <td class="p-2">{{ solicitacao.data|date:"d/m/Y H:i" }}</td>
+                                
+                                <td class="p-2">
+                                    {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
+                                </td>
+                                
+                                <td class="p-2 first:rounded-l-full last:rounded-r-full">
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="py-4 text-center text-gray-500">Nenhuma solicitação encontrada.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if solicitacoes.has_other_pages %}
+                <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                    <span class="text-sm text-gray-600">
+                        Página {{ solicitacoes.number }} de {{ solicitacoes.paginator.num_pages }}
+                    </span>
+
+                    <div class="flex gap-2">
+                        {% if solicitacoes.has_previous %}
+                        <button 
+                            hx-get="{% url 'administracao:solicitacoes' %}?page=1"
+                            hx-target="#solicitacoes" 
+                            hx-swap="outerHTML"
+                            class="px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 transition-colors">
+                            Primeiro
+                        </button>
+                        <button 
+                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ solicitacoes.previous_page_number }}"
+                            hx-target="#solicitacoes" 
+                            hx-swap="outerHTML"
+                            class="px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 transition-colors">
+                            Anterior
+                        </button>
+                        {% else %}
+                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">
+                            Primeiro
+                        </button>
+                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">
+                            Anterior
+                        </button>
+                        {% endif %}
+
+                        {% if solicitacoes.has_next %}
+                        <button 
+                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ solicitacoes.next_page_number }}"
+                            hx-target="#solicitacoes" 
+                            hx-swap="outerHTML"
+                            class="px-3 py-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors shadow-sm">
+                            Próximo
+                        </button>
+                        <button 
+                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ num_pages }}"
+                            hx-target="#solicitacoes" 
+                            hx-swap="outerHTML"
+                            class="px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 transition-colors">
+                            Último
+                        </button>
+                        {% else %}
+                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">
+                            Próximo
+                        </button>
+                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">
+                            Último
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</section>
+
+<div id="modal-spot"></div>

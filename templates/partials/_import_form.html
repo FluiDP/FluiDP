@@ -1,0 +1,79 @@
+<div x-data="{ open: true }" 
+     @keydown.escape.window="open = false" 
+     x-show="open" 
+     x-transition:enter="ease-out duration-300"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="ease-in duration-200"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     @click="open = false" 
+     class="fixed inset-0 z-50 flex items-center justify-center p-4">
+
+    <div x-show="open" 
+         class="fixed inset-0 bg-[rgba(0,0,0,0.5)] bg-opacity-70 backdrop-blur-md transition-opacity">
+    </div>
+
+    <div id="modal-content"
+         x-show="open"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         @click.stop
+         class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
+
+        <form hx-post="{{ action_url }}" 
+              hx-swap="innerHTML" 
+              hx-target="#modal-spot"
+              hx-encoding="multipart/form-data">
+              {% csrf_token %}
+
+            <div id="generic-form-container">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl text-center font-bold text-gray-900">
+                        {{ modal_title }}
+                    </h3>
+                    <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <span class="sr-only">Fechar</span>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Selecione o arquivo (.csv ou .xlsx)</label>
+                    
+                    <div class="flex items-center justify-center w-full">
+                        <label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <ion-icon name="cloud-upload-outline" class="text-3xl text-gray-400 mb-2"></ion-icon>
+                                <p class="text-sm text-gray-500"><span class="font-semibold">Clique para enviar</span></p>
+                                <p class="text-xs text-gray-500">XLSX ou CSV</p>
+                            </div>
+                            <input id="dropzone-file" type="file" name="arquivo" class="hidden" accept=".csv, .xlsx, .xls" required />
+                        </label>
+                    </div>
+                    <p id="file-name" class="mt-2 text-sm text-indigo-600 font-medium text-center h-5"></p>
+                    <p>Anexe uma tabela (CSV ou XLSX) contendo os cabeçalhos "matricula", "nome", "email", "cargo" e "lotacao".</p>
+                    <script>
+                        document.getElementById('dropzone-file').addEventListener('change', function(e) {
+                            document.getElementById('file-name').textContent = e.target.files[0].name;
+                        });
+                    </script>
+                </div>
+
+                <div class="mt-8 text-right">
+                    <button type="submit" 
+                            class="w-full justify-center rounded-full bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all">
+                        {{ submit_text|default:"Importar Dados" }}
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>

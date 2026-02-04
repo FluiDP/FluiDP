@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@...&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     {% tailwind_css %}
 
@@ -21,10 +22,14 @@
             vertical-align: middle;
             font-size: 18px !important;
         }
+
+        * {
+            transition: all 0.2s ease-in-out;
+        }
     </style>
 
 </head>
-<body class="bg-linear-to-tr from-indigo-200 to-slate-100 !text-slate-800">
+<body class="bg-linear-to-tr from-indigo-200 to-slate-100 text-slate-800! overflow-hidden">
     
     {% block content %}
     {% endblock content %}

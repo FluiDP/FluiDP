@@ -44,3 +44,57 @@ O **FluiDP** é um gerenciador de fluxo de solicitações ao Departamento Pessoa
     ```bash
     python manage.py runserver
     ```
+
+## Importando tabelas (csv/xlsx)
+
+A importação deve ser feita via interface gráfica (em implementação) ou linha de comando.
+
+Para realizar a importação via linha de comando, utilize o comando `import`:
+```
+python manage.py import [tipo] [arquivo]
+```
+
+Sendo que:
+- `tipo`: corresponde a tabela a ser alimentada (cargo, usuario, lotacao).
+- `arquivo`: o caminho referente à tabela a ser importada.
+
+## Passo a passo do deploy
+
+1. Crie um banco de dados no PostgreSQL:
+    ```sql
+    CREATE DATABASE sistemadp;
+    ```
+
+2. Na raiz do projeto, crier e entre no ambiente virtual:
+    ```bash
+    python -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    ```
+
+3. Instale as dependências:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. Crie e realize as migrações:
+    ```bash
+    python manage.py makemigrations
+    python manage.py migrate
+    ```
+
+5. Faça build do Tailwind:
+    ```bash
+    python manage.py tailwind install
+    python manage.py tailwind build
+    ```
+
+6. Crie um superuser:
+    ```bash
+    python manage.py createsuperuser
+    ```
+    _Siga as instruções para criar usuário e senha._
+
+7. Inicialize o Django:
+    ```bash
+    python manage.py runserver 0.0.0.0:8000
+    ```

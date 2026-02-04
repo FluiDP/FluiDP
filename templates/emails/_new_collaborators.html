@@ -1,0 +1,47 @@
+{% extends 'emails/base.html' %}
+
+{% block content %}
+    <h1 style="font-size: 24px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 24px; text-align: center;">
+        Bem-vindo ao FluiDP!
+    </h1>
+
+    <p style="margin: 0 0 16px 0;">Olá, {{ nome_usuario }}.</p>
+
+    <p style="margin: 0 0 16px 0;">
+        O seu cadastro no sistema de solicitações ao Departamento Pessoal foi realizado com sucesso.
+        Para aceder ao painel e realizar as suas solicitações (férias, justificativas, horas extras...), é necessário definir a sua senha de acesso.
+    </p>
+
+    <p style="margin: 0 0 32px 0;">
+        Clique no botão abaixo para criar a sua senha segura:
+    </p>
+
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center">
+                <a href="{{ link_definicao_senha }}" target="_blank" 
+                   style="display: inline-block; 
+                          background-color: #4F46E5; 
+                          color: #ffffff; 
+                          font-size: 16px; 
+                          font-weight: 600; 
+                          text-decoration: none; 
+                          padding: 14px 32px; 
+                          border-radius: 8px; 
+                          box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4); 
+                          border: 1px solid #4F46E5;">
+                    Definir Minha Senha
+                </a>
+            </td>
+        </tr>
+    </table>
+
+    <p style="margin-top: 32px; font-size: 14px; color: #6b7280; text-align: center; line-height: 1.5;">
+        Se o botão não funcionar, copie e cole o link abaixo no seu navegador:<br>
+        <a href="{{ link_definicao_senha }}" style="color: #4F46E5; word-break: break-all;">{{ link_definicao_senha }}</a>
+    </p>
+    
+    <p style="margin-top: 16px; font-size: 12px; color: #9ca3af; text-align: center;">
+        Se não reconhece este cadastro, por favor ignore este e-mail.
+    </p>
+{% endblock %}
