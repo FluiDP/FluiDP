@@ -142,12 +142,20 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
         if campo.get('type') == 'checkbox':
             valor_exibicao = "Sim" if valor_bruto else "Não"
 
+        if campo.get('type') == 'date' and valor_bruto:
+            try:
+                data_obj = datetime.datetime.strptime(valor_bruto, '%Y-%m-%d')
+                valor_exibicao = data_obj.strftime('%d/%m/%Y')
+            except ValueError:
+                pass
+
         campo['valor_exibicao'] = valor_exibicao
         campos_formatados.append(campo)
 
     campos_rows = []
     for i in range(0, len(campos_formatados), 2):
-        campos_rows.append(campos_formatados[i:i+2])
+        if campos_formatados[i].get('name') != "colaborador_substituto":
+            campos_rows.append(campos_formatados[i:i+2])
 
     logs = solicitacao.logs.all().order_by('data_acao')
 

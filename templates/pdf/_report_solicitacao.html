@@ -19,7 +19,7 @@
 
     <div class="mb-8 break-inside-avoid">
         <h3 class="text-sm font-bold text-indigo-700 uppercase mb-2 border-b border-gray-200 pb-1">
-            Dados do Colaborador
+            Dados do Colaborador Solicitante
         </h3>
         <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
@@ -44,7 +44,7 @@
     {% if solicitacao.colaborador_secundario %}
     <div class="mb-8 break-inside-avoid p-4 bg-gray-50 rounded-lg border border-gray-100">
         <h3 class="text-sm font-bold text-gray-700 uppercase mb-2">
-            Colaborador Substituto / Secundário
+            Troca com (substituto):
         </h3>
         <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -68,12 +68,12 @@
             {% for row in campos_rows %}
                 <div class="grid grid-cols-2 gap-6">
                     {% for campo in row %}
-                    <div class="break-inside-avoid">
-                        <span class="block text-xs text-gray-500 font-semibold uppercase mb-1">{{ campo.label }}</span>
-                        <div class="text-sm text-gray-900 bg-gray-50 p-2 rounded border border-gray-100 min-h-10">
-                            {{ campo.valor_exibicao|default:"-"|linebreaksbr }}
+                        <div class="break-inside-avoid">
+                            <span class="block text-xs text-gray-500 font-semibold uppercase mb-1">{{ campo.label }}</span>
+                            <div class="text-sm text-gray-900 bg-gray-50 p-2 rounded border border-gray-100 min-h-10">
+                                {{ campo.valor_exibicao|default:"-"|linebreaksbr }}
+                            </div>
                         </div>
-                    </div>
                     {% endfor %}
                 </div>
             {% endfor %}

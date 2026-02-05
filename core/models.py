@@ -31,6 +31,21 @@ FORM_SCHEMA = {
                 "type": "boolean",
                 "description": "Se True, usa este campo para validar o limite de dias de antecedência."
             },
+            "extra_props": {
+                "type": "object",
+                "description": "Objeto para configurações extras e metadados",
+                "properties": {
+                    "count_time_field": {
+                        "type": "boolean",
+                        "description": "Indica que este campo representa uma quantidade de horas e minutos."
+                    },
+                    "day_time_field": {
+                        "type": "boolean",
+                        "description": "Indica que este campo representa um horário do dia (hora e minuto)."
+                    }
+                },
+                "additionalProperties": True 
+            },
             "options_source": {
                 "type": "string",
                 "enum": ["manual", "colaboradores_lotacao", "cargos"]

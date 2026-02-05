@@ -40,10 +40,25 @@
                     </label>
                     
                     {% if campo.type in 'text,date,email,number' %}
-                        <input type="{{ campo.type }}" 
-                               placeholder="{{ campo.placeholder|default:'' }}"
+                        {% if campo.extra_props and campo.extra_props.count_time_field %}
+                            <input type="text"
+                                   disabled
+                                   placeholder="00:00 (Duração)"
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white cursor-not-allowed">
-                    
+                        
+                        {% elif campo.extra_props and campo.extra_props.day_time_field %}
+                            <input type="text"
+                                   disabled
+                                   placeholder="00:00 (Horário)"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white cursor-not-allowed">
+                        
+                        {% else %}
+                            <input type="{{ campo.type }}"
+                                   placeholder="{{ campo.placeholder|default:'' }}"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white cursor-not-allowed">
+                        
+                       {% endif %}
+
                     {% elif campo.type == 'textarea' %}
                         <textarea rows="4"
                                   placeholder="{{ campo.placeholder|default:'' }}"
