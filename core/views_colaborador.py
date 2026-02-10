@@ -56,29 +56,40 @@ def colaborador_painel_view(request):
 
 @colaborador_required
 def colaborador_solicitacoes_view(request):
+    search_query = request.GET.get('q')
 
-    q_usuario_envolvido = Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
+    qs = Solicitacao.objects.filter(
+        Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
+    ).distinct()
 
-    context = {
-        'usuario': request.user,
-        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
-        'solicitacoes': Solicitacao.objects.filter(
-            q_usuario_envolvido
-        ).distinct().order_by('-data'),
-        'active_link': 'solicitacoes'
-    }
-
-    if request.user.cargo.hierarquia in [
+    if request.user.cargo and request.user.cargo.hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
         Cargo.HierarquiaChoices.COORDENADOR,
         Cargo.HierarquiaChoices.DIRETOR
     ]:
-        context['solicitacoes'] = Solicitacao.objects.filter(
+        qs = Solicitacao.objects.filter(
             colaborador__lotacao__in=request.user.lotacao.get_descendentes(include_self=True)
-        ).order_by('-data')
-    
-    elif request.user.groups.filter(name='DP').exists() or request.user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
-        context['solicitacoes'] = Solicitacao.objects.all().order_by('-data')
+        )
+
+    elif request.user.groups.filter(name='DP').exists():
+        qs = Solicitacao.objects.all()
+
+    if search_query:
+        qs = qs.filter(
+            Q(id__icontains=search_query) |
+            Q(colaborador__first_name__icontains=search_query) |
+            Q(tipo_documento__nome_documento__icontains=search_query)
+        )
+
+    qs = qs.order_by('-data')
+
+    context = {
+        'usuario': request.user,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'solicitacoes': qs,
+        'active_link': 'solicitacoes',
+        'search_query': search_query,
+    }
 
     if request.htmx:
         return render(request, 'painel/colaborador/_content_solicitacoes.html', context)

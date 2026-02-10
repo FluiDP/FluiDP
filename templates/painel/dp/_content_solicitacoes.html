@@ -1,15 +1,16 @@
 <section id="solicitacoes"
-         hx-get="{% url 'administracao:solicitacoes' %}"
+         hx-get="{% url 'administracao:solicitacoes' %}{% if search_query %}?q={{ search_query }}{% endif %}"
          hx-trigger="updateContent from:body"
          hx-swap="outerHTML"
          class="flex flex-1 flex-col gap-2 min-h-0">
-         <header class="p-2">
+         
+    <header class="p-2">
         <h2 class="text-2xl font-bold">Histórico de Solicitações</h2>
     </header>
 
     <div class="flex flex-1 flex-col gap-2 min-h-0">
         <div class="flex flex-row gap-2">
-            {% include "partials/_search_bar.html" with target_ids="solicitacoes" placeholder="Buscar solicitações..." %}
+            {% include "partials/_search_bar.html" with target_ids="solicitacoes" placeholder="Buscar solicitações..." value=search_query %}
             {% include "partials/_solicitacao_create_button.html" with colaborador=usuario %}
         </div>
 
@@ -63,50 +64,44 @@
                     <div class="flex gap-2">
                         {% if solicitacoes.has_previous %}
                         <button 
-                            hx-get="{% url 'administracao:solicitacoes' %}?page=1"
+                            hx-get="{% url 'administracao:solicitacoes' %}?page=1{% if search_query %}&q={{ search_query }}{% endif %}"
                             hx-target="#solicitacoes" 
                             hx-swap="outerHTML"
                             class="px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 transition-colors">
                             Primeiro
                         </button>
+                        
                         <button 
-                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ solicitacoes.previous_page_number }}"
+                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ solicitacoes.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
                             hx-target="#solicitacoes" 
                             hx-swap="outerHTML"
                             class="px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 transition-colors">
                             Anterior
                         </button>
                         {% else %}
-                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">
-                            Primeiro
-                        </button>
-                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">
-                            Anterior
-                        </button>
+                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">Primeiro</button>
+                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">Anterior</button>
                         {% endif %}
 
                         {% if solicitacoes.has_next %}
                         <button 
-                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ solicitacoes.next_page_number }}"
+                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ solicitacoes.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
                             hx-target="#solicitacoes" 
                             hx-swap="outerHTML"
                             class="px-3 py-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors shadow-sm">
                             Próximo
                         </button>
+                        
                         <button 
-                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ num_pages }}"
+                            hx-get="{% url 'administracao:solicitacoes' %}?page={{ num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}"
                             hx-target="#solicitacoes" 
                             hx-swap="outerHTML"
                             class="px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 transition-colors">
                             Último
                         </button>
                         {% else %}
-                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">
-                            Próximo
-                        </button>
-                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">
-                            Último
-                        </button>
+                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">Próximo</button>
+                        <button disabled class="px-3 py-1 text-sm bg-slate-50 text-slate-300 rounded-md cursor-not-allowed">Último</button>
                         {% endif %}
                     </div>
                 </div>

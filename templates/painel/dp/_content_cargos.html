@@ -1,18 +1,36 @@
 {% url 'administracao:create_cargo' as url_criar_cargo %}
+{% url 'administracao:import_data' 'cargos' as url_importar_cargo %}
 
 <section id="cargos"
-         hx-get="{% url 'administracao:cargos' %}"
+         hx-get="{% url 'administracao:cargos' %}{% if search_query %}?q={{ search_query }}{% endif %}"
          hx-trigger="updateContent from:body"
-         hx-swap="innerHTML"
+         hx-swap="outerHTML"
          class="flex-1 flex flex-col gap-2 h-full">
+         
     <header class="p-2">
         <h2 class="text-2xl font-bold">Gerenciar Cargos</h2>
     </header>
+
     <div class="flex flex-1 flex-col gap-2 min-h-0">
-        <div class="flex flex-row gap-2">{% include "partials/_search_bar.html" with target_ids="cargos" placeholder="Buscar cargos..." %}{% include "partials/_generic_create_button.html" with url=url_criar_cargo text="Novo Cargo" icon_name="briefcase-outline" %}</div>
+        <div class="flex flex-row gap-2">
+            {% include "partials/_search_bar.html" with target_ids="cargos" placeholder="Buscar cargos..." value=search_query %}
+            
+            <button type="button"
+                hx-get="{{ url_importar_cargo }}"
+                hx-target="#modal-spot" 
+                hx-swap="innerHTML"
+                class="h-11 w-11 bg-white border border-gray-200 hover:bg-gray-50 hover:border-indigo-300 text-gray-600 hover:text-indigo-600 rounded-full inline-flex justify-center items-center shadow-sm transition-all cursor-pointer"
+                title="Importar Excel/CSV">
+                <ion-icon name="cloud-upload-outline" class="w-5 h-5"></ion-icon>
+            </button>
+
+            {% include "partials/_generic_create_button.html" with url=url_criar_cargo text="Novo Cargo" icon_name="briefcase-outline" %}
+        </div>
+
         <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
             <div class="flex flex-col flex-1 min-h-0">
                 <h3 class="text-xl font-semibold pt-2 pb-2">Cargos</h3>
+                
                 <div class="p-5 bg-slate-50 text-slate-600 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto min-h-0">
                     <table class="w-full border-separate border-spacing-y-2">
                         <thead>
@@ -33,16 +51,21 @@
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ cargo.nome_cargo }}</td>
                                 <td class="p-2">{{ cargo.get_hierarquia_display }}</td>
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">
-                                    <div>
+                                    <div class="flex gap-1">
                                         {% include "partials/_generic_edit_button.html" with item=cargo url=url_editar_cargo %}
                                         {% include "partials/_generic_archive_button.html" with item=cargo url=url_arquivar_cargo %}
-                                        {% include "partials/_generic_delete_button.html" with item=cargo url=url_deletar_cargo %}
+                                        {# {% include "partials/_generic_delete_button.html" with item=cargo url=url_deletar_cargo %} #}
                                     </div>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="py-2 text-center">Nenhum cargo encontrado.</td>
+                                <td colspan="3" class="py-4 text-center text-slate-400">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <ion-icon name="briefcase-outline" class="text-2xl mb-1"></ion-icon>
+                                        <span>Nenhum cargo encontrado.</span>
+                                    </div>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>

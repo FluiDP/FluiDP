@@ -1,73 +1,24 @@
-<div class="search-bar-wrapper flex flex-1" data-target-id="{{ target_ids|default:'solicitacoes-list' }}">
+<div class="search-bar-wrapper flex flex-1">
+    
+    <div class="flex-1 flex items-center relative">
+        <ion-icon name="search-outline" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></ion-icon>
+        
+        <input type="search"
+               id="search-input-{{ target_ids }}" 
+               name="q"
+               value="{{ value|default:'' }}" 
+               placeholder="{{ placeholder|default:'Pesquisar...' }}"
+               
+               hx-get="." 
+               hx-trigger="input changed delay:500ms, search, keyup[key=='Enter']" 
+               hx-target="#{{ target_ids }}" 
+               hx-swap="outerHTML"
+               hx-push-url="true"
+               
+               autofocus
+               onfocus="var temp_value=this.value; this.value=''; this.value=temp_value"
+               
+               class="w-full pl-10 pr-10 py-2 bg-white rounded-full shadow hover:shadow-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+    </div>
 
-    <form class="flex-1 flex items-center" onsubmit="event.preventDefault();">
-        <div class="relative flex-1">
-            <ion-icon name="search-outline" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></ion-icon>
-            
-            <input type="search"
-                   placeholder="{{ placeholder|default:'Pesquisar...' }}"
-                   class="w-full pl-10 pr-10 py-2 bg-white rounded-full shadow hover:shadow-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        </div>
-    </form>
 </div>
-
-<script>
-(function() {
-    const scriptTag = document.currentScript;
-    const wrapper = scriptTag.previousElementSibling; 
-    if (!wrapper) return;
-
-    const input = wrapper.querySelector('input[type="search"]');
-    const targetTableBodyId = wrapper.dataset.targetId;
-    const tableBody = document.getElementById(targetTableBodyId);
-
-    if (!input || !tableBody) {
-        document.addEventListener('DOMContentLoaded', initializeSearch);
-        return;
-    }
-
-    initializeSearch();
-
-    function initializeSearch() {
-        const liveWrapper = document.querySelector(`[data-target-id="${targetTableBodyId}"]`);
-        if (!liveWrapper) return;
-        
-        const liveInput = liveWrapper.querySelector('input[type="search"]');
-        const liveTableBody = document.getElementById(targetTableBodyId);
-
-        if (!liveInput || !liveTableBody) return;
-
-        function filterTable() {
-            const query = liveInput.value.toLowerCase().trim();
-            const rows = liveTableBody.querySelectorAll("tr"); 
-
-            rows.forEach(row => {
-                const rowText = row.textContent.toLowerCase();
-                if (rowText.includes(query)) {
-                    row.style.display = ""; 
-                } else {
-                    row.style.display = "none"; 
-                }
-            });
-        }
-
-        function debounce(fn, wait) {
-            let timer;
-            return function(...args) {
-                clearTimeout(timer);
-                timer = setTimeout(() => fn.apply(this, args), wait);
-            };
-        }
-        
-        const debouncedFilter = debounce(filterTable, 300); 
-
-        liveInput.addEventListener('input', debouncedFilter); 
-        liveInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-            }
-        });
-    }
-
-})();
-</script>

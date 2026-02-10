@@ -1,18 +1,26 @@
 {% url 'administracao:create_documento' as url_criar_documento %}
 
 <section id="documentos"
-         hx-get="{% url 'administracao:documentos' %}"
+         hx-get="{% url 'administracao:documentos' %}{% if search_query %}?q={{ search_query }}{% endif %}"
          hx-trigger="updateContent from:body"
-         hx-swap="innerHTML"
+         hx-swap="outerHTML"
          class="flex-1 flex flex-col gap-2 h-full">
+         
     <header class="p-2">
         <h2 class="text-2xl font-bold">Gerenciar Documentos</h2>
     </header>
+
     <div class="flex flex-1 flex-col gap-2 min-h-0">
-        <div class="flex flex-row gap-2">{% include "partials/_search_bar.html" with target_ids="documentos" placeholder="Buscar documentos..." %}{% include "partials/_generic_create_button.html" with url=url_criar_documento text="Novo Documento" icon_name="briefcase-outline" %}</div>
+        <div class="flex flex-row gap-2">
+            {% include "partials/_search_bar.html" with target_ids="documentos" placeholder="Buscar documentos..." value=search_query %}
+            
+            {% include "partials/_generic_create_button.html" with url=url_criar_documento text="Novo Documento" icon_name="briefcase-outline" %}
+        </div>
+
         <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
             <div class="flex flex-col flex-1 min-h-0">
                 <h3 class="text-xl font-semibold pt-2 pb-2">Documentos</h3>
+                
                 <div class="p-5 bg-slate-50 text-slate-600 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto min-h-0">
                     <table class="w-full border-separate border-spacing-y-2">
                         <thead>
@@ -24,7 +32,7 @@
                                 <th class="p-2 text-left font-semibold">Ações</th>
                             </tr>
                         </thead>
-                        <tbody >
+                        <tbody>
                             {% for documento in documentos %}
                             
                             {% url 'administracao:visualize_documento' documento.id as url_visualizar_documento %}
@@ -34,29 +42,33 @@
 
                             <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ documento.nome_documento }}</td>
+                                
                                 {% if documento.dia_inicio != 1 or documento.dia_fim != 31 %}
-                                    <td class="p-2 first:rounded-l-full last:rounded-r-full">Desde o dia {{ documento.dia_inicio }} até o dia {{ documento.dia_fim }}</td>
+                                    <td class="p-2">Desde o dia {{ documento.dia_inicio }} até o dia {{ documento.dia_fim }}</td>
                                 {% else %}
                                     <td class="p-2">Todo período</td>
                                 {% endif %}
+                                
                                 {% if documento.limite_dias_antecedencia > 0 %}
                                     <td class="p-2">{{ documento.limite_dias_antecedencia }} dias antes</td>
                                 {% else %}
                                     <td class="p-2">Sem limite mínimo</td>
                                 {% endif %}
+                                
                                 <td class="p-2">
                                     {% if documento.disponivel %}
                                         {% if documento.is_empty_form %}
-                                            <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">Sem formulário definido</span>
+                                            <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">Sem formulário</span>
                                         {% else %}
-                                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Disponível para o colaborador</span>
+                                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Disponível</span>
                                         {% endif %}
                                     {% else %}
-                                        <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">Indisponível para o colaborador</span>
+                                        <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">Indisponível</span>
                                     {% endif %}
                                 </td>
+                                
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">
-                                    <div>
+                                    <div class="flex gap-1">
                                         {% include "partials/_documento_visualizer_button.html" with item=documento url=url_visualizar_documento %}
                                         {% include "partials/_generic_edit_button.html" with item=documento url=url_editar_documento %}
                                         {% include "partials/_generic_archive_button.html" with item=documento url=url_arquivar_documento %}
@@ -66,7 +78,12 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="py-2 text-center">Nenhum documento encontrado.</td>
+                                <td colspan="5" class="py-4 text-center text-slate-400">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <ion-icon name="document-text-outline" class="text-2xl mb-1"></ion-icon>
+                                        <span>Nenhum documento encontrado.</span>
+                                    </div>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>

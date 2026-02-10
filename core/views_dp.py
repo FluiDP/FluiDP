@@ -342,10 +342,13 @@ def delete_cargo_view(request, pk):
 
 @dp_required
 def dp_colaboradores_view(request):
+
+    exclude_colaboradores = (Q(is_active=False) | Q(username='admin') | Q(matricula='000000'))
+
     search_query = request.GET.get('q', '')
     page_number = request.GET.get('page')
 
-    colaboradores = CustomUser.objects.filter(is_active=True).order_by('first_name')
+    colaboradores = CustomUser.objects.filter(is_active=True).exclude(exclude_colaboradores).order_by('first_name')
 
     if search_query:
         colaboradores = colaboradores.filter(
