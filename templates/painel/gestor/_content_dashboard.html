@@ -19,8 +19,8 @@
 
             <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
                 <div class="z-10">
-                    <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes da Direção</p>
-                    <h3 class="text-4xl font-bold text-orange-500 mb-2">{{ kpi_direcao }}</h3>
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Aguardando Lançamento do DP</p>
+                    <h3 class="text-4xl font-bold text-orange-500 mb-2">{{ kpi_lancamento_dp }}</h3>
                     <p class="text-xs text-gray-400">Solicitações da equipe</p>
                 </div>
                 <div class="p-3 bg-orange-50 text-orange-500 rounded-xl">
@@ -71,7 +71,7 @@
                                 </td>
                                 
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">
-                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
                                 </td>
                             </tr>
                             {% empty %}

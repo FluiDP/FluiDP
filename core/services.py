@@ -41,10 +41,10 @@ def _pode_ator_aprovar(solicitacao: Solicitacao, ator: CustomUser, request_user:
         if status == Solicitacao.StatusChoices.PENDENTE_DIRETOR:
             return ator.cargo and ator.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
 
-        if status == Solicitacao.StatusChoices.PENDENTE_DP:
+        if status in [Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]:
             return ator.groups.filter(name='DP').exists()
         
-    if status == Solicitacao.StatusChoices.PENDENTE_DP:
+    if status in [Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]:
         return ator.groups.filter(name='DP').exists()
     
     if solicitacao.aprovador_atual == ator:
@@ -85,10 +85,11 @@ def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, request_user
         if gestor_e_diretor:
             novo_status = Solicitacao.StatusChoices.PENDENTE_DP
             novo_aprovador = None
+            acao_log = LogAprovacao.AcaoChoices.APROVADO_DIRETOR
             
         elif solicitacao.tipo_documento.requer_aprovacao_diretor:
             novo_status = Solicitacao.StatusChoices.PENDENTE_DIRETOR
-            novo_aprovador = None 
+            novo_aprovador = None
         
         else:
             novo_status = Solicitacao.StatusChoices.PENDENTE_DP
@@ -100,8 +101,13 @@ def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, request_user
         novo_aprovador = None
 
     elif status_atual == Solicitacao.StatusChoices.PENDENTE_DP:
-        novo_status = Solicitacao.StatusChoices.APROVADO
-        acao_log = LogAprovacao.AcaoChoices.PROCESSADO_DP
+        novo_status = Solicitacao.StatusChoices.LANCAMENTO
+        acao_log = LogAprovacao.AcaoChoices.APROVADO_DP
+        novo_aprovador = None
+
+    elif status_atual == Solicitacao.StatusChoices.LANCAMENTO:
+        novo_status = Solicitacao.StatusChoices.FINALIZADO
+        acao_log = LogAprovacao.AcaoChoices.LANCADO
         novo_aprovador = None
 
     else:
@@ -202,7 +208,7 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
     sucesso = 0
     erros = []
     
-    SENHA_PADRAO = 'Mudar@123'
+    SENHA_PADRAO = 'Ti!@0101'
 
     try:
         with transaction.atomic():

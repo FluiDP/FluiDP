@@ -31,7 +31,7 @@
                                 </td>
                                 
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">
-                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
                                 </td>
                             </tr>
                             {% empty %}
@@ -70,7 +70,7 @@
                                 </td>
                                 
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">
-                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
                                 </td>
                             </tr>
                             {% empty %}

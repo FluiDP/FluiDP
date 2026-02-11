@@ -21,6 +21,7 @@ def colaborador_painel_view(request):
         Solicitacao.StatusChoices.PENDENTE_DIRETOR,
         Solicitacao.StatusChoices.PENDENTE_DP,
         Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
+        Solicitacao.StatusChoices.LANCAMENTO,
     ]
 
     q_usuario_envolvido = Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
@@ -210,6 +211,8 @@ def salvar_solicitacao_view(request, tipo_doc_id):
 def get_solicitacao_detalhes_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     user = request.user
+
+    is_dp = user.groups.filter(name='DP').exists()
     
     pode_aprovar = False
     pode_aprovar = services._pode_ator_aprovar(solicitacao, user, request.user)
@@ -239,6 +242,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
         campos_com_valores.append(campo)
         
     context = {
+        'is_dp': is_dp,
         'solicitacao': solicitacao,
         'tipo_documento': solicitacao.tipo_documento,
         'campos_formulario': campos_com_valores,

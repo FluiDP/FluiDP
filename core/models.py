@@ -408,8 +408,9 @@ class Solicitacao(models.Model):
         PENDENTE_ACEITE_SECUNDARIO = 'PENDENTE_ACEITE', 'Aguardando Aceite do Colega'
         PENDENTE_GESTOR = 'PENDENTE_GESTOR', 'Pendente (Gestor)'
         PENDENTE_DIRETOR = 'PENDENTE_DIRETOR', 'Pendente (Diretor)'
-        PENDENTE_DP = 'PENDENTE_DP', 'Aguardando Lançamento (DP)'
-        APROVADO = 'APROVADO', 'Aprovado'
+        PENDENTE_DP = 'PENDENTE_DP', 'Pendente (DP)'
+        LANCAMENTO = 'LANCAMENTO', 'Aguardando Lançamento' # nesse estágio, as solicitações devem ser processadas pelo DP, mas consideramos aprovadas as solicitações que passaram por todas as etapas de aprovação.
+        FINALIZADO = 'FINALIZADO', 'Finalizado'
         RECUSADO = 'RECUSADO', 'Recusado'
         CANCELADO = 'CANCELADO', 'Cancelado'
 
@@ -483,7 +484,12 @@ class Solicitacao(models.Model):
         Valida as regras de negócio antes de salvar.
         Chamado automaticamente pelo ModelForm ou manualmente via full_clean().
         """
+        
         super().clean()
+
+        if self.pk:
+            return
+
         if self.tipo_documento_id:
             valores = self.dados_preenchidos.get('values', {})
             
@@ -513,8 +519,9 @@ class LogAprovacao(models.Model):
         RECUSADO_GESTOR = 'RECUSADO_GESTOR', 'Recusado pelo Gestor'
         APROVADO_DIRETOR = 'APROVADO_DIRETOR', 'Aprovado pelo Diretor'
         RECUSADO_DIRETOR = 'RECUSADO_DIRETOR', 'Recusado pelo Diretor'
-        PROCESSADO_DP = 'PROCESSADO_DP', 'Processado pelo DP'
-        RECUSADO_DP = 'RECUSADO_DP', 'Reusado pelo DP'
+        APROVADO_DP = 'APROVADO_DP', 'Aprovado pelo DP'
+        RECUSADO_DP = 'RECUSADO_DP', 'Recusado pelo DP'
+        LANCADO = 'LANCADO', 'Lançado pelo DP'
         COMENTARIO = 'COMENTARIO', 'Comentário Adicionado'
 
     solicitacao = models.ForeignKey(

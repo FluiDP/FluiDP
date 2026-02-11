@@ -121,10 +121,10 @@ def gestor_dashboard_view(request):
         aprovador_atual=user
     ).count()
 
-    # KPI 2: Pendências da Direção
-    pendencias_direcao = Solicitacao.objects.filter(
+    # KPI 2: Aguardando Lançamento do DP
+    em_lancamento = Solicitacao.objects.filter(
         colaborador__in=minha_equipe,
-        status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
+        status=Solicitacao.StatusChoices.LANCAMENTO
     ).count()
 
     # KPI 3: Travados no Substituto
@@ -152,7 +152,7 @@ def gestor_dashboard_view(request):
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'is_aprovador': True,
         'kpi_pendencias': pendencias_comigo,
-        'kpi_direcao': pendencias_direcao,
+        'kpi_lancamento_dp': em_lancamento,
         'kpi_travados': travados_substituto,
         'distribuicao_tipos': ranking_query,
         'solicitacoes_pendentes': solicitacoes_pendentes,

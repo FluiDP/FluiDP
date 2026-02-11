@@ -40,13 +40,13 @@ def dp_dashboard_view(request):
         is_active=True
     ).exclude(id=user.id)
 
-    q_pendencias_dp = Q(status=Solicitacao.StatusChoices.PENDENTE_DP)
+    q_pendencias_dp = Q(status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO])
     
     if is_gestor_dp:
         q_pendencias_dp = q_pendencias_dp | Q(colaborador__in=minha_equipe, status=Solicitacao.StatusChoices.PENDENTE_GESTOR)
 
     pendencias_comigo = Solicitacao.objects.filter(
-        status=Solicitacao.StatusChoices.PENDENTE_DP
+        status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]
     ).count()
 
     pendencias_direcao = Solicitacao.objects.filter(
@@ -57,14 +57,15 @@ def dp_dashboard_view(request):
         status__in=[Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
                     Solicitacao.StatusChoices.PENDENTE_GESTOR,
                     Solicitacao.StatusChoices.PENDENTE_DIRETOR,
-                    Solicitacao.StatusChoices.PENDENTE_DP],
+                    Solicitacao.StatusChoices.PENDENTE_DP,
+                    Solicitacao.StatusChoices.LANCAMENTO],
     ).count()
 
     solicitacoes_pendentes = []
 
     if user.groups.filter(name='DP').exists():
         solicitacoes_pendentes = Solicitacao.objects.filter(
-            status=Solicitacao.StatusChoices.PENDENTE_DP
+            status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]
         )
         
         if is_gestor_dp:
@@ -80,7 +81,7 @@ def dp_dashboard_view(request):
         ) | Solicitacao.objects.filter(
             status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
         )
-        
+    
     solicitacoes_pendentes = list(solicitacoes_pendentes.distinct().order_by('-data'))
 
     ranking_query_docs = Solicitacao.objects.values('tipo_documento__nome_documento') \
@@ -100,6 +101,7 @@ def dp_dashboard_view(request):
     context = {
         'usuario': user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'is_dp': True,
         'is_aprovador': True,
         'kpi_pendencias': pendencias_comigo,
         'kpi_direcao': pendencias_direcao,
@@ -612,6 +614,7 @@ def dp_solicitacoes_view(request):
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'is_dp': True,
         'solicitacoes': page_obj,
         'num_pages': paginator.num_pages,
         'active_link': 'solicitacoes',

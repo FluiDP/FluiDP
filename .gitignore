@@ -49,3 +49,6 @@ instance/
 import
 
 json_forms/
+
+staticfiles/
+staticfiles_prod/
