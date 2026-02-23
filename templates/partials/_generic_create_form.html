@@ -23,7 +23,7 @@
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
          @click.stop
-         class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
+         class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
         
         <form hx-post="{{ action_url }}" 
               hx-swap="innerHTML" 
@@ -32,7 +32,7 @@
             
             <div id="generic-form-container">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl text-center font-bold text-gray-900">
+                    <h3 class="text-xl font-bold text-gray-900">
                         {{ modal_title }}
                     </h3>
                     <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-600 transition-colors">

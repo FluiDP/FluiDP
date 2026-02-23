@@ -155,10 +155,42 @@ def salvar_solicitacao_view(request, tipo_doc_id):
     schema_no_momento = tipo_doc.definicao_formulario
     
     valores_preenchidos = {}
+    
     for campo in schema_no_momento:
         campo_nome = campo.get('name')
+        campo_tipo = campo.get('type')
+
         if campo_nome:
-            valores_preenchidos[campo_nome] = request.POST.get(campo_nome)
+            if campo_tipo == 'repeater':
+                lista_final_objetos = []
+                sub_campos = campo.get('sub_fields', [])
+                
+                dados_crus = {}
+                qtd_linhas = 0
+                
+                for sub in sub_campos:
+                    chave_post = f"{campo_nome}_{sub['name']}[]"
+                    
+                    valores_lista = request.POST.getlist(chave_post)
+                    
+                    dados_crus[sub['name']] = valores_lista
+                    
+                    if len(valores_lista) > qtd_linhas:
+                        qtd_linhas = len(valores_lista)
+                
+                for i in range(qtd_linhas):
+                    linha_obj = {}
+                    for sub in sub_campos:
+                        lista_valores = dados_crus.get(sub['name'], [])
+                        valor = lista_valores[i] if i < len(lista_valores) else ""
+                        linha_obj[sub['name']] = valor
+                    
+                    lista_final_objetos.append(linha_obj)
+                
+                valores_preenchidos[campo_nome] = lista_final_objetos
+
+            else:
+                valores_preenchidos[campo_nome] = request.POST.get(campo_nome)
 
     dados_completos = {
         'schema': schema_no_momento,
@@ -206,7 +238,7 @@ def salvar_solicitacao_view(request, tipo_doc_id):
             'message': f'Erro ao salvar: {e}',
             'url_retry': url_retry
         })
-
+    
 @colaborador_required
 def get_solicitacao_detalhes_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)

@@ -1,4 +1,6 @@
 import datetime
+import os
+from pathlib import Path
 from django.utils import timezone
 from shutil import copy
 import copy
@@ -6,7 +8,9 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
+import dotenv
 from core.views_colaborador import User
+from sistemadp.settings import BASE_DIR
 from .models import Cargo, CustomUser, Lotacao, Solicitacao
 from django.contrib.auth import logout as auth_logout
 from django.db.models import Count, Q
@@ -17,6 +21,20 @@ class CustomLoginView(auth_views.LoginView):
 
     def get_success_url(self):
         return reverse_lazy('painel')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        BASE_DIR = Path(__file__).resolve().parent.parent
+
+        env_path = BASE_DIR / '.env'
+        if env_path.exists():
+            dotenv.load_dotenv(env_path)
+
+        instituicao_nome = os.environ.get('INSTITUICAO_NOME', 'FluiDP')
+
+        context['instituicao'] = instituicao_nome
+        return context
 
 class CustomPasswordResetView(auth_views.PasswordResetView):
     template_name = 'login/reset.html'

@@ -74,7 +74,15 @@
                 </form>
             </div>
         </section>
+
+        <div class="container absolute bottom-4 left-0 right-0 mx-auto px-4">
+            {% if instituicao %}
+                <p class="text-center font-bold text-sm text-gray-400">{{ instituicao }}</p>
+            {% endif %}
+            <p class="text-center text-xs text-gray-400">Desenvolvido por <a href="https://github.com/SebastiaoSoares" target="_blank" class="text-sm underline font-medium">Sebastião Soares</a></p>
+        </div>
     </div>
+
     <script>
         (function() {
             var usernameInput = document.getElementById("{{ form.username.id_for_label }}");

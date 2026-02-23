@@ -22,27 +22,85 @@ FORM_SCHEMA = {
             "label": {"type": "string", "minLength": 3},
             "type": {
                 "type": "string",
-                "enum": ["text", "number", "date", "textarea", "select", "checkbox", "radio"]
+                "enum": ["text", "number", "date", "textarea", "select", "checkbox", "radio", "repeater", "calculated"]
             },
             "required": {"type": "boolean"},
             "placeholder": {"type": "string"},
             "help_text": {"type": "string"},
+            
             "is_event_date": {
                 "type": "boolean",
                 "description": "Se True, usa este campo para validar o limite de dias de antecedência."
             },
+
+            "sub_fields": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "pattern": "^[a-zA-Z0-9_]+$"},
+                        "label": {"type": "string"},
+                        "type": {
+                            "type": "string",
+                            "enum": ["text", "number", "date", "select", "checkbox", "radio"]
+                        },
+                        "required": {"type": "boolean"},
+                        "placeholder": {"type": "string"},
+                        "options": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "value": {"type": "string"},
+                                    "label": {"type": "string"}
+                                },
+                                "required": ["value", "label"]
+                            }
+                        },
+                        "extra_props": {
+                            "type": "object",
+                            "additionalProperties": True 
+                        }
+                    },
+                    "required": ["name", "label", "type"],
+                    "additionalProperties": False
+                }
+            },
+
+            "target_repeater": {
+                "type": "string",
+                "description": "Nome do campo repeater alvo."
+            },
+            "target_subfield": {
+                "type": "string",
+                "description": "Nome do sub-campo numérico/hora a ser calculado."
+            },
+            "calc_format": {
+                "type": "string",
+                "enum": ["time", "integer", "decimal"],
+                "description": "Formato do resultado: 'time' (HH:MM), 'integer' (10), 'decimal' (10.50)."
+            },
+            "calc_operator": {
+                "type": "string",
+                "enum": ["sum"], 
+                "default": "sum",
+                "description": "Operação base (por enquanto apenas soma, o sinal é controlado abaixo)."
+            },
+            "condition_field": {
+                "type": "string",
+                "description": "Nome do campo irmão (no repeater) que define o sinal (+/-). Ex: 'tipo_lancamento'."
+            },
+            "subtract_value": {
+                "type": "string",
+                "description": "Valor do campo acima que fará o número ser subtraído. Ex: 'debito'."
+            },
+
             "extra_props": {
                 "type": "object",
-                "description": "Objeto para configurações extras e metadados",
                 "properties": {
-                    "count_time_field": {
-                        "type": "boolean",
-                        "description": "Indica que este campo representa uma quantidade de horas e minutos."
-                    },
-                    "day_time_field": {
-                        "type": "boolean",
-                        "description": "Indica que este campo representa um horário do dia (hora e minuto)."
-                    }
+                    "count_time_field": {"type": "boolean"},
+                    "day_time_field": {"type": "boolean"}
                 },
                 "additionalProperties": True 
             },
@@ -484,7 +542,7 @@ class Solicitacao(models.Model):
         Valida as regras de negócio antes de salvar.
         Chamado automaticamente pelo ModelForm ou manualmente via full_clean().
         """
-        
+
         super().clean()
 
         if self.pk:
