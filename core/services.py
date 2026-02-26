@@ -1,7 +1,7 @@
 import re
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from .models import LogAprovacao, Solicitacao, Cargo, CustomUser, Lotacao
+from .models import Config, LogAprovacao, Solicitacao, Cargo, CustomUser, Lotacao
 import pandas as pd
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.contrib.auth import get_user_model
@@ -329,6 +329,8 @@ def new_collaborator_email(instance):
             'protocol': protocol,
             'domain': domain,
         }
+
+        contexto['tema'] = get_config()
         
         html_content = render_to_string('emails/_new_collaborators.html', contexto)
         text_content = strip_tags(html_content)
@@ -347,3 +349,29 @@ def new_collaborator_email(instance):
     except Exception as e:
         print(f"Erro ao enviar e-mail de boas-vindas para {user.email}: {e}")
         return False
+
+def get_config():
+    """
+    Retorna a instância de Config, criando uma se não existir.
+    """
+
+    config, created = Config.objects.get_or_create(pk=1)
+    return config
+
+def set_config(primary_color, secondary_color, emphasis_color, logo):
+    """
+    Salva as configurações de tema, garantindo que haja apenas uma instância.
+    """
+    config = get_config()
+    
+    if primary_color:
+        config.primary_color = primary_color
+    if secondary_color:
+        config.secondary_color = secondary_color
+    if emphasis_color:
+        config.emphasis_color = emphasis_color
+    if logo:
+        config.logo = logo
+        
+    config.save()
+    return config

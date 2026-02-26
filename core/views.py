@@ -6,6 +6,8 @@ from shutil import copy
 import copy
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from core.services import get_config, set_config
+from .decorators import dp_required
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
 import dotenv
@@ -41,6 +43,13 @@ class CustomPasswordResetView(auth_views.PasswordResetView):
     html_email_template_name = 'emails/_reset_password.html'
     subject_template_name = 'emails/_reset_password_subject.txt'
     success_url = reverse_lazy('login')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        self.extra_email_context = {
+            'tema': get_config()
+        }
+        return context
 
 class CustomPasswordResetDoneView(auth_views.PasswordResetDoneView):
     template_name = 'login/password_reset_done.html'
@@ -96,6 +105,54 @@ def perfil_view(request):
         return render(request, 'painel/colaborador/perfil.html', context)
         
     return redirect('painel')
+
+@dp_required
+def config_view(request):
+    config = get_config()
+
+    primary_color = config.primary_color
+    secondary_color = config.secondary_color
+    emphasis_color = config.emphasis_color
+    logo = config.logo.url
+
+    context = {
+        'usuario': request.user,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'primary_color': primary_color,
+        'secondary_color': secondary_color,
+        'emphasis_color': emphasis_color,
+        'logo': logo,
+    }
+
+    if request.htmx:
+        return render(request, 'painel/_content_config.html', context)
+
+    return render(request, 'painel/dp/config.html', context)
+
+@dp_required
+def save_config_view(request):
+    if request.method == 'POST':
+        primary_color = request.POST.get('primary_color')
+        secondary_color = request.POST.get('secondary_color')
+        emphasis_color = request.POST.get('emphasis_color')
+        logo_file = request.FILES.get('logo')
+
+        set_config(primary_color, secondary_color, emphasis_color, logo_file)
+        
+        config = get_config()
+        
+        context = {
+            'primary_color': config.primary_color,
+            'secondary_color': config.secondary_color,
+            'emphasis_color': config.emphasis_color,
+            'logo': config.logo.url if config.logo else None,
+            'sucesso': True 
+        }
+
+        if request.htmx:
+            return render(request, 'painel/_content_config.html', context)
+
+    return redirect('config')
 
 @login_required
 def logout_view(request):

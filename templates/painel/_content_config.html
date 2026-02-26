@@ -1,0 +1,141 @@
+<section id="conteudo-configuracoes" class="flex flex-1 flex-col gap-2 min-h-0">
+    <header class="p-2">
+        <h2 class="text-2xl font-bold text-slate-800">Configurações</h2>
+    </header>
+    <div class="flex flex-1 flex-col gap-2 min-h-0">
+        <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="flex flex-col flex-1 min-h-0">
+                
+                <div class="p-5 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto min-h-0"
+                     x-data="{ 
+                        primaryColor: '{{ primary_color }}',
+                        secondaryColor: '{{ secondary_color }}',
+                        emphasisColor: '{{ emphasis_color }}',
+                        
+                        logoPreview: {% if logo %}'{{ logo }}'{% else %}null{% endif %}, 
+                        
+                        fileChosen(event) {
+                            if (event.target.files.length > 0) {
+                                this.logoPreview = URL.createObjectURL(event.target.files[0]);
+                            }
+                        }
+                     }">
+                    
+                    <div class="mb-6 border-b border-slate-100 pb-4">
+                        <div class="mb-6 border-b border-slate-100 pb-4">
+                        <h3 class="text-xl font-semibold text-slate-800">Tema da Interface</h3>
+                        <p class="text-sm text-slate-500 mt-1">Personalize as cores e a logo do sistema para refletir a identidade da sua empresa.</p>
+                    </div>
+
+                    {% if sucesso %}
+                        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)" 
+                             x-transition.duration.500ms
+                             class="p-4 mb-6 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200 flex items-center gap-2">
+                            <ion-icon name="checkmark-circle" class="text-green-500 w-5 h-5"></ion-icon>
+                            Configurações salvas com sucesso! As cores e logo foram atualizadas.
+                        </div>
+                    {% endif %}
+                    
+                    <form hx-post="{% url 'save_config' %}"
+                          hx-encoding="multipart/form-data"
+                          hx-swap="outerHTML"
+                          hx-target="#conteudo-configuracoes"
+                          class="space-y-8 max-w-3xl relative">
+
+                        {% csrf_token %}
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Logo da Empresa</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:border-indigo-400 transition-colors bg-slate-50 relative">
+                                <div class="space-y-2 text-center">
+                                    
+                                    <template x-if="logoPreview">
+                                        <div class="mb-4 relative inline-flex items-center justify-center p-2 bg-white rounded-lg border border-slate-200 shadow-sm min-w-[150px] min-h-20">
+                                            <img :src="logoPreview" class="h-20 w-auto max-w-[200px] object-contain" alt="Preview da Logo">
+                                            
+                                            <button type="button" @click="logoPreview = null; $refs.fileInput.value = ''" 
+                                                    class="absolute -top-3 -right-3 bg-red-100 text-red-600 rounded-full p-1 shadow-md hover:bg-red-200 transition-colors">
+                                                <ion-icon name="close-outline" class="w-5 h-5 block"></ion-icon>
+                                            </button>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!logoPreview">
+                                        <div class="bg-white p-3 rounded-full shadow-sm inline-block mb-2">
+                                            <ion-icon name="image-outline" class="mx-auto h-8 w-8 text-indigo-500 block"></ion-icon>
+                                        </div>
+                                    </template>
+
+                                    <div class="flex text-sm text-slate-600 justify-center items-center">
+                                        <label for="logo-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none px-3 py-1.5 shadow-sm border border-slate-200 transition-all">
+                                            <span>Selecionar arquivo</span>
+                                            <input id="logo-upload" x-ref="fileInput" name="logo" type="file" class="sr-only" accept="image/png, image/jpeg, image/svg+xml" @change="fileChosen">
+                                        </label>
+                                        <p class="pl-2">ou arraste para cá</p>
+                                    </div>
+                                    <p class="text-xs text-slate-500">Recomendado: PNG ou SVG com fundo transparente. Máximo 2MB.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm">
+                                <label for="primary_color" class="block text-sm font-semibold text-slate-700 mb-3">Cor Primária</label>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 overflow-hidden shadow-sm border-2 border-white focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2">
+                                        <input type="color" id="primary_color" name="primary_color" x-model="primaryColor" class="w-full h-full cursor-pointer">
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-bold text-slate-800 uppercase" x-text="primaryColor"></p>
+                                        <p class="text-xs text-slate-500 mt-0.5">Usada em botões e destaques principais.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm">
+                                <label for="secondary_color" class="block text-sm font-semibold text-slate-700 mb-3">Cor Secundária</label>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 overflow-hidden shadow-sm border-2 border-white focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2">
+                                        <input type="color" id="secondary_color" name="secondary_color" x-model="secondaryColor" class="w-full h-full cursor-pointer">
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-bold text-slate-800 uppercase" x-text="secondaryColor"></p>
+                                        <p class="text-xs text-slate-500 mt-0.5">Usada em subtítulos e elementos secundários.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm">
+                                <label for="emphasis_color" class="block text-sm font-semibold text-slate-700 mb-3">Ênfase</label>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 overflow-hidden shadow-sm border-2 border-white focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2">
+                                        <input type="color" id="emphasis_color" name="emphasis_color" x-model="emphasisColor" class="w-full h-full cursor-pointer">
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-bold text-slate-800 uppercase" x-text="emphasisColor"></p>
+                                        <p class="text-xs text-slate-500 mt-0.5">Usada em elementos com ênfase.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="pt-6 flex justify-end gap-3 border-t border-slate-100">
+                            <button type="button" @click="primaryColor = '#4f39f6'; secondaryColor = '#372aac'; emphasisColor = '#c6d2ff'" class="px-5 py-2.5 rounded-full text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none transition-colors">
+                                Restaurar Padrões
+                            </button>
+                            
+                            <button type="submit" class="px-5 py-2.5 rounded-full text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all" :style="`background-color: ${primaryColor}; --tw-ring-color: ${primaryColor}`">
+                                Salvar Configurações
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</section>
+
+<div id="modal-spot"></div>

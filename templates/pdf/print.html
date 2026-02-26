@@ -9,7 +9,6 @@
     {% tailwind_css %}
 
     <style>
-        /* Configurações específicas de Impressão */
         @media print {
             @page {
                 size: A4;
@@ -20,28 +19,23 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            /* Esconde elementos de interface (botões, sidebar) */
             .no-print {
                 display: none !important;
             }
-            /* Força quebra de página */
             .page-break {
                 page-break-before: always;
             }
-            /* Evita quebra dentro de elementos importantes */
             .break-inside-avoid {
                 break-inside: avoid;
             }
-            /* Remove sombras para economizar tinta e limpar visual */
             .shadow-lg, .shadow-xl {
                 box-shadow: none !important;
             }
         }
 
-        /* Visualização em tela (Simula folha A4) */
         @media screen {
             body {
-                background-color: #f3f4f6; /* Gray-100 */
+                background-color: #f3f4f6;
                 padding: 2rem;
             }
             .a4-page {
@@ -71,12 +65,18 @@
     <div class="no-print h-20"></div>
 
     <div class="a4-page">
-        {% block content %}{% endblock %}
         
-        <div class="mt-12 pt-4 border-t border-gray-200 text-center text-xs text-gray-400">
-            <p>Documento gerado eletronicamente pelo Sistema FluiDP em {% now "d/m/Y H:i" %}.</p>
-            <p>Este documento possui validade interna.</p>
+        {% block content %}{% endblock %}
+
+        <div class="flex justify-between items-start mb-8 pt-4 border-t border-gray-200 mt-8">
+            <div>
+                <img src="{% static 'images/header-logo.png' %}" alt="FluiDP" class="h-6 mb-6">
+            </div>
+            <div class="text-right text-xs text-gray-400">
+                Documento gerado eletronicamente pelo Sistema FluiDP em {% now "d/m/Y H:i" %}. Este documento possui validade interna.
+            </div>
         </div>
+
     </div>
 
 </body>

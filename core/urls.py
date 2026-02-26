@@ -14,6 +14,8 @@ urlpatterns = [
 
     path('painel/', views.painel_view, name='painel'),
     path('perfil/', views.perfil_view, name='perfil'),
+    path('configuracao/', views.config_view, name='config'),
+    path('configuracao/salvar/', views.save_config_view, name='save_config'),
     path('servico-indisponivel/', views.indisponibilidade_view, name='indisponibilidade'),
 
     path('administracao/', include('core.urls_dp')),

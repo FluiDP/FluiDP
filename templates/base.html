@@ -14,8 +14,18 @@
 
     {% tailwind_css %}
 
-    <script src="https://unpkg.com/htmx.org@1.9.10" ...></script>
-    <script src="https://unpkg.com/alpinejs@3.13.10/dist/cdn.min.js" defer></script> <style>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/alpinejs@3.13.10/dist/cdn.min.js" defer></script> 
+    
+    <style id="tema-dinamico">
+        :root {
+            --color-primary: {{ tema.primary_color|default:"#4f39f6" }};
+            --color-secondary: {{ tema.secondary_color|default:"#372aac" }};
+            --color-emphasis: {{ tema.emphasis_color|default:"#c6d2ff" }};
+        }
+    </style>
+
+    <style>
         [x-cloak] { display: none !important; }
 
         ion-icon {
@@ -29,6 +39,7 @@
     </style>
 
 </head>
+
 <body class="bg-linear-to-tr from-indigo-200 to-slate-100 text-slate-800! overflow-hidden">
     
     {% block content %}
