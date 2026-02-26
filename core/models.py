@@ -624,6 +624,13 @@ class Config(SingletonModel):
     """
     Model de configuração global do sistema herdando as características de Singleton.
     """
+
+    instituicao_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Nome da Instituição"
+    )
     
     primary_color = models.CharField(
         max_length=7, 

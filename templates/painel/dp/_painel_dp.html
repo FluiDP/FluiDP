@@ -6,7 +6,7 @@
 
 {% block menu_actions %}
     <a href="{% url 'administracao:dashboard' %}"
-        class="flex items-center rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2 transition-colors"
+        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
@@ -16,7 +16,7 @@
     </a>
     
     <a href="{% url 'administracao:lotacoes' %}"
-        class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
@@ -24,8 +24,9 @@
         <ion-icon name="layers-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Gerenciar Lotações</span>
     </a>
+    
     <a href="{% url 'administracao:colaboradores' %}"
-        class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
@@ -33,8 +34,9 @@
         <ion-icon name="people-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Gerenciar Colaboradores</span>
     </a>
+    
     <a href="{% url 'administracao:documentos' %}"
-        class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
@@ -42,8 +44,9 @@
         <ion-icon name="reader-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Gerenciar Documentos</span>
     </a>
+    
     <a href="{% url 'administracao:cargos' %}"
-        class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
@@ -51,8 +54,9 @@
         <ion-icon name="grid-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Gerenciar Cargos</span>
     </a>
+    
     <a href="{% url 'administracao:solicitacoes' %}"
-        class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
@@ -60,8 +64,9 @@
         <ion-icon name="file-tray-full-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Histórico de Solicitações</span>
     </a>
+    
     <a href="{% url 'config' %}"
-        class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"

@@ -2,9 +2,9 @@
     hx-get="{% url 'colaborador:get_create_solicitacao_select' %}" 
     hx-target="#modal-spot" 
     hx-swap="innerHTML"
-    class="h-11 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 rounded-full inline-flex justify-start items-center gap-2 text-white shadow hover:shadow-lg">
+    class="h-11 px-3 py-2.5 bg-primary hover:opacity-90 rounded-full inline-flex justify-start items-center gap-2 text-white shadow hover:shadow-lg transition-all cursor-pointer">
     
-    <div class="justify-start text-White text-sm font-normal">{{ name|default:'Criar' }}</div>
+    <div class="justify-start text-white text-sm font-normal">{{ name|default:'Criar' }}</div>
     <div class="w-4 h-4 relative overflow-hidden">
         <div class="w-4 h-4 flex items-center justify-center"><ion-icon name="{{ icon_name|default:'add-outline' }}"></ion-icon></div>
     </div>

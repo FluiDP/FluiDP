@@ -2,12 +2,12 @@
 
 {% block menu_actions %}
     <a href="{% url 'gestor:home' %}"
-        class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
         hx-target="#content-swap" 
         hx-swap="innerHTML"
         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
     >
-        <ion-icon  name="home-outline"></ion-icon>
+        <ion-icon name="home-outline"></ion-icon>
         <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Início</span>
     </a>
 {% endblock menu_actions %}

@@ -356,7 +356,7 @@ def get_config():
     """
 
     config, created = Config.objects.get_or_create(pk=1)
-    return config
+    return config.load()
 
 def set_config(primary_color, secondary_color, emphasis_color, logo):
     """

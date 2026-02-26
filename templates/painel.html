@@ -18,8 +18,8 @@
         <hr class="mt-4 border-slate-200">
 
         <button @click="sidebarOpen = !sidebarOpen" class="text-slate-600 focus:outline-none mt-4 bg-white p-[5px] shadow-lg rounded-full absolute -right-2">
-            <ion-icon  name="chevron-back-outline" x-show="sidebarOpen"></ion-icon>
-            <ion-icon  name="chevron-forward-outline" x-show="!sidebarOpen"></ion-icon>
+            <ion-icon name="chevron-back-outline" x-show="sidebarOpen"></ion-icon>
+            <ion-icon name="chevron-forward-outline" x-show="!sidebarOpen"></ion-icon>
         </button>
         
         <nav class="mt-8 flex flex-col justify-between h-[90%]">
@@ -28,7 +28,7 @@
             <div>
                 {% if usuario.is_staff %}
                     <a href="{% url 'admin:index' %}"
-                        class="flex items-center rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+                        class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
                         hx-boost="False"
                         :class="sidebarOpen ? 'justify-start' : 'justify-center'"
                     >
@@ -40,20 +40,20 @@
                     </a>
                 {% endif %}
                 <a href="{% url 'perfil' %}"
-                    class="flex items-center  rounded-full hover:bg-indigo-100 hover:text-indigo-800 hover:font-semibold p-2"
+                    class="flex items-center rounded-full hover:bg-emphasis hover:text-primary hover:font-semibold p-2 transition-colors"
                     hx-target="#content-swap" 
                     hx-swap="innerHTML"
                     :class="sidebarOpen ? 'justify-start' : 'justify-center'"
                 >
                     <ion-icon name="person-outline"></ion-icon>
                     <span class="ml-3 hover:text-semibold" :class="sidebarOpen ? 'block' : 'hidden'">Meu perfil</span>
-                    <div class="bg-indigo-200 p-[5px] rounded-full ml-auto text-sm font-medium text-indigo-800" :class="sidebarOpen ? 'block' : 'hidden'">{{usuario_tagname|default:usuario.username}}</div>
+                    <div class="bg-emphasis p-[5px] rounded-full ml-auto text-sm font-medium text-primary" :class="sidebarOpen ? 'block' : 'hidden'">{{usuario_tagname|default:usuario.username}}</div>
                 </a>
                 
                 <form action="{% url 'logout' %}" method="POST">
                     {% csrf_token %}
                     <button type="submit" 
-                            class="w-full flex items-center rounded-full text-red-600 hover:bg-red-100 p-2"
+                            class="w-full flex items-center rounded-full text-red-600 hover:bg-red-100 p-2 transition-colors"
                             :class="sidebarOpen ? 'justify-start' : 'justify-center'">
                         
                         <ion-icon name="log-out-outline" class="shrink-0 w-6 h-6"></ion-icon>

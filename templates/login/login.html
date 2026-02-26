@@ -1,15 +1,20 @@
 {% extends 'base.html' %}
-
 {% load static %}
 
 {% block content %}
-
-    <div class="container mx-auto px-4">
-        <section class="flex items-center justify-center min-h-screen">
+    <div class="container mx-auto px-4 min-h-screen flex flex-col">
+        
+        <section class="flex-1 flex items-center justify-center w-full py-12">
             
-            <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 md:p-10 flex flex-col space-y-8">
+            <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 md:p-10 flex flex-col space-y-8 z-10">
                 
-                <img class="h-12" src="{% static 'images/logo-login.svg' %}" alt="FluiDP - Logo">
+                <div class="flex justify-center">
+                    {% if tema.logo %}
+                        <img class="max-h-20 max-w-[240px] object-contain" src="{{ tema.logo.url }}" alt="Logo Empresa">
+                    {% else %}
+                        <img class="h-12" src="{% static 'images/logo-login.svg' %}" alt="FluiDP - Logo">
+                    {% endif %}
+                </div>
 
                 <form method="post" novalidate>
                     {% csrf_token %}
@@ -59,28 +64,37 @@
                     </div>
                     
                     <button type="submit" 
-                            class="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold 
-                                   hover:bg-indigo-700 focus:outline-none focus:ring-2 
-                                   focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-300 shadow-lg hover:shadow-indigo-300/50">
+                            class="w-full bg-primary text-white py-3 px-4 rounded-lg font-semibold 
+                                   hover:opacity-90 focus:outline-none focus:ring-2 
+                                   focus:ring-primary focus:ring-offset-2 transition-all duration-300 shadow-lg hover:shadow-emphasis/50">
                         Entrar
                     </button>
 
                     <div class="text-center mt-4">
-                        <a href="{% url 'reset_password' %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                        <a href="{% url 'reset_password' %}" class="text-sm font-medium text-primary hover:opacity-80 transition-opacity">
                             Redefinir senha
                         </a>
                     </div>
-
                 </form>
             </div>
         </section>
 
-        <div class="container absolute bottom-4 left-0 right-0 mx-auto px-4">
-            {% if instituicao %}
-                <p class="text-center font-bold text-sm text-gray-400">{{ instituicao }}</p>
-            {% endif %}
-            <p class="text-center text-xs text-gray-400">Desenvolvido por <a href="https://github.com/SebastiaoSoares" target="_blank" class="text-sm underline font-medium">Sebastião Soares</a></p>
-        </div>
+        <footer class="w-full py-6">
+            <div class="flex flex-col items-center justify-center space-y-3">
+                <div class="flex items-center gap-2 px-4 py-2 bg-white/30 backdrop-blur-sm rounded-full border border-white/50">
+                    <img src="{% static 'images/header-logo.png' %}" class="h-5 w-auto invert" alt="FluiDP">
+                </div>
+
+                <div class="text-center">
+                    {% if instituicao %}
+                        <p class="font-bold text-sm text-gray-500 uppercase tracking-widest mb-1">{{ instituicao }}</p>
+                    {% endif %}
+                    <p class="text-xs text-gray-500">Desenvolvido por 
+                        <a href="https://github.com/SebastiaoSoares" target="_blank" class="underline font-medium hover:text-primary transition-colors">Sebastião Soares</a>
+                    </p>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <script>
@@ -91,7 +105,7 @@
             var classes = [
                 "w-full", "px-4", "py-3", "border", "border-gray-300", 
                 "rounded-lg", "text-gray-700", "shadow-sm", 
-                "focus:outline-none", "focus:ring-2", "focus:ring-indigo-500", "focus:border-transparent"
+                "focus:outline-none", "focus:ring-2", "focus:ring-primary", "focus:border-transparent"
             ];
 
             if (usernameInput) {
@@ -102,5 +116,4 @@
             }
         })();
     </script>
-
 {% endblock content %}

@@ -22,7 +22,7 @@
                 hx-get="{{ url_importar_colaborador }}"
                 hx-target="#modal-spot" 
                 hx-swap="innerHTML"
-                class="h-11 w-11 bg-white border border-gray-200 hover:bg-gray-50 hover:border-indigo-300 text-gray-600 hover:text-indigo-600 rounded-full inline-flex justify-center items-center shadow-sm transition-all cursor-pointer"
+                class="h-11 w-11 bg-white border border-gray-200 hover:bg-gray-50 hover:border-emphasis text-gray-600 hover:text-primary rounded-full inline-flex justify-center items-center shadow-sm transition-all cursor-pointer"
                 title="Importar Excel/CSV">
                 <ion-icon name="cloud-upload-outline" class="w-5 h-5"></ion-icon>
             </button>
@@ -111,7 +111,7 @@
                             hx-get="{% url 'administracao:colaboradores' %}?page={{ colaboradores.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
                             hx-target="#colaboradores" 
                             hx-swap="outerHTML"
-                            class="px-3 py-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors shadow-sm">
+                            class="px-3 py-1 text-sm bg-primary hover:bg-secondary text-white rounded-md transition-colors shadow-sm">
                             Próximo
                         </button>
                         
