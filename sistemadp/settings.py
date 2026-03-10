@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'tailwind',
     'theme',
     'django_htmx',
+    'django_q',
 ]
 
 MIDDLEWARE = [
@@ -138,3 +139,30 @@ SESSION_COOKIE_NAME = 'fluidp_sessionid'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# configuração do django-q
+
+Q_CLUSTER = {
+    'name': 'fluidp_cluster',
+    'workers': 4,
+    'recycle': 500,
+    'timeout': 600,       
+    'retry': 660,
+    'compress': True,
+    'save_limit': 250,
+    'queue_limit': 500,
+    'cpu_affinity': 1,
+    'label': 'Django Q',
+    'orm': 'default'
+}
+
+
+# configuração de cache para importação em background
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'fluidp_cache_table',
+    }
+}

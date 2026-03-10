@@ -7,7 +7,11 @@
 {% block content %}
     <div class="flex justify-between items-start mb-8 border-b-2 border-primary pb-4">
         <div>
-            <img src="{% static 'images/header-logo.png' %}" alt="Logo Empresa" class="h-6 mb-6">
+            {% if tema.logo %}
+                <img src="{{ tema.logo.url }}" alt="Logo Empresa" class="h-12 mb-6">
+            {% else %}
+                <img src="{% static 'images/logo-login-slate-400.svg' %}" alt="FluiDP" class="h-10 mb-6">
+            {% endif %}
             <h2 class="text-2xl font-bold text-gray-900 uppercase">{{ solicitacao.tipo_documento.nome_documento }}</h2>
         </div>
         <div class="text-right">

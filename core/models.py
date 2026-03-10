@@ -602,7 +602,7 @@ class LogAprovacao(models.Model):
 
 class SingletonModel(models.Model):
     """
-    Classe abstrata que garante que exista apenas uma instância (registro) 
+    Classe abstrata que garante a existência de apenas uma instância (registro) 
     deste model no banco de dados.
     """
     class Meta:
@@ -625,7 +625,7 @@ class Config(SingletonModel):
     Model de configuração global do sistema herdando as características de Singleton.
     """
 
-    instituicao_nome = models.CharField(
+    nome_instituicao = models.CharField(
         max_length=255,
         blank=True,
         null=True,
@@ -646,31 +646,18 @@ class Config(SingletonModel):
 
     emphasis_color = models.CharField(
         max_length=7, 
-        default="#c6d2ff",
+        default="#ebefff",
         verbose_name="Cor de Destaque"
     )
 
     logo = models.ImageField(
-        upload_to='logos/', 
-        default='theme/static/images/logo-icon.png', 
+        upload_to='logos/',
         blank=True,
         null=True,
         verbose_name="Logo da Empresa"
     )
 
     def save(self, *args, **kwargs):
-        try:
-            old_config = Config.objects.get(pk=1)
-            
-            if old_config.logo and self.logo and old_config.logo != self.logo:
-                
-                if old_config.logo.name != 'theme/static/images/logo-icon.png':
-                    
-                    old_config.logo.delete(save=False)
-                    
-        except Config.DoesNotExist:
-            pass
-
         super().save(*args, **kwargs)
 
     class Meta:

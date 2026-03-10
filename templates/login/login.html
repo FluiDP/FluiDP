@@ -4,15 +4,18 @@
 {% block content %}
     <div class="container mx-auto px-4 min-h-screen flex flex-col">
         
-        <section class="flex-1 flex items-center justify-center w-full py-12">
+        <section class="flex-1 flex items-center justify-center w-full py-12 flex-col mb-4 gap-10">
+            {% if tema.logo %}
+                <img class="max-h-20 max-w-60 object-contain" src="{{ tema.logo.url }}" alt="Logo">
+            {% endif %}
             
             <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 md:p-10 flex flex-col space-y-8 z-10">
                 
-                <div class="flex justify-center">
+                <div class="flex justify-center mb-10">
                     {% if tema.logo %}
-                        <img class="max-h-20 max-w-[240px] object-contain" src="{{ tema.logo.url }}" alt="Logo Empresa">
+                        <img class="h-12" src="{% static 'images/logo-login-slate-400.svg' %}" alt="FluiDP - Logo">
                     {% else %}
-                        <img class="h-12" src="{% static 'images/logo-login.svg' %}" alt="FluiDP - Logo">
+                        <img class="h-12" src="{% static 'images/logo-login-color.svg' %}" alt="FluiDP - Logo">
                     {% endif %}
                 </div>
 
@@ -80,16 +83,12 @@
         </section>
 
         <footer class="w-full py-6">
-            <div class="flex flex-col items-center justify-center space-y-3">
+            <div class="flex flex-col items-center justify-center">
                 <div class="flex items-center gap-2 px-4 py-2 bg-white/30 backdrop-blur-sm rounded-full border border-white/50">
-                    <img src="{% static 'images/header-logo.png' %}" class="h-5 w-auto invert" alt="FluiDP">
+                    <img src="{% static 'images/header-logo-slate-400.png' %}" class="h-6 w-auto" alt="FluiDP">
                 </div>
-
                 <div class="text-center">
-                    {% if instituicao %}
-                        <p class="font-bold text-sm text-gray-500 uppercase tracking-widest mb-1">{{ instituicao }}</p>
-                    {% endif %}
-                    <p class="text-xs text-gray-500">Desenvolvido por 
+                    <p class="text-xs text-gray-500">Solução desenvolvida por 
                         <a href="https://github.com/SebastiaoSoares" target="_blank" class="underline font-medium hover:text-primary transition-colors">Sebastião Soares</a>
                     </p>
                 </div>

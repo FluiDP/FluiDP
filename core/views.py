@@ -110,10 +110,11 @@ def perfil_view(request):
 def config_view(request):
     config = get_config()
 
+    nome_instituicao = config.nome_instituicao or "FluiDP"
     primary_color = config.primary_color
     secondary_color = config.secondary_color
     emphasis_color = config.emphasis_color
-    logo = config.logo.url
+    logo = config.logo.url if config.logo else None
 
     context = {
         'usuario': request.user,
@@ -122,6 +123,7 @@ def config_view(request):
         'secondary_color': secondary_color,
         'emphasis_color': emphasis_color,
         'logo': logo,
+        'nome_instituicao': nome_instituicao
     }
 
     if request.htmx:
@@ -132,12 +134,13 @@ def config_view(request):
 @dp_required
 def save_config_view(request):
     if request.method == 'POST':
+        nome_instituicao = request.POST.get('nome_instituicao')
         primary_color = request.POST.get('primary_color')
         secondary_color = request.POST.get('secondary_color')
         emphasis_color = request.POST.get('emphasis_color')
-        logo_file = request.FILES.get('logo')
+        logo_file = request.FILES.get('logo') or None
 
-        set_config(primary_color, secondary_color, emphasis_color, logo_file)
+        set_config(nome_instituicao, primary_color, secondary_color, emphasis_color, logo_file)
         
         config = get_config()
         
@@ -146,6 +149,7 @@ def save_config_view(request):
             'secondary_color': config.secondary_color,
             'emphasis_color': config.emphasis_color,
             'logo': config.logo.url if config.logo else None,
+            'nome_instituicao': config.nome_instituicao,
             'sucesso': True 
         }
 
@@ -283,6 +287,67 @@ def relatorio_geral_view(request):
         data__range=(data_inicio, data_fim)
     )
 
+    total_minutos_extras = 0
+    total_minutos_compensados = 0
+
+    def time_str_to_minutes(t_str):
+        """Converte string 'HH:MM' (mesmo negativa) para total de minutos absolutos (módulo)."""
+        if isinstance(t_str, str) and ':' in t_str:
+            try:
+                t_str = t_str.replace('-', '').strip()
+                h, m = t_str.split(':')
+                return (int(h) * 60) + int(m)
+            except ValueError:
+                return 0
+        return 0
+
+    def minutes_to_time_str(mins):
+        """Converte total de minutos para string 'HH:MM'."""
+        h = mins // 60
+        m = mins % 60
+        return f"{h:02d}:{m:02d}"
+
+    for sol in qs_base:
+        if sol.status == Solicitacao.StatusChoices.FINALIZADO:
+            dados = sol.dados_preenchidos
+            valores = dados.get('values', dados) if isinstance(dados, dict) else {}
+            schema = dados.get('schema', []) if isinstance(dados, dict) else []
+            
+            if isinstance(valores, dict) and isinstance(schema, list):
+                calc_time_fields = [
+                    campo for campo in schema 
+                    if campo.get('type') == 'calculated' and campo.get('calc_format') == 'time'
+                ]
+                
+                nome_documento = sol.tipo_documento.nome_documento.lower()
+                
+                if len(calc_time_fields) == 2:
+                    val1_str = valores.get(calc_time_fields[0].get('name'), '00:00')
+                    val2_str = valores.get(calc_time_fields[1].get('name'), '00:00')
+                    
+                    mins1 = time_str_to_minutes(val1_str)
+                    mins2 = time_str_to_minutes(val2_str)
+                    
+                    minutos_compensados_doc = min(mins1, mins2)
+                    total_minutos_compensados += minutos_compensados_doc
+
+                elif len(calc_time_fields) == 1:
+                    campo = calc_time_fields[0]
+                    nome_campo = campo.get('name', '').lower()
+                    label_campo = campo.get('label', '').lower()
+                    
+                    valor_str = valores.get(nome_campo, '00:00')
+                    minutos = time_str_to_minutes(valor_str)
+                    
+                    if minutos > 0:
+                        if 'compensa' in nome_campo or 'compensa' in label_campo or 'banco' in nome_documento:
+                            total_minutos_compensados += minutos
+                        elif 'extra' in nome_campo or 'extra' in label_campo or 'ocorrencia' in nome_campo:
+                            total_minutos_extras += minutos
+
+    horas_extras_formatadas = minutes_to_time_str(total_minutos_extras)
+    horas_compensadas_formatadas = minutes_to_time_str(total_minutos_compensados)
+
     docs_scoped = qs_base.values('tipo_documento__nome_documento')\
         .annotate(total=Count('id')).order_by('-total')[:5]
     
@@ -324,7 +389,9 @@ def relatorio_geral_view(request):
         'chart_docs_data': [x['total'] for x in docs_scoped],
         'chart_lot_labels': [x['colaborador__lotacao__nome_lotacao'] for x in lotacoes_scoped],
         'chart_lot_data': [x['total'] for x in lotacoes_scoped],
-        'data_impressao': timezone.now()
+        'data_impressao': timezone.now(),
+        'horas_extras': horas_extras_formatadas,
+        'horas_compensadas': horas_compensadas_formatadas
     }
 
     return render(request, 'pdf/_report_geral.html', context)

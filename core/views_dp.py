@@ -1,4 +1,6 @@
 import copy
+from django.core.cache import cache, caches
+import uuid
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render, get_object_or_404
 from django.db.models import Q
@@ -7,6 +9,8 @@ from django.http import HttpResponse
 from django.db.models import Count
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
+from django.core.files.storage import default_storage
+from django_q.tasks import async_task
 
 from core.services import importar_dados
 
@@ -640,64 +644,56 @@ def import_data_modal_view(request, tipo_dado):
         if not arquivo:
             return render(request, 'partials/_message_error.html', {'message': "Nenhum arquivo selecionado."})
 
-        mapa = {}
-        campo_chave = []
-        model = None
-        
         try:
-            if tipo_dado == 'colaboradores':
-                model = get_user_model()
-                mapa = {
-                    'Nome': 'first_name',
-                    'Email': 'email',
-                    'Matricula': 'matricula',
-                    'CPF': 'cpf',
-                    'Cargo': ('cargo', Cargo, 'nome_cargo'), 
-                    'Lotacao': ('lotacao', Lotacao, 'nome_lotacao'),
-                }
-                campo_chave = ['cpf'] 
+            file_ext = arquivo.name.split('.')[-1]
+            temp_filename = f"tmp_import/{uuid.uuid4()}.{file_ext}"
+            saved_path = default_storage.save(temp_filename, arquivo)
 
-            elif tipo_dado == 'lotacoes':
-                model = Lotacao
-                mapa = {
-                    'Nome': 'nome_lotacao',
-                    'Pai': ('lotacao_pai', Lotacao, 'nome_lotacao') 
-                }
-                campo_chave = ['nome_lotacao']
+            task_id = str(uuid.uuid4())
+            cache.set(task_id, {'status': 'processing', 'message': 'Iniciando importação...'}, timeout=3600)
 
-            elif tipo_dado == 'cargos':
-                model = Cargo
-                mapa = {
-                    'Nome': 'nome_cargo',
-                    'Nivel': 'hierarquia' 
-                }
-                campo_chave = ['nome_cargo']
-            
-            resultado = importar_dados(
-                arquivo_io=arquivo,
-                nome_arquivo=arquivo.name,
-                model_class=model,
-                mapa_de_campos=mapa,
-                campo_busca_fk=campo_chave
-            )
+            async_task('core.tasks.processar_importacao_task', task_id, saved_path, tipo_dado)
 
-            if resultado['sucesso'] > 0:
-                msg = f"Sucesso! {resultado['sucesso']} registros processados."
-                if resultado['erros']:
-                    msg += f" (Com {len(resultado['erros'])} alertas)"
-                
-                response = render(request, 'partials/_message_sucess.html', {'message': msg})
-                response['HX-Trigger'] = 'updateContent'
-                return response
-            else:
-                erro_txt = resultado['erros'][0] if resultado['erros'] else "Erro desconhecido"
-                return render(request, 'partials/_message_error.html', {'message': f"Falha: {erro_txt}"})
+            return render(request, 'partials/_import_progress.html', {'task_id': task_id})
 
         except Exception as e:
-            return render(request, 'partials/_message_error.html', {'message': f"Erro interno: {str(e)}"})
+            return render(request, 'partials/_message_error.html', {'message': f"Erro ao iniciar processo: {str(e)}"})
 
     ctx = config.get(tipo_dado)
     return render(request, 'partials/_import_form.html', {
         'modal_title': ctx['titulo'],
         'action_url': ctx['url']
     })
+
+def check_import_status_view(request, task_id):
+    """View chamada via HTMX Polling para verificar o status da importação."""
+    status_data = caches['default'].get(task_id, {'status': 'error', 'message': 'Status da tarefa não encontrado ou expirou.'})
+
+    if status_data['status'] == 'success':
+        caches['default'].delete(task_id)
+        response = render(request, 'partials/_message_sucess.html', {'message': status_data['message']})
+        response['HX-Trigger'] = 'updateContent'
+        return response
+
+    elif status_data['status'] == 'error':
+        caches['default'].delete(task_id)
+        return render(request, 'partials/_message_error.html', {'message': status_data['message']})
+
+    from django.urls import reverse
+    url_checagem = reverse('administracao:check_import_status', args=[task_id])
+    
+    html_direto = f"""
+    <div class="text-center p-6" 
+         hx-get="{url_checagem}" 
+         hx-trigger="every 2s" 
+         hx-swap="outerHTML">
+        <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Processando Importação...</h3>
+        <p class="text-sm text-gray-500">{status_data.get('message', 'Por favor, aguarde...')}</p>
+    </div>
+    """
+    from django.http import HttpResponse
+    return HttpResponse(html_direto)

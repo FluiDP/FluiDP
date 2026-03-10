@@ -11,8 +11,13 @@
         :class="sidebarOpen ? 'w-64' : 'w-15'"
     >
         <div class="flex items-center justify-center p-2">
-            <img src="{% static 'images/header-logo.png' %}" alt="" x-show="sidebarOpen">
-            <img src="{% static 'images/logo-icon.png' %}" class="max-w-[23px]" alt="" x-show="!sidebarOpen" x-cloak>
+            {% if tema.logo %}
+                <img src="{% static 'images/header-logo-slate-400.png' %}" alt="" x-show="sidebarOpen">
+                <img src="{% static 'images/logo-icon-slate-400.png' %}" class="max-w-[23px]" alt="" x-show="!sidebarOpen" x-cloak>
+            {% else %}
+                <img src="{% static 'images/header-logo-color.png' %}" alt="" x-show="sidebarOpen">
+                <img src="{% static 'images/logo-icon-color.png' %}" class="max-w-[23px]" alt="" x-show="!sidebarOpen" x-cloak>
+            {% endif %}
         </div>
 
         <hr class="mt-4 border-slate-200">

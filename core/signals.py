@@ -3,17 +3,15 @@ from django.dispatch import receiver
 from django.db import transaction
 from .models import CustomUser
 from . import services
+from django_q.tasks import async_task
 
 @receiver(post_save, sender=CustomUser)
 def send_new_collaborators_email(sender, instance, created, **kwargs):
-    """
-    Sempre que um usuário é criado (created=True), agenda o envio do e-mail.
-    """
     if created and instance.is_active:
         def send():
             try:
-                services.new_collaborator_email(instance)
+                async_task('core.services.enviar_email_boas_vindas_task', instance.id)
             except Exception as e:
-                print(f"Erro ao enviar e-mail de boas-vindas para {instance.email}: {e}")
+                print(f"Erro ao colocar o e-mail na fila: {e}")
 
         transaction.on_commit(send)

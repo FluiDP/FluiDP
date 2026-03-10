@@ -34,4 +34,5 @@ urlpatterns = [
     path('solicitacoes/', views.dp_solicitacoes_view, name='solicitacoes'),
 
     path('importar/<str:tipo_dado>/', views.import_data_modal_view, name='import_data'),
+    path('importar/checar-status/<str:task_id>/', views.check_import_status_view, name='check_import_status'),
 ]

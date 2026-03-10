@@ -22,6 +22,8 @@ urlpatterns = [
     path('colaborador/', include('core.urls_colaborador')),
     path('gestor/', include('core.urls_gestor')),
 
+    path('m/', include('core.urls_mobile')),
+
     path('solicitacao/pdf/<int:solicitacao_id>/', views.gerar_pdf_solicitacao_view, name='gerar_pdf_solicitacao'),
 
     path('relatorio-geral/', views.relatorio_geral_view, name='relatorio_geral'),

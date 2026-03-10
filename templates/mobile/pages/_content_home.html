@@ -1,0 +1,65 @@
+{% load static %}
+
+<section id="conteudo-solicitacoes" class="flex flex-col w-full h-full pb-8 md:pb-0 overflow-y-auto bg-slate-50/50">
+
+    <div class="flex justify-center pt-4 pb-4 mb-2 bg-white shadow-sm">
+        {% if tema.logo %}
+            <img src="{% static 'images/logo-login-slate-400.svg' %}" alt="FluiDP" class="h-6 object-contain">
+        {% else %}
+            <img src="{% static 'images/logo-login-color.svg' %}" alt="FluiDP" class="h-6 object-contain">
+        {% endif %}
+    </div>
+
+    <header class="px-4 py-2 flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-slate-800">Solicitações</h2>
+        
+        <button hx-get="{% url 'colaborador:get_create_solicitacao_select' %}" 
+                hx-target="#modal-spot" 
+                hx-swap="innerHTML"
+                class="w-10 h-10 flex items-center justify-center bg-primary text-white rounded-full shadow-md hover:opacity-90 transition-opacity">
+            <ion-icon name="add-outline" class="text-2xl"></ion-icon>
+        </button>
+    </header>
+
+    <div class="px-4 py-2 flex gap-2 items-center">
+        <div class="flex-1">
+            {% include "partials/_search_bar.html" %}
+        </div>
+        <button class="w-12 h-12 shrink-0 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-xl shadow-sm hover:bg-slate-50 transition-colors">
+            <ion-icon name="filter-outline" class="text-xl"></ion-icon>
+        </button>
+    </div>
+
+    <main class="flex flex-col gap-3 px-4 py-4">
+        {% for solicitacao in solicitacoes %}
+            
+            <div hx-get="{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}"
+                 hx-target="#modal-spot"
+                 hx-swap="innerHTML"
+                 class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
+                
+                <div class="flex justify-between items-start gap-3">
+                    <span class="font-bold text-slate-800 text-sm leading-tight">
+                        {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }} ({{ solicitacao.colaborador.matricula|default:"-" }})
+                    </span>
+                    
+                    <span class="shrink-0 origin-top-right transform scale-90">
+                        {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao is_dp=is_dp %}
+                    </span>
+                </div>
+                
+                <div class="text-xs text-slate-500 font-medium">
+                    Tipo: {{ solicitacao.tipo_documento }}
+                </div>
+
+            </div>
+
+        {% empty %}
+            <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed mt-4 flex flex-col items-center gap-2">
+                <ion-icon name="document-text-outline" class="text-4xl text-slate-300"></ion-icon>
+                <p class="text-slate-500 text-sm">Nenhuma solicitação encontrada.</p>
+            </div>
+        {% endfor %}
+    </main>
+
+</section>

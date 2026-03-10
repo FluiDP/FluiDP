@@ -1,7 +1,7 @@
 import re
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from .models import Config, LogAprovacao, Solicitacao, Cargo, CustomUser, Lotacao
+from .models import Config, LogAprovacao, Solicitacao, Cargo, CustomUser, TipoDocumento
 import pandas as pd
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.contrib.auth import get_user_model
@@ -358,12 +358,14 @@ def get_config():
     config, created = Config.objects.get_or_create(pk=1)
     return config.load()
 
-def set_config(primary_color, secondary_color, emphasis_color, logo):
+def set_config(nome_instituicao, primary_color, secondary_color, emphasis_color, logo):
     """
     Salva as configurações de tema, garantindo que haja apenas uma instância.
     """
     config = get_config()
-    
+
+    if nome_instituicao:
+        config.nome_instituicao = nome_instituicao
     if primary_color:
         config.primary_color = primary_color
     if secondary_color:
@@ -372,6 +374,21 @@ def set_config(primary_color, secondary_color, emphasis_color, logo):
         config.emphasis_color = emphasis_color
     if logo:
         config.logo = logo
+    else:
+        config.logo = None
         
     config.save()
     return config
+
+def enviar_email_boas_vindas_task(user_id):
+    """
+    Tarefa de background que recebe o ID, procura o utilizador no banco e envia o e-mail.
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    try:
+        user = User.objects.get(id=user_id)
+        new_collaborator_email(user)
+    except User.DoesNotExist:
+        print(f"Erro: Utilizador com ID {user_id} não encontrado.")

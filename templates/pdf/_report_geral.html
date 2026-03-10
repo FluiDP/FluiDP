@@ -78,17 +78,28 @@
 
     <div class="max-w-7xl mx-auto space-y-8">
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 break-inside-avoid">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 break-inside-avoid">
             <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
                 <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Tipos Mais Solicitados</h3>
-                <div class="relative h-60">
+                <div class="relative h-55">
                     <canvas id="chartDocs"></canvas>
                 </div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
                 <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Solicitações por Setor</h3>
-                <div class="relative h-60">
+                <div class="relative h-55">
                     <canvas id="chartLots"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
+                <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Horas Extras e Compensadas</h3>
+                <div class="flex flex-col">
+                    <div class="flex gap-4 border-b-2 border-gray-200 pb-2 mb-2 items-baseline">
+                        <span class="font-black text-primary text-3xl">{{ horas_extras }}</span> horas extras
+                    </div>
+                    <div class="flex gap-4 border-b-2 border-gray-200 pb-2 mb-2 items-baseline">
+                        <span class="font-black text-primary text-3xl">{{ horas_compensadas }}</span> horas compensadas
+                    </div>
                 </div>
             </div>
         </div>

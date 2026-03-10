@@ -4,12 +4,12 @@
 <head>
     <title>{% block title %}FluiDP{% endblock %}</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <link rel="shortcut icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@...&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     {% tailwind_css %}
@@ -24,7 +24,6 @@
             --color-emphasis: {{ tema.emphasis_color|default:'#EEF2FF' }};
 
             .bg-primary { background-color: var(--color-primary) !important; }
-            .hover\:bg-primary:hover { background-color: var(--color-primary) !important; }
             .text-primary { color: var(--color-primary) !important; }
             .hover\:text-primary:hover { color: var(--color-primary) !important; }
             .border-primary { border-color: var(--color-primary) !important; }
@@ -45,20 +44,51 @@
 
         ion-icon {
             vertical-align: middle;
-            font-size: 18px !important;
+            font-size: 24px !important; /* Tamanho ajustado para mobile */
         }
 
         * {
-            transition: all 0.2s ease-in-out;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Oculta scrollbar para ficar com cara de App */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
         }
     </style>
 
 </head>
 
-<body class="bg-linear-to-tr from-emphasis to-slate-100 text-slate-800! overflow-hidden">
+<body class="bg-linear-to-tr from-emphasis to-slate-100 text-slate-800 w-screen h-screen overflow-hidden flex flex-col" hx-boost="true">
     
-    {% block content %}
-    {% endblock content %}
+    <main id="content-swap" class="flex-1 overflow-y-auto w-full relative">
+        {% block page_content %}
+            {% endblock page_content %}
+    </main>
+
+    <nav class="bg-white shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] shrink-0 w-full h-16 flex justify-around items-center px-4 pb-safe z-50">
+        
+        <button hx-get="{% url 'mobile:home' %}" 
+                hx-target="#content-swap" 
+                hx-swap="innerHTML" 
+                class="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-primary focus:text-primary transition-colors gap-1">
+            <ion-icon name="home"></ion-icon>
+            <span class="text-[10px] font-semibold tracking-wide">Início</span>
+        </button>
+
+        <button hx-get="{% url 'perfil' %}" 
+                hx-target="#content-swap" 
+                hx-swap="innerHTML" 
+                class="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-primary focus:text-primary transition-colors gap-1">
+            <ion-icon name="person"></ion-icon>
+            <span class="text-[10px] font-semibold tracking-wide">Perfil</span>
+        </button>
+
+    </nav>
+
+    <div id="modal-spot"></div>
 
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
