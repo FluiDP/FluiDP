@@ -1,4 +1,6 @@
+import os
 import re
+from email.mime.image import MIMEImage
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from .models import Config, LogAprovacao, Solicitacao, Cargo, CustomUser, TipoDocumento
@@ -300,7 +302,7 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
 
 def new_collaborator_email(instance):
     """
-    Gera um token de definição de senha e envia um e-mail de boas-vindas.
+    Gera um token de definição de senha e envia um e-mail de boas-vindas com imagem embutida.
     """
     user = instance
     
@@ -343,12 +345,38 @@ def new_collaborator_email(instance):
         )
         email.attach_alternative(html_content, "text/html")
         
+        email.mixed_subtype = 'related'
+        
+        logo_path = os.path.join(settings.BASE_DIR, 'staticfiles', 'images', 'header-logo-slate-400.png')
+        
+        try:
+            with open(logo_path, 'rb') as img_file:
+                imagem_anexo = MIMEImage(img_file.read())
+                imagem_anexo.add_header('Content-ID', '<logo_fluidp>')
+                imagem_anexo.add_header('Content-Disposition', 'inline')
+                email.attach(imagem_anexo)
+        except FileNotFoundError:
+            raise Exception(f"ERRO FATAL: A imagem não foi encontrada no caminho: {logo_path}")
+        
         email.send()
         return True
 
     except Exception as e:
         print(f"Erro ao enviar e-mail de boas-vindas para {user.email}: {e}")
         return False
+    
+def enviar_email_boas_vindas_task(user_id):
+    """
+    Tarefa de background que recebe o ID, procura o utilizador no banco e envia o e-mail.
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    try:
+        user = User.objects.get(id=user_id)
+        new_collaborator_email(user)
+    except User.DoesNotExist:
+        print(f"Erro: Utilizador com ID {user_id} não encontrado.")
 
 def get_config():
     """
@@ -379,16 +407,3 @@ def set_config(nome_instituicao, primary_color, secondary_color, emphasis_color,
         
     config.save()
     return config
-
-def enviar_email_boas_vindas_task(user_id):
-    """
-    Tarefa de background que recebe o ID, procura o utilizador no banco e envia o e-mail.
-    """
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-    
-    try:
-        user = User.objects.get(id=user_id)
-        new_collaborator_email(user)
-    except User.DoesNotExist:
-        print(f"Erro: Utilizador com ID {user_id} não encontrado.")
