@@ -601,6 +601,11 @@ def delete_documento_view(request, pk):
 @dp_required
 def dp_solicitacoes_view(request):
     search_query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', '')
+    documento_filter = request.GET.get('documento', '')
+    lotacao_filter = request.GET.get('lotacao', '')
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
     page_number = request.GET.get('page')
 
     solicitacoes_list = Solicitacao.objects.all().order_by('-data')
@@ -612,9 +617,35 @@ def dp_solicitacoes_view(request):
             Q(tipo_documento__nome_documento__icontains=search_query)
         )
     
+    if status_filter:
+        solicitacoes_list = solicitacoes_list.filter(status=status_filter)
+        
+    if documento_filter:
+        solicitacoes_list = solicitacoes_list.filter(tipo_documento_id=documento_filter)
+
+    if lotacao_filter:
+        solicitacoes_list = solicitacoes_list.filter(colaborador__lotacao_id=lotacao_filter)
+
+    if data_inicio:
+        solicitacoes_list = solicitacoes_list.filter(data__date__gte=data_inicio)
+        
+    if data_fim:
+        solicitacoes_list = solicitacoes_list.filter(data__date__lte=data_fim)
+
     paginator = Paginator(solicitacoes_list, 15)
     page_obj = paginator.get_page(page_number)
     
+    tipos_documento = TipoDocumento.objects.filter(arquivado=False).order_by('nome_documento')
+    lotacoes = Lotacao.objects.filter(arquivado=False).order_by('nome_lotacao')
+    status_choices = Solicitacao.StatusChoices.choices
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+    
+    url_params = f"&{query_params.urlencode()}" if query_params else ""
+    # ---------------------------------------------------------------
+
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
@@ -623,6 +654,15 @@ def dp_solicitacoes_view(request):
         'num_pages': paginator.num_pages,
         'active_link': 'solicitacoes',
         'search_query': search_query,
+        'status_filter': status_filter,
+        'documento_filter': documento_filter,
+        'lotacao_filter': lotacao_filter,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'tipos_documento': tipos_documento,
+        'lotacoes': lotacoes,
+        'status_choices': status_choices,
+        'url_params': url_params,
     }
 
     if request.htmx:
