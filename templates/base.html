@@ -14,8 +14,33 @@
 
     {% tailwind_css %}
 
-    <script src="https://unpkg.com/htmx.org@1.9.10" ...></script>
-    <script src="https://unpkg.com/alpinejs@3.13.10/dist/cdn.min.js" defer></script> <style>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/alpinejs@3.13.10/dist/cdn.min.js" defer></script> 
+
+    <style>
+        :root {
+            --color-primary: {{ tema.primary_color|default:'#4F46E5' }};
+            --color-secondary: {{ tema.secondary_color|default:'#372aac' }};
+            --color-emphasis: {{ tema.emphasis_color|default:'#EEF2FF' }};
+
+            .bg-primary { background-color: var(--color-primary) !important; }
+            .hover\:bg-primary:hover { background-color: var(--color-primary) !important; }
+            .text-primary { color: var(--color-primary) !important; }
+            .hover\:text-primary:hover { color: var(--color-primary) !important; }
+            .border-primary { border-color: var(--color-primary) !important; }
+            .focus\:ring-primary:focus { --tw-ring-color: var(--color-primary) !important; }
+
+            .bg-secondary { background-color: var(--color-secondary) !important; }
+            .hover\:bg-secondary:hover { background-color: var(--color-secondary) !important; }
+
+            .bg-emphasis { background-color: var(--color-emphasis) !important; }
+            .hover\:bg-emphasis:hover { background-color: var(--color-emphasis) !important; }
+            .text-emphasis { color: var(--color-emphasis) !important; }
+            .border-emphasis { border-color: var(--color-emphasis) !important; }
+
+            .from-emphasis { --tw-gradient-from: var(--color-emphasis) !important; --tw-gradient-to: rgb(255 255 255 / 0); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+        }
+
         [x-cloak] { display: none !important; }
 
         ion-icon {
@@ -29,7 +54,8 @@
     </style>
 
 </head>
-<body class="bg-linear-to-tr from-indigo-200 to-slate-100 text-slate-800! overflow-hidden">
+
+<body class="bg-linear-to-tr from-emphasis to-slate-100 text-slate-800! overflow-hidden">
     
     {% block content %}
     {% endblock content %}

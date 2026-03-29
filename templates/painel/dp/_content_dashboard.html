@@ -6,35 +6,35 @@
 
     <div class="flex flex-col space-y-2.5 animate-fade-in">
         <div class="grid grid-cols-1 md:grid-cols-3 space-x-2.5">
-            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
+            <div class="bg-linear-to-tl from-emphasis to-slate-50 hover:from-gray-100 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
                 <div class="z-10">
                     <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes do DP</p>
-                    <h3 class="text-4xl font-bold text-indigo-600 mb-2">{{ kpi_pendencias }}</h3>
+                    <h3 class="text-4xl font-bold text-primary mb-2">{{ kpi_pendencias }}</h3>
                     <p class="text-xs text-gray-400">Total de pendências do DP</p>
                 </div>
-                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                <div class="p-3 bg-emphasis/50 text-secondary rounded-xl">
                     <ion-icon name="time-outline" class="w-6 h-6"></ion-icon>
                 </div>
             </div>
 
-            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
+            <div class="bg-linear-to-tl from-emphasis to-slate-50 hover:from-gray-100 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
                 <div class="z-10">
                     <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes da Direção</p>
-                    <h3 class="text-4xl font-bold text-orange-500 mb-2">{{ kpi_direcao }}</h3>
+                    <h3 class="text-4xl font-bold text-primary mb-2">{{ kpi_direcao }}</h3>
                     <p class="text-xs text-gray-400">Total de pendências da direção</p>
                 </div>
-                <div class="p-3 bg-orange-50 text-orange-500 rounded-xl">
+                <div class="p-3 bg-emphasis/50 text-secondary rounded-xl">
                     <ion-icon name="hourglass-outline" class="w-6 h-6"></ion-icon>
                 </div>
             </div>
 
-            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
+            <div class="bg-linear-to-tl from-emphasis to-slate-50 hover:from-gray-100 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
                 <div class="z-10">
                     <p class="text-sm font-semibold text-gray-500 mb-1">Solicitações em Fluxo</p>
-                    <h3 class="text-4xl font-bold text-gray-700 mb-2">{{ kpi_fluxo }}</h3>
+                    <h3 class="text-4xl font-bold text-primary mb-2">{{ kpi_fluxo }}</h3>
                     <p class="text-xs text-gray-400">Total de solicitações em aberto</p>
                 </div>
-                <div class="p-3 bg-gray-50 text-gray-600 rounded-xl">
+                <div class="p-3 bg-emphasis/50 text-secondary rounded-xl">
                     <ion-icon name="document-attach-outline" class="w-6 h-6"></ion-icon>
                 </div>
             </div>
@@ -71,7 +71,7 @@
                                 </td>
                                 
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">
-                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
                                 </td>
                             </tr>
                             {% empty %}
@@ -95,7 +95,7 @@
                     </div>
 
                     <a href="{% url 'relatorio_geral' %}" target="_blank" 
-                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-primary bg-emphasis rounded-lg hover:opacity-80 transition-opacity">
                         <ion-icon name="document-text-outline" class="w-4 h-4"></ion-icon>
                         Relatório Completo
                     </a>
@@ -119,7 +119,7 @@
                     </div>
 
                     <a href="{% url 'relatorio_geral' %}" target="_blank" 
-                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-primary bg-emphasis rounded-lg hover:opacity-80 transition-opacity">
                         <ion-icon name="document-text-outline" class="w-4 h-4"></ion-icon>
                         Relatório Completo
                     </a>
@@ -162,6 +162,8 @@
                 datasets: [{
                     label: 'Quantidade',
                     data: rankingData_docs,
+                    // Se você quiser que o gráfico de pizza tenha a cor do tema na primeira fatia, 
+                    // a forma mais segura no Javascript é puxar do root CSS, mas deixei o array padrão para manter a variação.
                     backgroundColor: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#8B5CF6'],
                     borderWidth: 1,
                     hoverOffset: 8
@@ -189,23 +191,13 @@
         const rankingData_setores = {{ ranking_data_setores|safe }};
         const ctxSetor = canvas.getContext('2d');
 
-        // Paleta de Cores (Mesma do gráfico de Rosca)
         const colors = [
-            '#4F46E5', // Indigo
-            '#10B981', // Emerald
-            '#F59E0B', // Amber
-            '#EF4444', // Red
-            '#06B6D4', // Cyan
-            '#8B5CF6', // Violet
-            '#EC4899', // Pink
+            '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#8B5CF6', '#EC4899',
         ];
 
-        // 1. Configuração da Escala
         const realMax = Math.max(...rankingData_setores, 1);
-        // Mantemos o espaço extra (35%) para que a barra não encoste no texto da direita
         const chartMax = realMax * 1.35; 
 
-        // 2. Plugin para desenhar os valores na direita
         const columnValuePlugin = {
             id: 'columnValuePlugin',
             afterDatasetsDraw(chart, args, options) {
@@ -213,11 +205,10 @@
                 
                 ctx.save();
                 ctx.font = "bold 12px 'Helvetica', 'Arial', sans-serif";
-                ctx.fillStyle = '#374151'; // Gray-700
+                ctx.fillStyle = '#374151'; 
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
 
-                // Pega os dados do dataset 0 (único dataset agora)
                 const meta = chart.getDatasetMeta(0); 
                 
                 meta.data.forEach((bar, index) => {
@@ -236,7 +227,7 @@
                     {
                         label: 'Solicitações',
                         data: rankingData_setores,
-                        backgroundColor: colors, // Cores variadas
+                        backgroundColor: colors, 
                         borderRadius: 6,
                         barThickness: 12,
                         borderSkipped: false,
@@ -265,8 +256,8 @@
                 },
                 scales: {
                     x: {
-                        display: false, // Esconde eixo X
-                        max: chartMax, // Garante o espaço em branco para o texto
+                        display: false, 
+                        max: chartMax, 
                     },
                     y: {
                         border: { display: false },
@@ -284,7 +275,6 @@
                                 const label = this.getLabelForValue(value);
                                 const rank = index + 1;
                                 const cleanLabel = label.length > 15 ? label.substr(0, 15) + '...' : label;
-                                // Formato: #1  Nome
                                 return `#${rank}   ${cleanLabel}`;
                             }
                         }

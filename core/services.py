@@ -1,7 +1,9 @@
+import os
 import re
+from email.mime.image import MIMEImage
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from .models import LogAprovacao, Solicitacao, Cargo, CustomUser, Lotacao
+from .models import Config, LogAprovacao, Solicitacao, Cargo, CustomUser, TipoDocumento
 import pandas as pd
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.contrib.auth import get_user_model
@@ -41,10 +43,10 @@ def _pode_ator_aprovar(solicitacao: Solicitacao, ator: CustomUser, request_user:
         if status == Solicitacao.StatusChoices.PENDENTE_DIRETOR:
             return ator.cargo and ator.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
 
-        if status == Solicitacao.StatusChoices.PENDENTE_DP:
+        if status in [Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]:
             return ator.groups.filter(name='DP').exists()
         
-    if status == Solicitacao.StatusChoices.PENDENTE_DP:
+    if status in [Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]:
         return ator.groups.filter(name='DP').exists()
     
     if solicitacao.aprovador_atual == ator:
@@ -85,10 +87,11 @@ def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, request_user
         if gestor_e_diretor:
             novo_status = Solicitacao.StatusChoices.PENDENTE_DP
             novo_aprovador = None
+            acao_log = LogAprovacao.AcaoChoices.APROVADO_DIRETOR
             
         elif solicitacao.tipo_documento.requer_aprovacao_diretor:
             novo_status = Solicitacao.StatusChoices.PENDENTE_DIRETOR
-            novo_aprovador = None 
+            novo_aprovador = None
         
         else:
             novo_status = Solicitacao.StatusChoices.PENDENTE_DP
@@ -100,8 +103,13 @@ def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, request_user
         novo_aprovador = None
 
     elif status_atual == Solicitacao.StatusChoices.PENDENTE_DP:
-        novo_status = Solicitacao.StatusChoices.APROVADO
-        acao_log = LogAprovacao.AcaoChoices.PROCESSADO_DP
+        novo_status = Solicitacao.StatusChoices.LANCAMENTO
+        acao_log = LogAprovacao.AcaoChoices.APROVADO_DP
+        novo_aprovador = None
+
+    elif status_atual == Solicitacao.StatusChoices.LANCAMENTO:
+        novo_status = Solicitacao.StatusChoices.FINALIZADO
+        acao_log = LogAprovacao.AcaoChoices.LANCADO
         novo_aprovador = None
 
     else:
@@ -202,7 +210,7 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
     sucesso = 0
     erros = []
     
-    SENHA_PADRAO = 'Mudar@123'
+    SENHA_PADRAO = 'Ti!@0101'
 
     try:
         with transaction.atomic():
@@ -294,7 +302,7 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
 
 def new_collaborator_email(instance):
     """
-    Gera um token de definição de senha e envia um e-mail de boas-vindas.
+    Gera um token de definição de senha e envia um e-mail de boas-vindas com imagem embutida.
     """
     user = instance
     
@@ -323,6 +331,8 @@ def new_collaborator_email(instance):
             'protocol': protocol,
             'domain': domain,
         }
+
+        contexto['tema'] = get_config()
         
         html_content = render_to_string('emails/_new_collaborators.html', contexto)
         text_content = strip_tags(html_content)
@@ -335,9 +345,65 @@ def new_collaborator_email(instance):
         )
         email.attach_alternative(html_content, "text/html")
         
+        email.mixed_subtype = 'related'
+        
+        logo_path = os.path.join(settings.BASE_DIR, 'staticfiles', 'images', 'header-logo-slate-400.png')
+        
+        try:
+            with open(logo_path, 'rb') as img_file:
+                imagem_anexo = MIMEImage(img_file.read())
+                imagem_anexo.add_header('Content-ID', '<logo_fluidp>')
+                imagem_anexo.add_header('Content-Disposition', 'inline')
+                email.attach(imagem_anexo)
+        except FileNotFoundError:
+            raise Exception(f"ERRO FATAL: A imagem não foi encontrada no caminho: {logo_path}")
+        
         email.send()
         return True
 
     except Exception as e:
         print(f"Erro ao enviar e-mail de boas-vindas para {user.email}: {e}")
         return False
+    
+def enviar_email_boas_vindas_task(user_id):
+    """
+    Tarefa de background que recebe o ID, procura o utilizador no banco e envia o e-mail.
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    try:
+        user = User.objects.get(id=user_id)
+        new_collaborator_email(user)
+    except User.DoesNotExist:
+        print(f"Erro: Utilizador com ID {user_id} não encontrado.")
+
+def get_config():
+    """
+    Retorna a instância de Config, criando uma se não existir.
+    """
+
+    config, created = Config.objects.get_or_create(pk=1)
+    return config.load()
+
+def set_config(nome_instituicao, primary_color, secondary_color, emphasis_color, logo):
+    """
+    Salva as configurações de tema, garantindo que haja apenas uma instância.
+    """
+    config = get_config()
+
+    if nome_instituicao:
+        config.nome_instituicao = nome_instituicao
+    if primary_color:
+        config.primary_color = primary_color
+    if secondary_color:
+        config.secondary_color = secondary_color
+    if emphasis_color:
+        config.emphasis_color = emphasis_color
+    if logo:
+        config.logo = logo
+    else:
+        config.logo = None
+        
+    config.save()
+    return config

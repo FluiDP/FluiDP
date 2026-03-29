@@ -1,4 +1,6 @@
 import copy
+from django.core.cache import cache, caches
+import uuid
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render, get_object_or_404
 from django.db.models import Q
@@ -7,6 +9,8 @@ from django.http import HttpResponse
 from django.db.models import Count
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
+from django.core.files.storage import default_storage
+from django_q.tasks import async_task
 
 from core.services import importar_dados
 
@@ -40,13 +44,13 @@ def dp_dashboard_view(request):
         is_active=True
     ).exclude(id=user.id)
 
-    q_pendencias_dp = Q(status=Solicitacao.StatusChoices.PENDENTE_DP)
+    q_pendencias_dp = Q(status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO])
     
     if is_gestor_dp:
         q_pendencias_dp = q_pendencias_dp | Q(colaborador__in=minha_equipe, status=Solicitacao.StatusChoices.PENDENTE_GESTOR)
 
     pendencias_comigo = Solicitacao.objects.filter(
-        status=Solicitacao.StatusChoices.PENDENTE_DP
+        status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]
     ).count()
 
     pendencias_direcao = Solicitacao.objects.filter(
@@ -57,14 +61,15 @@ def dp_dashboard_view(request):
         status__in=[Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
                     Solicitacao.StatusChoices.PENDENTE_GESTOR,
                     Solicitacao.StatusChoices.PENDENTE_DIRETOR,
-                    Solicitacao.StatusChoices.PENDENTE_DP],
+                    Solicitacao.StatusChoices.PENDENTE_DP,
+                    Solicitacao.StatusChoices.LANCAMENTO],
     ).count()
 
     solicitacoes_pendentes = []
 
     if user.groups.filter(name='DP').exists():
         solicitacoes_pendentes = Solicitacao.objects.filter(
-            status=Solicitacao.StatusChoices.PENDENTE_DP
+            status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]
         )
         
         if is_gestor_dp:
@@ -80,7 +85,7 @@ def dp_dashboard_view(request):
         ) | Solicitacao.objects.filter(
             status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
         )
-        
+    
     solicitacoes_pendentes = list(solicitacoes_pendentes.distinct().order_by('-data'))
 
     ranking_query_docs = Solicitacao.objects.values('tipo_documento__nome_documento') \
@@ -100,6 +105,7 @@ def dp_dashboard_view(request):
     context = {
         'usuario': user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'is_dp': True,
         'is_aprovador': True,
         'kpi_pendencias': pendencias_comigo,
         'kpi_direcao': pendencias_direcao,
@@ -342,10 +348,13 @@ def delete_cargo_view(request, pk):
 
 @dp_required
 def dp_colaboradores_view(request):
+
+    exclude_colaboradores = (Q(is_active=False) | Q(username='admin') | Q(matricula='000000'))
+
     search_query = request.GET.get('q', '')
     page_number = request.GET.get('page')
 
-    colaboradores = CustomUser.objects.filter(is_active=True).order_by('first_name')
+    colaboradores = CustomUser.objects.filter(is_active=True).exclude(exclude_colaboradores).order_by('first_name')
 
     if search_query:
         colaboradores = colaboradores.filter(
@@ -592,6 +601,11 @@ def delete_documento_view(request, pk):
 @dp_required
 def dp_solicitacoes_view(request):
     search_query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', '')
+    documento_filter = request.GET.get('documento', '')
+    lotacao_filter = request.GET.get('lotacao', '')
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
     page_number = request.GET.get('page')
 
     solicitacoes_list = Solicitacao.objects.all().order_by('-data')
@@ -603,16 +617,52 @@ def dp_solicitacoes_view(request):
             Q(tipo_documento__nome_documento__icontains=search_query)
         )
     
+    if status_filter:
+        solicitacoes_list = solicitacoes_list.filter(status=status_filter)
+        
+    if documento_filter:
+        solicitacoes_list = solicitacoes_list.filter(tipo_documento_id=documento_filter)
+
+    if lotacao_filter:
+        solicitacoes_list = solicitacoes_list.filter(colaborador__lotacao_id=lotacao_filter)
+
+    if data_inicio:
+        solicitacoes_list = solicitacoes_list.filter(data__date__gte=data_inicio)
+        
+    if data_fim:
+        solicitacoes_list = solicitacoes_list.filter(data__date__lte=data_fim)
+
     paginator = Paginator(solicitacoes_list, 15)
     page_obj = paginator.get_page(page_number)
     
+    tipos_documento = TipoDocumento.objects.filter(arquivado=False).order_by('nome_documento')
+    lotacoes = Lotacao.objects.filter(arquivado=False).order_by('nome_lotacao')
+    status_choices = Solicitacao.StatusChoices.choices
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+    
+    url_params = f"&{query_params.urlencode()}" if query_params else ""
+    # ---------------------------------------------------------------
+
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'is_dp': True,
         'solicitacoes': page_obj,
         'num_pages': paginator.num_pages,
         'active_link': 'solicitacoes',
         'search_query': search_query,
+        'status_filter': status_filter,
+        'documento_filter': documento_filter,
+        'lotacao_filter': lotacao_filter,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'tipos_documento': tipos_documento,
+        'lotacoes': lotacoes,
+        'status_choices': status_choices,
+        'url_params': url_params,
     }
 
     if request.htmx:
@@ -634,64 +684,43 @@ def import_data_modal_view(request, tipo_dado):
         if not arquivo:
             return render(request, 'partials/_message_error.html', {'message': "Nenhum arquivo selecionado."})
 
-        mapa = {}
-        campo_chave = []
-        model = None
-        
         try:
-            if tipo_dado == 'colaboradores':
-                model = get_user_model()
-                mapa = {
-                    'Nome': 'first_name',
-                    'Email': 'email',
-                    'Matricula': 'matricula',
-                    'CPF': 'cpf',
-                    'Cargo': ('cargo', Cargo, 'nome_cargo'), 
-                    'Lotacao': ('lotacao', Lotacao, 'nome_lotacao'),
-                }
-                campo_chave = ['cpf'] 
+            file_ext = arquivo.name.split('.')[-1]
+            temp_filename = f"tmp_import/{uuid.uuid4()}.{file_ext}"
+            saved_path = default_storage.save(temp_filename, arquivo)
 
-            elif tipo_dado == 'lotacoes':
-                model = Lotacao
-                mapa = {
-                    'Nome': 'nome_lotacao',
-                    'Pai': ('lotacao_pai', Lotacao, 'nome_lotacao') 
-                }
-                campo_chave = ['nome_lotacao']
+            task_id = str(uuid.uuid4())
+            cache.set(task_id, {'status': 'processing', 'message': 'Iniciando importação...'}, timeout=3600)
 
-            elif tipo_dado == 'cargos':
-                model = Cargo
-                mapa = {
-                    'Nome': 'nome_cargo',
-                    'Nivel': 'hierarquia' 
-                }
-                campo_chave = ['nome_cargo']
-            
-            resultado = importar_dados(
-                arquivo_io=arquivo,
-                nome_arquivo=arquivo.name,
-                model_class=model,
-                mapa_de_campos=mapa,
-                campo_busca_fk=campo_chave
-            )
+            async_task('core.tasks.processar_importacao_task', task_id, saved_path, tipo_dado)
 
-            if resultado['sucesso'] > 0:
-                msg = f"Sucesso! {resultado['sucesso']} registros processados."
-                if resultado['erros']:
-                    msg += f" (Com {len(resultado['erros'])} alertas)"
-                
-                response = render(request, 'partials/_message_sucess.html', {'message': msg})
-                response['HX-Trigger'] = 'updateContent'
-                return response
-            else:
-                erro_txt = resultado['erros'][0] if resultado['erros'] else "Erro desconhecido"
-                return render(request, 'partials/_message_error.html', {'message': f"Falha: {erro_txt}"})
+            return render(request, 'partials/_import_progress.html', {'task_id': task_id})
 
         except Exception as e:
-            return render(request, 'partials/_message_error.html', {'message': f"Erro interno: {str(e)}"})
+            return render(request, 'partials/_message_error.html', {'message': f"Erro ao iniciar processo: {str(e)}"})
 
     ctx = config.get(tipo_dado)
     return render(request, 'partials/_import_form.html', {
         'modal_title': ctx['titulo'],
         'action_url': ctx['url']
     })
+
+def check_import_status_view(request, task_id):
+    """View chamada via HTMX Polling para verificar o status da importação."""
+    status_data = caches['default'].get(task_id, {'status': 'error', 'message': 'Status da tarefa não encontrado ou expirou.'})
+
+    if status_data['status'] == 'success':
+        caches['default'].delete(task_id)
+        response = render(request, 'partials/_message_sucess.html', {'message': status_data['message']})
+        response['HX-Trigger'] = 'updateContent'
+        return response
+
+    elif status_data['status'] == 'error':
+        caches['default'].delete(task_id)
+        return render(request, 'partials/_message_error.html', {'message': status_data['message']})
+
+    contexto = {
+        'task_id': task_id,
+        'message': status_data.get('message', 'Por favor, aguarde...')
+    }
+    return render(request, 'partials/_message_loading.html', contexto)

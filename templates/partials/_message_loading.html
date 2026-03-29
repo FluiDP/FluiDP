@@ -1,0 +1,37 @@
+<div x-data="{ open: true }" 
+     hx-get="{% url 'administracao:check_import_status' task_id %}" 
+     hx-trigger="every 2s" 
+     hx-swap="outerHTML"
+     @keydown.escape.window="open = false" 
+     x-show="open" 
+     x-transition:enter="ease-out duration-300"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="ease-in duration-200"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     @click="open = false"
+     class="fixed inset-0 z-50 flex items-center justify-center w-screen h-screen p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur transition-opacity">
+
+    <div x-show="open"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         @click.stop
+         class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
+        
+        <div class="flex w-full flex-col items-center justify-center text-center h-full animate-fade-in-up">
+            
+            <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Processando Importação...</h3>
+            <p class="text-sm text-gray-500">{{ message|default:'Por favor, aguarde...' }}</p>
+
+        </div>
+    </div>
+</div>

@@ -6,35 +6,35 @@
 
     <div class="flex flex-col space-y-2.5 animate-fade-in">
         <div class="grid grid-cols-1 md:grid-cols-3 space-x-2.5">
-            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
+            <div class="bg-linear-to-tl from-emphasis to-slate-50 hover:from-gray-100 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
                 <div class="z-10">
                     <p class="text-sm font-semibold text-gray-500 mb-1">Aprovações Pendentes</p>
-                    <h3 class="text-4xl font-bold text-indigo-600 mb-2">{{ kpi_pendencias }}</h3>
+                    <h3 class="text-4xl font-bold text-primary mb-2">{{ kpi_pendencias }}</h3>
                     <p class="text-xs text-gray-400">Solicitações na sua mesa</p>
                 </div>
-                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                <div class="p-3 bg-emphasis/50 text-secondary rounded-xl">
                     <ion-icon name="time-outline" class="w-6 h-6"></ion-icon>
                 </div>
             </div>
 
-            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden group">
+            <div class="bg-linear-to-tl from-emphasis to-slate-50 hover:from-gray-100 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
                 <div class="z-10">
-                    <p class="text-sm font-semibold text-gray-500 mb-1">Pendentes da Direção</p>
-                    <h3 class="text-4xl font-bold text-orange-500 mb-2">{{ kpi_direcao }}</h3>
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Aguardando Lançamento do DP</p>
+                    <h3 class="text-4xl font-bold text-primary mb-2">{{ kpi_lancamento_dp }}</h3>
                     <p class="text-xs text-gray-400">Solicitações da equipe</p>
                 </div>
-                <div class="p-3 bg-orange-50 text-orange-500 rounded-xl">
+                <div class="p-3 bg-emphasis/50 text-secondary rounded-xl">
                     <ion-icon name="hourglass-outline" class="w-6 h-6"></ion-icon>
                 </div>
             </div>
 
-            <div class="bg-linear-to-tl from-indigo-100 to-slate-50 hover:to-indigo-50 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
+            <div class="bg-linear-to-tl from-emphasis to-slate-50 hover:from-gray-100 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
                 <div class="z-10">
                     <p class="text-sm font-semibold text-gray-500 mb-1">Aguardando Colega</p>
-                    <h3 class="text-4xl font-bold text-gray-700 mb-2">{{ kpi_travados }}</h3>
+                    <h3 class="text-4xl font-bold text-primary mb-2">{{ kpi_travados }}</h3>
                     <p class="text-xs text-gray-400">Travados em substituição</p>
                 </div>
-                <div class="p-3 bg-gray-50 text-gray-600 rounded-xl">
+                <div class="p-3 bg-emphasis/50 text-secondary rounded-xl">
                     <ion-icon name="document-attach-outline" class="w-6 h-6"></ion-icon>
                 </div>
             </div>
@@ -71,7 +71,7 @@
                                 </td>
                                 
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">
-                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
                                 </td>
                             </tr>
                             {% empty %}
@@ -95,7 +95,7 @@
                     </div>
 
                     <a href="{% url 'relatorio_geral' %}" target="_blank" 
-                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                       class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-primary bg-emphasis rounded-lg hover:opacity-80 transition-opacity">
                         <ion-icon name="document-text-outline" class="w-4 h-4"></ion-icon>
                         Relatório Completo
                     </a>

@@ -1,16 +1,30 @@
 <section id="solicitacoes"
-         hx-get="{% url 'colaborador:solicitacoes' %}"
+         hx-get="{% url 'colaborador:solicitacoes' %}{% if search_query %}?q={{ search_query }}{% endif %}"
          hx-trigger="updateContent from:body"
-         hx-swap="innerHTML"
+         hx-swap="outerHTML"
          class="flex flex-1 flex-col gap-2 min-h-0">
+         
     <header class="p-2">
         <h2 class="text-2xl font-bold">Painel do Colaborador</h2>
     </header>
+
     <div class="flex flex-1 flex-col gap-2 min-h-0">
-        <div class="flex flex-row gap-2">{% include "partials/_search_bar.html" with target_ids="solicitacoes-list" placeholder="Buscar solicitações..." %}{% include "partials/_solicitacao_create_button.html" with colaborador=usuario %}</div>
+        <div class="flex flex-row gap-2">
+            {# 1. value=search_query adicionado #}
+            {% include "partials/_search_bar.html" with target_ids="solicitacoes" placeholder="Buscar solicitações..." value=search_query %}
+            
+            {% include "partials/_solicitacao_create_button.html" with colaborador=usuario %}
+        </div>
+
         <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
             <div class="flex flex-col flex-1 min-h-0">
-                <h3 class="text-xl font-semibold pt-2 pb-2">Solicitações{% if usuario.cargo.hierarquia == 2 or usuario.cargo.hierarquia == 3 %} - {{ usuario.lotacao }}{% endif %}</h3>
+                <h3 class="text-xl font-semibold pt-2 pb-2">
+                    Solicitações
+                    {% if usuario.cargo.hierarquia == 2 or usuario.cargo.hierarquia == 3 %} 
+                        - {{ usuario.lotacao }}
+                    {% endif %}
+                </h3>
+                
                 <div class="p-5 bg-slate-50 text-slate-600 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto min-h-0">
                     <table class="w-full border-separate border-spacing-y-2">
                         <thead>
@@ -29,19 +43,24 @@
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ solicitacao.colaborador }}</td>
                                 <td class="p-2">{{ solicitacao.colaborador.lotacao }}</td>
                                 <td class="p-2">{{ solicitacao.tipo_documento }}</td>
-                                <td class="p-2">{{ solicitacao.data }}</td>
+                                <td class="p-2">{{ solicitacao.data|date:"d/m/Y H:i" }}</td>
                                 
                                 <td class="p-2">
                                     {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
                                 </td>
                                 
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">
-                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao %}
+                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="py-2 text-center">Nenhuma solicitação encontrada.</td>
+                                <td colspan="6" class="py-4 text-center text-slate-400">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <ion-icon name="folder-open-outline" class="text-2xl mb-1"></ion-icon>
+                                        <span>Nenhuma solicitação encontrada.</span>
+                                    </div>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -51,4 +70,5 @@
         </main>
     </div>
 </section>
+
 <div id="modal-spot"></div>

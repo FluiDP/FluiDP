@@ -14,11 +14,15 @@ urlpatterns = [
 
     path('painel/', views.painel_view, name='painel'),
     path('perfil/', views.perfil_view, name='perfil'),
+    path('configuracao/', views.config_view, name='config'),
+    path('configuracao/salvar/', views.save_config_view, name='save_config'),
     path('servico-indisponivel/', views.indisponibilidade_view, name='indisponibilidade'),
 
     path('administracao/', include('core.urls_dp')),
     path('colaborador/', include('core.urls_colaborador')),
     path('gestor/', include('core.urls_gestor')),
+
+    path('m/', include('core.urls_mobile')),
 
     path('solicitacao/pdf/<int:solicitacao_id>/', views.gerar_pdf_solicitacao_view, name='gerar_pdf_solicitacao'),
 

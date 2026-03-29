@@ -21,6 +21,7 @@ def colaborador_painel_view(request):
         Solicitacao.StatusChoices.PENDENTE_DIRETOR,
         Solicitacao.StatusChoices.PENDENTE_DP,
         Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
+        Solicitacao.StatusChoices.LANCAMENTO,
     ]
 
     q_usuario_envolvido = Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
@@ -56,29 +57,40 @@ def colaborador_painel_view(request):
 
 @colaborador_required
 def colaborador_solicitacoes_view(request):
+    search_query = request.GET.get('q')
 
-    q_usuario_envolvido = Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
+    qs = Solicitacao.objects.filter(
+        Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
+    ).distinct()
 
-    context = {
-        'usuario': request.user,
-        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
-        'solicitacoes': Solicitacao.objects.filter(
-            q_usuario_envolvido
-        ).distinct().order_by('-data'),
-        'active_link': 'solicitacoes'
-    }
-
-    if request.user.cargo.hierarquia in [
+    if request.user.cargo and request.user.cargo.hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
         Cargo.HierarquiaChoices.COORDENADOR,
         Cargo.HierarquiaChoices.DIRETOR
     ]:
-        context['solicitacoes'] = Solicitacao.objects.filter(
+        qs = Solicitacao.objects.filter(
             colaborador__lotacao__in=request.user.lotacao.get_descendentes(include_self=True)
-        ).order_by('-data')
-    
-    elif request.user.groups.filter(name='DP').exists() or request.user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
-        context['solicitacoes'] = Solicitacao.objects.all().order_by('-data')
+        )
+
+    elif request.user.groups.filter(name='DP').exists():
+        qs = Solicitacao.objects.all()
+
+    if search_query:
+        qs = qs.filter(
+            Q(id__icontains=search_query) |
+            Q(colaborador__first_name__icontains=search_query) |
+            Q(tipo_documento__nome_documento__icontains=search_query)
+        )
+
+    qs = qs.order_by('-data')
+
+    context = {
+        'usuario': request.user,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'solicitacoes': qs,
+        'active_link': 'solicitacoes',
+        'search_query': search_query,
+    }
 
     if request.htmx:
         return render(request, 'painel/colaborador/_content_solicitacoes.html', context)
@@ -143,10 +155,42 @@ def salvar_solicitacao_view(request, tipo_doc_id):
     schema_no_momento = tipo_doc.definicao_formulario
     
     valores_preenchidos = {}
+    
     for campo in schema_no_momento:
         campo_nome = campo.get('name')
+        campo_tipo = campo.get('type')
+
         if campo_nome:
-            valores_preenchidos[campo_nome] = request.POST.get(campo_nome)
+            if campo_tipo == 'repeater':
+                lista_final_objetos = []
+                sub_campos = campo.get('sub_fields', [])
+                
+                dados_crus = {}
+                qtd_linhas = 0
+                
+                for sub in sub_campos:
+                    chave_post = f"{campo_nome}_{sub['name']}[]"
+                    
+                    valores_lista = request.POST.getlist(chave_post)
+                    
+                    dados_crus[sub['name']] = valores_lista
+                    
+                    if len(valores_lista) > qtd_linhas:
+                        qtd_linhas = len(valores_lista)
+                
+                for i in range(qtd_linhas):
+                    linha_obj = {}
+                    for sub in sub_campos:
+                        lista_valores = dados_crus.get(sub['name'], [])
+                        valor = lista_valores[i] if i < len(lista_valores) else ""
+                        linha_obj[sub['name']] = valor
+                    
+                    lista_final_objetos.append(linha_obj)
+                
+                valores_preenchidos[campo_nome] = lista_final_objetos
+
+            else:
+                valores_preenchidos[campo_nome] = request.POST.get(campo_nome)
 
     dados_completos = {
         'schema': schema_no_momento,
@@ -194,11 +238,13 @@ def salvar_solicitacao_view(request, tipo_doc_id):
             'message': f'Erro ao salvar: {e}',
             'url_retry': url_retry
         })
-
+    
 @colaborador_required
 def get_solicitacao_detalhes_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     user = request.user
+
+    is_dp = user.groups.filter(name='DP').exists()
     
     pode_aprovar = False
     pode_aprovar = services._pode_ator_aprovar(solicitacao, user, request.user)
@@ -228,6 +274,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
         campos_com_valores.append(campo)
         
     context = {
+        'is_dp': is_dp,
         'solicitacao': solicitacao,
         'tipo_documento': solicitacao.tipo_documento,
         'campos_formulario': campos_com_valores,

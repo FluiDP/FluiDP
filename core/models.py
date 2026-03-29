@@ -22,14 +22,87 @@ FORM_SCHEMA = {
             "label": {"type": "string", "minLength": 3},
             "type": {
                 "type": "string",
-                "enum": ["text", "number", "date", "textarea", "select", "checkbox", "radio"]
+                "enum": ["text", "number", "date", "textarea", "select", "checkbox", "radio", "repeater", "calculated"]
             },
             "required": {"type": "boolean"},
             "placeholder": {"type": "string"},
             "help_text": {"type": "string"},
+            
             "is_event_date": {
                 "type": "boolean",
                 "description": "Se True, usa este campo para validar o limite de dias de antecedência."
+            },
+
+            "sub_fields": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "pattern": "^[a-zA-Z0-9_]+$"},
+                        "label": {"type": "string"},
+                        "type": {
+                            "type": "string",
+                            "enum": ["text", "number", "date", "select", "checkbox", "radio"]
+                        },
+                        "required": {"type": "boolean"},
+                        "placeholder": {"type": "string"},
+                        "options": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "value": {"type": "string"},
+                                    "label": {"type": "string"}
+                                },
+                                "required": ["value", "label"]
+                            }
+                        },
+                        "extra_props": {
+                            "type": "object",
+                            "additionalProperties": True 
+                        }
+                    },
+                    "required": ["name", "label", "type"],
+                    "additionalProperties": False
+                }
+            },
+
+            "target_repeater": {
+                "type": "string",
+                "description": "Nome do campo repeater alvo."
+            },
+            "target_subfield": {
+                "type": "string",
+                "description": "Nome do sub-campo numérico/hora a ser calculado."
+            },
+            "calc_format": {
+                "type": "string",
+                "enum": ["time", "integer", "decimal"],
+                "description": "Formato do resultado: 'time' (HH:MM), 'integer' (10), 'decimal' (10.50)."
+            },
+            "calc_operator": {
+                "type": "string",
+                "enum": ["sum"], 
+                "default": "sum",
+                "description": "Operação base (por enquanto apenas soma, o sinal é controlado abaixo)."
+            },
+            "condition_field": {
+                "type": "string",
+                "description": "Nome do campo irmão (no repeater) que define o sinal (+/-). Ex: 'tipo_lancamento'."
+            },
+            "subtract_value": {
+                "type": "string",
+                "description": "Valor do campo acima que fará o número ser subtraído. Ex: 'debito'."
+            },
+
+            "extra_props": {
+                "type": "object",
+                "properties": {
+                    "count_time_field": {"type": "boolean"},
+                    "day_time_field": {"type": "boolean"}
+                },
+                "additionalProperties": True 
             },
             "options_source": {
                 "type": "string",
@@ -393,8 +466,9 @@ class Solicitacao(models.Model):
         PENDENTE_ACEITE_SECUNDARIO = 'PENDENTE_ACEITE', 'Aguardando Aceite do Colega'
         PENDENTE_GESTOR = 'PENDENTE_GESTOR', 'Pendente (Gestor)'
         PENDENTE_DIRETOR = 'PENDENTE_DIRETOR', 'Pendente (Diretor)'
-        PENDENTE_DP = 'PENDENTE_DP', 'Aguardando Lançamento (DP)'
-        APROVADO = 'APROVADO', 'Aprovado'
+        PENDENTE_DP = 'PENDENTE_DP', 'Pendente (DP)'
+        LANCAMENTO = 'LANCAMENTO', 'Aguardando Lançamento' # nesse estágio, as solicitações devem ser processadas pelo DP, mas consideramos aprovadas as solicitações que passaram por todas as etapas de aprovação.
+        FINALIZADO = 'FINALIZADO', 'Finalizado'
         RECUSADO = 'RECUSADO', 'Recusado'
         CANCELADO = 'CANCELADO', 'Cancelado'
 
@@ -468,7 +542,12 @@ class Solicitacao(models.Model):
         Valida as regras de negócio antes de salvar.
         Chamado automaticamente pelo ModelForm ou manualmente via full_clean().
         """
+
         super().clean()
+
+        if self.pk:
+            return
+
         if self.tipo_documento_id:
             valores = self.dados_preenchidos.get('values', {})
             
@@ -498,8 +577,9 @@ class LogAprovacao(models.Model):
         RECUSADO_GESTOR = 'RECUSADO_GESTOR', 'Recusado pelo Gestor'
         APROVADO_DIRETOR = 'APROVADO_DIRETOR', 'Aprovado pelo Diretor'
         RECUSADO_DIRETOR = 'RECUSADO_DIRETOR', 'Recusado pelo Diretor'
-        PROCESSADO_DP = 'PROCESSADO_DP', 'Processado pelo DP'
-        RECUSADO_DP = 'RECUSADO_DP', 'Reusado pelo DP'
+        APROVADO_DP = 'APROVADO_DP', 'Aprovado pelo DP'
+        RECUSADO_DP = 'RECUSADO_DP', 'Recusado pelo DP'
+        LANCADO = 'LANCADO', 'Lançado pelo DP'
         COMENTARIO = 'COMENTARIO', 'Comentário Adicionado'
 
     solicitacao = models.ForeignKey(
@@ -519,3 +599,70 @@ class LogAprovacao(models.Model):
 
     def __str__(self):
         return f"Log {self.acao} por {self.ator} em {self.data_acao}"
+
+class SingletonModel(models.Model):
+    """
+    Classe abstrata que garante a existência de apenas uma instância (registro) 
+    deste model no banco de dados.
+    """
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass
+
+    @classmethod
+    def load(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
+class Config(SingletonModel):
+    """
+    Model de configuração global do sistema herdando as características de Singleton.
+    """
+
+    nome_instituicao = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Nome da Instituição"
+    )
+    
+    primary_color = models.CharField(
+        max_length=7, 
+        default="#4f39f6",
+        verbose_name="Cor Primária"
+    )
+    
+    secondary_color = models.CharField(
+        max_length=7, 
+        default="#372aac",
+        verbose_name="Cor Secundária"
+    )
+
+    emphasis_color = models.CharField(
+        max_length=7, 
+        default="#ebefff",
+        verbose_name="Cor de Destaque"
+    )
+
+    logo = models.ImageField(
+        upload_to='logos/',
+        blank=True,
+        null=True,
+        verbose_name="Logo da Empresa"
+    )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Configuração do Sistema"
+        verbose_name_plural = "Configurações do Sistema"
+
+    def __str__(self):
+        return "Configurações Globais"

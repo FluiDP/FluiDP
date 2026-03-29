@@ -62,7 +62,7 @@ def check_aprove_permission(request, **kwargs):
           user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR):
         return True
 
-    elif (solicitacao.status == Solicitacao.StatusChoices.PENDENTE_DP and
+    elif ((solicitacao.status in [Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]) and
           user.groups.filter(name='DP').exists()):
         return True
         

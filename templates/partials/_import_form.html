@@ -23,7 +23,7 @@
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
          @click.stop
-         class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
+         class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
 
         <form hx-post="{{ action_url }}" 
               hx-swap="innerHTML" 
@@ -33,7 +33,7 @@
 
             <div id="generic-form-container">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl text-center font-bold text-gray-900">
+                    <h3 class="text-xl font-bold text-gray-900">
                         {{ modal_title }}
                     </h3>
                     <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -57,7 +57,7 @@
                             <input id="dropzone-file" type="file" name="arquivo" class="hidden" accept=".csv, .xlsx, .xls" required />
                         </label>
                     </div>
-                    <p id="file-name" class="mt-2 text-sm text-indigo-600 font-medium text-center h-5"></p>
+                    <p id="file-name" class="mt-2 text-sm text-primary font-medium text-center h-5"></p>
                     <p>Anexe uma tabela (CSV ou XLSX) contendo os cabeçalhos "matricula", "nome", "email", "cargo" e "lotacao".</p>
                     <script>
                         document.getElementById('dropzone-file').addEventListener('change', function(e) {
@@ -68,7 +68,7 @@
 
                 <div class="mt-8 text-right">
                     <button type="submit" 
-                            class="w-full justify-center rounded-full bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all">
+                            class="w-full justify-center rounded-full bg-primary px-6 py-3 text-base font-semibold text-white shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary transition-all">
                         {{ submit_text|default:"Importar Dados" }}
                     </button>
                 </div>

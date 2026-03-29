@@ -9,7 +9,41 @@
     {% tailwind_css %}
 
     <style>
-        /* Configurações específicas de Impressão */
+        :root {
+            --color-primary: {{ tema.primary_color|default:'#4F46E5' }};
+            --color-secondary: {{ tema.secondary_color|default:'#372aac' }};
+            --color-emphasis: {{ tema.emphasis_color|default:'#EEF2FF' }};
+
+            .bg-primary { background-color: var(--color-primary) !important; }
+            .text-primary { color: var(--color-primary) !important; }
+            .hover\:text-primary:hover { color: var(--color-primary) !important; }
+            .border-primary { border-color: var(--color-primary) !important; }
+            .focus\:ring-primary:focus { --tw-ring-color: var(--color-primary) !important; }
+
+            .bg-secondary { background-color: var(--color-secondary) !important; }
+            .hover\:bg-secondary:hover { background-color: var(--color-secondary) !important; }
+
+            .bg-emphasis { background-color: var(--color-emphasis) !important; }
+            .hover\:bg-emphasis:hover { background-color: var(--color-emphasis) !important; }
+            .text-emphasis { color: var(--color-emphasis) !important; }
+            .border-emphasis { border-color: var(--color-emphasis) !important; }
+
+            .from-emphasis { --tw-gradient-from: var(--color-emphasis) !important; --tw-gradient-to: rgb(255 255 255 / 0); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+        }
+
+        [x-cloak] { display: none !important; }
+
+        ion-icon {
+            vertical-align: middle;
+            font-size: 18px !important;
+        }
+
+        * {
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+
+    <style>
         @media print {
             @page {
                 size: A4;
@@ -20,28 +54,23 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            /* Esconde elementos de interface (botões, sidebar) */
             .no-print {
                 display: none !important;
             }
-            /* Força quebra de página */
             .page-break {
                 page-break-before: always;
             }
-            /* Evita quebra dentro de elementos importantes */
             .break-inside-avoid {
                 break-inside: avoid;
             }
-            /* Remove sombras para economizar tinta e limpar visual */
             .shadow-lg, .shadow-xl {
                 box-shadow: none !important;
             }
         }
 
-        /* Visualização em tela (Simula folha A4) */
         @media screen {
             body {
-                background-color: #f3f4f6; /* Gray-100 */
+                background-color: #f3f4f6;
                 padding: 2rem;
             }
             .a4-page {
@@ -60,9 +89,9 @@
 
     <div class="no-print fixed w-full top-0 left-0 right-0 bg-white border-b border-gray-200 p-4 shadow-md z-50 flex justify-between items-center">
         <div class="flex items-center gap-2">
-            <h1 class="text-lg font-bold text-indigo-900 ml-4">Visualização de Impressão</h1>
+            <h1 class="text-lg font-bold text-gray-800 ml-4">Visualização de Impressão</h1>
         </div>
-        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-sm">
+        <button onclick="window.print()" class="bg-primary hover:bg-secondary text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-sm">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             Imprimir
         </button>
@@ -71,12 +100,16 @@
     <div class="no-print h-20"></div>
 
     <div class="a4-page">
-        {% block content %}{% endblock %}
         
-        <div class="mt-12 pt-4 border-t border-gray-200 text-center text-xs text-gray-400">
-            <p>Documento gerado eletronicamente pelo Sistema FluiDP em {% now "d/m/Y H:i" %}.</p>
-            <p>Este documento possui validade interna.</p>
+        {% block content %}{% endblock %}
+
+        <div class="flex flex-col mb-8 pt-4 border-t border-gray-200 mt-8 items-center">
+            <img src="{% static 'images/header-logo-slate-400.png' %}" alt="FluiDP" class="h-6 mb-2 min-w-auto">
+            <div class="text-center text-xs text-gray-400 w-[75%]">
+                Documento gerado eletronicamente pelo Sistema FluiDP em {% now "d/m/Y H:i" %}.<br>Este documento possui validade interna.
+            </div>
         </div>
+
     </div>
 
 </body>

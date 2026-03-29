@@ -4,7 +4,7 @@ from .models import Cargo, Lotacao, CustomUser, TipoDocumento, Solicitacao
 
 STYLE_INPUT = (
     "w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-700 shadow-sm "
-    "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+    "focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent bg-white"
 )
 
 class CargoForm(forms.ModelForm):
@@ -147,7 +147,7 @@ class TipoDocumentoForm(forms.ModelForm):
             'dia_fim': forms.NumberInput(attrs={'class': STYLE_INPUT, 'min': 1, 'max': 31}),
             'limite_dias_antecedencia': forms.NumberInput(attrs={'class': STYLE_INPUT, 'min': 0}),
             'definicao_formulario': forms.Textarea(attrs={'rows': 10, 'class': STYLE_INPUT, 'style': 'font-family: monospace; font-size: 0.9em;'}),
-            'disponivel': forms.CheckboxInput(attrs={'class': 'h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded'})
+            'disponivel': forms.CheckboxInput(attrs={'class': 'h-4 w-4 text-secondary focus:ring-secondary border-gray-300 rounded'})
         }
 
 

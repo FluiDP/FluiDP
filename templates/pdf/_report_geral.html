@@ -5,8 +5,31 @@
     <meta charset="UTF-8">
     <title>Relatório Gerencial</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'var(--color-primary)',
+                        secondary: 'var(--color-secondary)',
+                        emphasis: 'var(--color-emphasis)',
+                    }
+                }
+            }
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
+        /* Variáveis de cor injetadas a partir do banco de dados */
+        :root {
+            --color-primary: {{ tema.primary_color|default:'#4F46E5' }};
+            --color-secondary: {{ tema.secondary_color|default:'#372aac' }};
+            --color-emphasis: {{ tema.emphasis_color|default:'#EEF2FF' }};
+        }
+
         @media print {
             .no-print { display: none !important; }
             body { -webkit-print-color-adjust: exact; background-color: white !important; }
@@ -16,7 +39,7 @@
 </head>
 <body class="bg-gray-50 text-gray-800 p-8 min-h-screen">
 
-    <div class="no-print max-w-7xl mx-auto mb-6 bg-white p-4 rounded-xl shadow-sm border border-indigo-100 flex flex-wrap gap-4 items-center justify-between">
+    <div class="no-print max-w-7xl mx-auto mb-6 bg-white p-4 rounded-xl shadow-sm border border-emphasis flex flex-wrap gap-4 items-center justify-between">
         <form method="get" class="flex flex-wrap items-center gap-4">
             <div class="flex items-center gap-2">
                 <label class="text-sm font-medium text-gray-700">De:</label>
@@ -26,7 +49,7 @@
                 <label class="text-sm font-medium text-gray-700">Até:</label>
                 <input type="date" name="data_fim" value="{{ data_fim }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
             </div>
-            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow">
+            <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 shadow transition-opacity">
                 Filtrar
             </button>
         </form>
@@ -40,7 +63,7 @@
     <div class="max-w-7xl mx-auto mb-8 border-b border-gray-300 pb-4">
         <div class="flex justify-between items-end">
             <div>
-                <h1 class="text-3xl font-bold text-indigo-900">Relatório de Solicitações</h1>
+                <h1 class="text-3xl font-bold text-primary">Relatório de Solicitações</h1>
                 <p class="text-sm text-gray-500 mt-1">
                     Escopo: Lotações sob Gestão e Subordinadas<br>
                     Período: <span id="periodo"></span>
@@ -55,28 +78,39 @@
 
     <div class="max-w-7xl mx-auto space-y-8">
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 break-inside-avoid">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 break-inside-avoid">
             <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
                 <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Tipos Mais Solicitados</h3>
-                <div class="relative h-60">
+                <div class="relative h-40">
                     <canvas id="chartDocs"></canvas>
                 </div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
                 <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Solicitações por Setor</h3>
-                <div class="relative h-60">
+                <div class="relative h-55">
                     <canvas id="chartLots"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
+                <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Horas Extras e Compensadas</h3>
+                <div class="flex flex-col">
+                    <div class="flex gap-4 border-b-2 border-gray-200 pb-2 mb-2 items-baseline">
+                        <span class="font-black text-primary text-3xl">{{ horas_extras }}</span> horas extras
+                    </div>
+                    <div class="flex gap-4 border-b-2 border-gray-200 pb-2 mb-2 items-baseline">
+                        <span class="font-black text-primary text-3xl">{{ horas_compensadas }}</span> horas compensadas
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden break-inside-avoid">
-            <div class="p-5 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
+            <div class="p-5 bg-emphasis border-b border-primary/20 flex justify-between items-center">
                 <div>
-                    <h3 class="text-xl font-bold text-indigo-900">Ranking de Colaboradores</h3>
-                    <p class="text-sm text-indigo-600">Volume de abertura no período filtrado.</p>
+                    <h3 class="text-xl font-bold text-primary">Ranking de Colaboradores</h3>
+                    <p class="text-sm text-primary opacity-80">Volume de abertura no período filtrado.</p>
                 </div>
-                <div class="text-2xl font-bold text-indigo-300">
+                <div class="text-2xl font-bold text-primary opacity-60">
                     {{ ranking_data|length }} Colaboradores
                 </div>
             </div>
@@ -95,7 +129,7 @@
                     <tbody class="divide-y divide-gray-100">
                         {% for item in ranking_data %}
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 text-center font-bold text-indigo-600 bg-gray-50/50">
+                            <td class="px-6 py-4 text-center font-bold text-primary bg-gray-50/50">
                                 {{ item.posicao }}º
                             </td>
                             <td class="px-6 py-4">
@@ -106,7 +140,7 @@
                                 {{ item.colaborador.lotacao.nome_lotacao }}
                             </td>
                             <td class="px-6 py-4 text-center">
-                                <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-indigo-100 text-indigo-700">
+                                <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-emphasis text-primary">
                                     {{ item.total }}
                                 </span>
                             </td>
@@ -128,7 +162,6 @@
     </div>
 
     <script>
-
         let dataInicio = new Date("{{ data_inicio }}");
         let dataFim = new Date("{{ data_fim }}");
 
@@ -152,6 +185,8 @@
             });
         }
 
+        const brandPrimaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#4F46E5';
+
         const ctxLots = document.getElementById('chartLots');
         if (ctxLots && {{ chart_lot_data|safe }}.length > 0) {
             new Chart(ctxLots, {
@@ -161,7 +196,7 @@
                     datasets: [{
                         label: 'Solicitações',
                         data: {{ chart_lot_data|safe }},
-                        backgroundColor: '#4F46E5',
+                        backgroundColor: brandPrimaryColor,
                         borderRadius: 4
                     }]
                 },

@@ -1,12 +1,18 @@
 import datetime
+import os
+from pathlib import Path
 from django.utils import timezone
 from shutil import copy
 import copy
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from core.services import get_config, set_config
+from .decorators import dp_required
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
+import dotenv
 from core.views_colaborador import User
+from sistemadp.settings import BASE_DIR
 from .models import Cargo, CustomUser, Lotacao, Solicitacao
 from django.contrib.auth import logout as auth_logout
 from django.db.models import Count, Q
@@ -17,12 +23,33 @@ class CustomLoginView(auth_views.LoginView):
 
     def get_success_url(self):
         return reverse_lazy('painel')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        BASE_DIR = Path(__file__).resolve().parent.parent
+
+        env_path = BASE_DIR / '.env'
+        if env_path.exists():
+            dotenv.load_dotenv(env_path)
+
+        instituicao_nome = os.environ.get('INSTITUICAO_NOME', 'FluiDP')
+
+        context['instituicao'] = instituicao_nome
+        return context
 
 class CustomPasswordResetView(auth_views.PasswordResetView):
     template_name = 'login/reset.html'
     html_email_template_name = 'emails/_reset_password.html'
     subject_template_name = 'emails/_reset_password_subject.txt'
     success_url = reverse_lazy('login')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        self.extra_email_context = {
+            'tema': get_config()
+        }
+        return context
 
 class CustomPasswordResetDoneView(auth_views.PasswordResetDoneView):
     template_name = 'login/password_reset_done.html'
@@ -78,6 +105,58 @@ def perfil_view(request):
         return render(request, 'painel/colaborador/perfil.html', context)
         
     return redirect('painel')
+
+@dp_required
+def config_view(request):
+    config = get_config()
+
+    nome_instituicao = config.nome_instituicao or "FluiDP"
+    primary_color = config.primary_color
+    secondary_color = config.secondary_color
+    emphasis_color = config.emphasis_color
+    logo = config.logo.url if config.logo else None
+
+    context = {
+        'usuario': request.user,
+        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'primary_color': primary_color,
+        'secondary_color': secondary_color,
+        'emphasis_color': emphasis_color,
+        'logo': logo,
+        'nome_instituicao': nome_instituicao
+    }
+
+    if request.htmx:
+        return render(request, 'painel/_content_config.html', context)
+
+    return render(request, 'painel/dp/config.html', context)
+
+@dp_required
+def save_config_view(request):
+    if request.method == 'POST':
+        nome_instituicao = request.POST.get('nome_instituicao')
+        primary_color = request.POST.get('primary_color')
+        secondary_color = request.POST.get('secondary_color')
+        emphasis_color = request.POST.get('emphasis_color')
+        logo_file = request.FILES.get('logo') or None
+
+        set_config(nome_instituicao, primary_color, secondary_color, emphasis_color, logo_file)
+        
+        config = get_config()
+        
+        context = {
+            'primary_color': config.primary_color,
+            'secondary_color': config.secondary_color,
+            'emphasis_color': config.emphasis_color,
+            'logo': config.logo.url if config.logo else None,
+            'nome_instituicao': config.nome_instituicao,
+            'sucesso': True 
+        }
+
+        if request.htmx:
+            return render(request, 'painel/_content_config.html', context)
+
+    return redirect('config')
 
 @login_required
 def logout_view(request):
@@ -142,12 +221,20 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
         if campo.get('type') == 'checkbox':
             valor_exibicao = "Sim" if valor_bruto else "Não"
 
+        if campo.get('type') == 'date' and valor_bruto:
+            try:
+                data_obj = datetime.datetime.strptime(valor_bruto, '%Y-%m-%d')
+                valor_exibicao = data_obj.strftime('%d/%m/%Y')
+            except ValueError:
+                pass
+
         campo['valor_exibicao'] = valor_exibicao
         campos_formatados.append(campo)
 
     campos_rows = []
     for i in range(0, len(campos_formatados), 2):
-        campos_rows.append(campos_formatados[i:i+2])
+        if campos_formatados[i].get('name') != "colaborador_substituto":
+            campos_rows.append(campos_formatados[i:i+2])
 
     logs = solicitacao.logs.all().order_by('data_acao')
 
@@ -200,6 +287,67 @@ def relatorio_geral_view(request):
         data__range=(data_inicio, data_fim)
     )
 
+    total_minutos_extras = 0
+    total_minutos_compensados = 0
+
+    def time_str_to_minutes(t_str):
+        """Converte string 'HH:MM' (mesmo negativa) para total de minutos absolutos (módulo)."""
+        if isinstance(t_str, str) and ':' in t_str:
+            try:
+                t_str = t_str.replace('-', '').strip()
+                h, m = t_str.split(':')
+                return (int(h) * 60) + int(m)
+            except ValueError:
+                return 0
+        return 0
+
+    def minutes_to_time_str(mins):
+        """Converte total de minutos para string 'HH:MM'."""
+        h = mins // 60
+        m = mins % 60
+        return f"{h:02d}:{m:02d}"
+
+    for sol in qs_base:
+        if sol.status == Solicitacao.StatusChoices.FINALIZADO:
+            dados = sol.dados_preenchidos
+            valores = dados.get('values', dados) if isinstance(dados, dict) else {}
+            schema = dados.get('schema', []) if isinstance(dados, dict) else []
+            
+            if isinstance(valores, dict) and isinstance(schema, list):
+                calc_time_fields = [
+                    campo for campo in schema 
+                    if campo.get('type') == 'calculated' and campo.get('calc_format') == 'time'
+                ]
+                
+                nome_documento = sol.tipo_documento.nome_documento.lower()
+                
+                if len(calc_time_fields) == 2:
+                    val1_str = valores.get(calc_time_fields[0].get('name'), '00:00')
+                    val2_str = valores.get(calc_time_fields[1].get('name'), '00:00')
+                    
+                    mins1 = time_str_to_minutes(val1_str)
+                    mins2 = time_str_to_minutes(val2_str)
+                    
+                    minutos_compensados_doc = min(mins1, mins2)
+                    total_minutos_compensados += minutos_compensados_doc
+
+                elif len(calc_time_fields) == 1:
+                    campo = calc_time_fields[0]
+                    nome_campo = campo.get('name', '').lower()
+                    label_campo = campo.get('label', '').lower()
+                    
+                    valor_str = valores.get(nome_campo, '00:00')
+                    minutos = time_str_to_minutes(valor_str)
+                    
+                    if minutos > 0:
+                        if 'compensa' in nome_campo or 'compensa' in label_campo or 'banco' in nome_documento:
+                            total_minutos_compensados += minutos
+                        elif 'extra' in nome_campo or 'extra' in label_campo or 'ocorrencia' in nome_campo:
+                            total_minutos_extras += minutos
+
+    horas_extras_formatadas = minutes_to_time_str(total_minutos_extras)
+    horas_compensadas_formatadas = minutes_to_time_str(total_minutos_compensados)
+
     docs_scoped = qs_base.values('tipo_documento__nome_documento')\
         .annotate(total=Count('id')).order_by('-total')[:5]
     
@@ -241,7 +389,9 @@ def relatorio_geral_view(request):
         'chart_docs_data': [x['total'] for x in docs_scoped],
         'chart_lot_labels': [x['colaborador__lotacao__nome_lotacao'] for x in lotacoes_scoped],
         'chart_lot_data': [x['total'] for x in lotacoes_scoped],
-        'data_impressao': timezone.now()
+        'data_impressao': timezone.now(),
+        'horas_extras': horas_extras_formatadas,
+        'horas_compensadas': horas_compensadas_formatadas
     }
 
     return render(request, 'pdf/_report_geral.html', context)
