@@ -36,7 +36,7 @@ class Command(BaseCommand):
                 'Lotação': ('lotacao', Lotacao, 'nome_lotacao'),
                 'Lotação Secundaria': ('lotacao_secundaria', Lotacao, 'nome_lotacao')
             }
-            campo_chave = ['email'] 
+            campo_chave = ['cpf']
 
         elif tipo == 'lotacao':
             model = Lotacao

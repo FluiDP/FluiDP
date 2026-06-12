@@ -230,8 +230,12 @@ def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_
                             valor_celula = None
                         
                         campo_destino = config_modelo if isinstance(config_modelo, str) else config_modelo[0]
+                        
                         if campo_destino == 'cpf' and valor_celula:
-                            valor_celula = re.sub(r'[^0-9]', '', str(valor_celula))
+                            if isinstance(valor_celula, float):
+                                valor_celula = int(valor_celula)
+                            
+                            valor_celula = re.sub(r'[^0-9]', '', str(valor_celula)).zfill(11)
 
                         if isinstance(config_modelo, str):
                             dados_para_salvar[config_modelo] = valor_celula
@@ -312,7 +316,7 @@ def new_collaborator_email(instance):
 
         link_relativo = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
         
-        full_site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+        full_site_url = getattr(settings, 'SITE_URL', 'http://localhost:8080')
         
         if "://" in full_site_url:
             protocol, domain = full_site_url.split("://", 1)
@@ -407,3 +411,17 @@ def set_config(nome_instituicao, primary_color, secondary_color, emphasis_color,
         
     config.save()
     return config
+
+def new_password(user, new_password: str):
+    """
+    Define uma nova senha para o usuário.
+    """
+
+    try:
+        user.set_password(new_password)
+        user.precisa_trocar_senha = False
+        user.save()
+        return True
+    except Exception as e:
+        print(f"Erro ao definir nova senha para o usuário {user.username}: {e}")
+        return False

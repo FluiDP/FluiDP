@@ -16,6 +16,13 @@ from sistemadp.settings import BASE_DIR
 from .models import Cargo, CustomUser, Lotacao, Solicitacao
 from django.contrib.auth import logout as auth_logout
 from django.db.models import Count, Q
+import re
+
+def is_mobile(request):
+    """Verifica pelo User-Agent se o acesso é de um dispositivo móvel."""
+    user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+    mobile_keywords = r'mobile|android|iphone|ipad|ipod|windows phone'
+    return bool(re.search(mobile_keywords, user_agent))
 
 class CustomLoginView(auth_views.LoginView):
     template_name = 'login/login.html'
@@ -71,12 +78,13 @@ def painel_view(request):
     
     hierarquia = request.user.cargo.hierarquia if request.user.cargo else Cargo.HierarquiaChoices.PADRAO
 
-    if request.user.groups.filter(name='DP').exists() or hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+    if request.user.groups.filter(name='DP').exists():
         return redirect('administracao:dashboard')
 
     elif hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
-        Cargo.HierarquiaChoices.COORDENADOR
+        Cargo.HierarquiaChoices.COORDENADOR,
+        Cargo.HierarquiaChoices.DIRETOR
     ]:
         return redirect('gestor:home')
     

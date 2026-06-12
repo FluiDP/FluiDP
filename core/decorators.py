@@ -28,14 +28,15 @@ def check_is_aprovador(request, **kwargs):
     is_aprovador = user.cargo.hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
         Cargo.HierarquiaChoices.COORDENADOR,
+        Cargo.HierarquiaChoices.DIRETOR
     ]
     return is_aprovador
 
 def check_is_dp(request, **kwargs):
     user = request.user
     is_dp_group = user.groups.filter(name='DP').exists()
-    is_diretor = user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
-    return is_dp_group or is_diretor
+    # is_diretor = user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR # em nova regra de negócio, a direção acessará apenas o perfil de gestor
+    return is_dp_group
 
 def check_aprove_permission(request, **kwargs):
     user = request.user

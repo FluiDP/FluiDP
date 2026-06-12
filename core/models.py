@@ -253,7 +253,7 @@ class CustomUser(AbstractUser):
         verbose_name = "Usuário"
         verbose_name_plural = "Usuários"
     
-    cpf = models.CharField(verbose_name="CPF", max_length=11, unique=True, null=True, blank=True)
+    cpf = models.CharField(verbose_name="CPF", max_length=11, unique=True)
     matricula = models.CharField(verbose_name="Matrícula", max_length=10, unique=True, null=True, blank=True)
     ausencia_inicio = models.DateField(verbose_name="Início do Período de Ausência", null=True, blank=True)
     ausencia_fim = models.DateField(verbose_name="Fim do Período de Ausência", null=True, blank=True)
@@ -465,7 +465,7 @@ class Solicitacao(models.Model):
     class StatusChoices(models.TextChoices):
         PENDENTE_ACEITE_SECUNDARIO = 'PENDENTE_ACEITE', 'Aguardando Aceite do Colega'
         PENDENTE_GESTOR = 'PENDENTE_GESTOR', 'Pendente (Gestor)'
-        PENDENTE_DIRETOR = 'PENDENTE_DIRETOR', 'Pendente (Diretor)'
+        PENDENTE_DIRETOR = 'PENDENTE_DIRETOR', 'Pendente (DP)' # em nova regra de negócio, não será visível a pendência da direção
         PENDENTE_DP = 'PENDENTE_DP', 'Pendente (DP)'
         LANCAMENTO = 'LANCAMENTO', 'Aguardando Lançamento' # nesse estágio, as solicitações devem ser processadas pelo DP, mas consideramos aprovadas as solicitações que passaram por todas as etapas de aprovação.
         FINALIZADO = 'FINALIZADO', 'Finalizado'
