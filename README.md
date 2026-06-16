@@ -4,7 +4,7 @@ O **FluiDP** é um gerenciador de fluxo de solicitações ao Departamento Pessoa
 
 ---
 
-## 💻 Desenvolvimento Local (Sem Docker)
+## Desenvolvimento Local (Sem Docker)
 Ideal para codificação diária, testes rápidos e hot-reload do Tailwind.
 
 ### Na 1ª vez iniciando o projeto:
@@ -52,7 +52,7 @@ Ideal para codificação diária, testes rápidos e hot-reload do Tailwind.
 
 ---
 
-## 🐳 Deploy em Produção (Com Docker)
+## Deploy em Produção (Com Docker)
 A infraestrutura de produção é totalmente conteneirizada, garantindo isolamento e estabilidade no servidor.
 
 1. No servidor, clone ou atualize o repositório.
@@ -73,7 +73,7 @@ A infraestrutura de produção é totalmente conteneirizada, garantindo isolamen
 
 ---
 
-## 📂 Importando tabelas (csv/xlsx)
+## Importando tabelas (csv/xlsx)
 
 A importação deve ser feita via interface gráfica (em implementação) ou linha de comando.
 
