@@ -90,3 +90,33 @@
         </form>
     </div>
 </div>
+
+<script>
+    function toggleSenhaFields(isChecked) {
+        const inputNova = document.getElementById('input_nova_senha');
+        const inputConfirma = document.getElementById('input_confirmar_senha');
+        
+        if (inputNova && inputConfirma) {
+            const containerNova = inputNova.closest('div');
+            const containerConfirma = inputConfirma.closest('div');
+            
+            if (isChecked) {
+                containerNova.style.display = 'block';
+                containerConfirma.style.display = 'block';
+                inputNova.focus();
+            } else {
+                containerNova.style.display = 'none';
+                containerConfirma.style.display = 'none';
+                inputNova.value = '';
+                inputConfirma.value = '';
+            }
+        }
+    }
+
+    setTimeout(() => {
+        const chk = document.getElementById('chk_alterar_senha');
+        if (chk) {
+            toggleSenhaFields(chk.checked);
+        }
+    }, 50);
+</script>

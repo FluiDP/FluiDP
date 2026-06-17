@@ -387,8 +387,11 @@ def create_colaborador_modal_view(request):
         colaborador = form.save(commit=False)
         colaborador.username = colaborador.matricula
         colaborador.set_password('Mudar@123') 
+        colaborador.precisa_trocar_senha = True
         colaborador.save()
         form.save_m2m()
+        
+        form.save_groups(colaborador)
         
         response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador cadastrado!"})
         response['HX-Trigger'] = 'updateContent'

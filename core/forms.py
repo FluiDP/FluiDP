@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from .models import Cargo, Lotacao, CustomUser, TipoDocumento, Solicitacao
 from django.contrib.auth.forms import PasswordResetForm
 from django.core.mail import EmailMultiAlternatives
@@ -10,6 +11,7 @@ STYLE_INPUT = (
     "w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-700 shadow-sm "
     "focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent bg-white"
 )
+STYLE_CHECKBOX = "h-5 w-5 text-secondary focus:ring-secondary border-gray-300 rounded mt-1"
 
 class CargoForm(forms.ModelForm):
     """
@@ -66,19 +68,27 @@ class CustomUserForm(forms.ModelForm):
     """
     Formulário para cadastrar usuário.
     """
+    is_dp = forms.BooleanField(
+        label='Acesso ao Departamento Pessoal (DP)',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
+    )
+    is_tic = forms.BooleanField(
+        label='Acesso à Tecnologia da Informação (TIC)',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
+    )
+
     class Meta:
         model = CustomUser
-        
         fields = [
             'first_name', 'email',
             'cpf', 'matricula', 'cargo', 'lotacao',
             'is_active'
         ]
-
         labels = {
             'first_name': 'Nome Completo',
         }
-        
         widgets = {
             'first_name': forms.TextInput(attrs={'class': STYLE_INPUT, 'required': True}),
             'email': forms.EmailInput(attrs={'class': STYLE_INPUT}),
@@ -86,33 +96,80 @@ class CustomUserForm(forms.ModelForm):
             'matricula': forms.TextInput(attrs={'class': STYLE_INPUT, 'required': True}),
             'cargo': forms.Select(attrs={'class': STYLE_INPUT, 'required': True}),
             'lotacao': forms.Select(attrs={'class': STYLE_INPUT, 'required': True}),
+            'is_active': forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
         }
 
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.fields['first_name'].required = True
-            self.fields['email'].required = True
-            self.fields['cpf'].required = True
-            self.fields['matricula'].required = True
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['first_name'].required = True
+        self.fields['email'].required = True
+        self.fields['cpf'].required = True
+        self.fields['matricula'].required = True
+
+    def save_groups(self, user):
+        """Método auxiliar para salvar os grupos na criação do usuário."""
+        dp_group, _ = Group.objects.get_or_create(name='DP')
+        tic_group, _ = Group.objects.get_or_create(name='TIC')
+        
+        if self.cleaned_data.get('is_dp'):
+            user.groups.add(dp_group)
+        if self.cleaned_data.get('is_tic'):
+            user.groups.add(tic_group)
 
 class EditCustomUserForm(forms.ModelForm):
     """
     Formulário para editar dados de um CustomUser.
     """
+    alterar_senha = forms.BooleanField(
+        label='Alterar senha do colaborador?',
+        required=False,
+        help_text='Marque para definir uma nova senha provisória.',
+        widget=forms.CheckboxInput(attrs={
+            'class': STYLE_CHECKBOX,
+            'id': 'chk_alterar_senha',
+            'onchange': 'toggleSenhaFields(this.checked)'
+        })
+    )
+    nova_senha = forms.CharField(
+        label='Nova Senha',
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': STYLE_INPUT, 
+            'placeholder': 'Digite a nova senha',
+            'id': 'input_nova_senha'
+        })
+    )
+    confirmar_senha = forms.CharField(
+        label='Confirmar Nova Senha',
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': STYLE_INPUT, 
+            'placeholder': 'Confirme a nova senha',
+            'id': 'input_confirmar_senha'
+        })
+    )
+    is_dp = forms.BooleanField(
+        label='Acesso ao Departamento Pessoal (DP)',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
+    )
+    is_tic = forms.BooleanField(
+        label='Acesso à Tecnologia da Informação (TIC)',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
+    )
+
     class Meta:
         model = CustomUser
-        
         fields = [
             'first_name', 'email',
             'cpf', 'matricula', 'cargo', 'lotacao',
             'ausencia_inicio', 'ausencia_fim',
             'is_active'
         ]
-
         labels = {
             'first_name': 'Nome Completo',
         }
-        
         widgets = {
             'first_name': forms.TextInput(attrs={'class': STYLE_INPUT}),
             'email': forms.EmailInput(attrs={'class': STYLE_INPUT}),
@@ -122,14 +179,60 @@ class EditCustomUserForm(forms.ModelForm):
             'lotacao': forms.Select(attrs={'class': STYLE_INPUT}),
             'ausencia_inicio': forms.DateInput(attrs={'type': 'date', 'class': STYLE_INPUT}, format='%Y-%m-%d'),
             'ausencia_fim': forms.DateInput(attrs={'type': 'date', 'class': STYLE_INPUT}, format='%Y-%m-%d'),
+            'is_active': forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
         }
 
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.fields['first_name'].required = True
-            self.fields['email'].required = True
-            self.fields['cpf'].required = True
-            self.fields['matricula'].required = True
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['first_name'].required = True
+        self.fields['email'].required = True
+        self.fields['cpf'].required = True
+        self.fields['matricula'].required = True
+
+        if self.instance and self.instance.pk:
+            self.fields['is_dp'].initial = self.instance.groups.filter(name='DP').exists()
+            self.fields['is_tic'].initial = self.instance.groups.filter(name='TIC').exists()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        alterar = cleaned_data.get('alterar_senha')
+        nova = cleaned_data.get('nova_senha')
+        confirma = cleaned_data.get('confirmar_senha')
+
+        if alterar:
+            if not nova or not confirma:
+                self.add_error('nova_senha', "Preencha a nova senha e a confirmação.")
+            elif nova != confirma:
+                self.add_error('confirmar_senha', "As senhas não coincidem. Tente novamente.")
+                
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        
+        if self.cleaned_data.get('alterar_senha'):
+            nova_senha = self.cleaned_data.get('nova_senha')
+            user.set_password(nova_senha)
+            user.precisa_trocar_senha = True
+            
+        if commit:
+            user.save()
+            self.save_m2m()
+            
+            dp_group, _ = Group.objects.get_or_create(name='DP')
+            tic_group, _ = Group.objects.get_or_create(name='TIC')
+            
+            if self.cleaned_data.get('is_dp'):
+                user.groups.add(dp_group)
+            else:
+                user.groups.remove(dp_group)
+                
+            if self.cleaned_data.get('is_tic'):
+                user.groups.add(tic_group)
+            else:
+                user.groups.remove(tic_group)
+                
+        return user
 
 class TipoDocumentoForm(forms.ModelForm):
     """
