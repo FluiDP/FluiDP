@@ -134,9 +134,24 @@ def gestor_dashboard_view(request):
         status=Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO
     ).count()
 
+    q_sol_pend = (
+        Q(
+            status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
+            aprovador_atual=user
+        ) |
+        Q(
+            status=Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
+            colaborador_secundario=user
+        )
+    )
+
+    if request.user.cargo and request.user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+        q_sol_pend |= Q(
+            status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
+        )
+
     solicitacoes_pendentes = Solicitacao.objects.filter(
-        status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
-        aprovador_atual=user
+        q_sol_pend
     ).order_by('data')
 
     # KPI 5: Distribuição por Tipo (Gráfico)
