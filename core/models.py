@@ -282,6 +282,14 @@ class CustomUser(AbstractUser):
         if self.ausencia_inicio and self.ausencia_fim:
             return self.ausencia_inicio <= today <= self.ausencia_fim
         return False
+    
+    @property
+    def is_diretor(self):
+        return self.cargo and self.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
+    
+    @property
+    def id_dp(self):
+        return self.groups.filter(name='DP').exists()
 
     def get_cpf_formatado(self):
         """
