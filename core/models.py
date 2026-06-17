@@ -284,12 +284,8 @@ class CustomUser(AbstractUser):
         return False
     
     @property
-    def is_diretor(self):
-        return self.cargo and self.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
-    
-    @property
-    def id_dp(self):
-        return self.groups.filter(name='DP').exists()
+    def is_adm(self):
+        return self.is_superuser or self.groups.filter(name='dp').exists() or (self.cargo and self.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR)
 
     def get_cpf_formatado(self):
         """

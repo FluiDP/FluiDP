@@ -17,9 +17,9 @@
     </span>
 
 {% comment %} Pendente Diretor {% endcomment %}
-{% elif solicitacao.status == 'PENDENTE_DIRETOR' and (request.user.is_diretor or request.user.id_dp) %}
+{% elif solicitacao.status == 'PENDENTE_DIRETOR' %}
     <span class="inline-flex items-center rounded-full bg-yellow-100 px-4 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
-        {{ solicitacao.get_status_display }}
+        {% if request.user.is_adm %}Pendente (Diretor){% else %}{{ solicitacao.get_status_display }}{% endif %}
     </span>
 
 {% comment %} Recusado {% endcomment %}
