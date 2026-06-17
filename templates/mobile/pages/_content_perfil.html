@@ -1,0 +1,84 @@
+{% load static %}
+
+<section id="conteudo-perfil" class="flex flex-col w-full h-full pb-8 md:pb-0 overflow-y-auto bg-slate-50/50">
+
+    <div class="flex justify-center pt-4 pb-4 mb-2 bg-white shadow-sm shrink-0">
+        {% if tema.logo %}
+            <img src="{% static 'images/logo-login-slate-400.svg' %}" alt="FluiDP" class="h-6 object-contain">
+        {% else %}
+            <img src="{% static 'images/logo-login-color.svg' %}" alt="FluiDP" class="h-6 object-contain">
+        {% endif %}
+    </div>
+
+    <header class="px-4 py-2 shrink-0">
+        <h2 class="text-2xl font-bold text-slate-800">Meu Perfil</h2>
+    </header>
+
+    <main class="flex-1 flex flex-col gap-4 px-4 py-2 relative">
+        
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-5">
+            
+            <div class="flex items-center gap-4 border-b border-slate-100 pb-4">
+                <div class="flex flex-col overflow-hidden">
+                    <h3 class="font-bold text-slate-800 text-lg leading-tight truncate">
+                        {{ usuario.get_full_name|default:usuario.username }}
+                    </h3>
+                    <p class="text-sm text-slate-500 truncate">
+                        {{ usuario.cargo|default:'Cargo não definido' }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <div>
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Matrícula</span>
+                    <div class="p-3 bg-slate-50 rounded-xl text-slate-700 font-medium text-sm border border-slate-100">
+                        {{ usuario.matricula|default:"-" }}
+                    </div>
+                </div>
+
+                <div>
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo</span>
+                    <div class="p-3 bg-slate-50 rounded-xl text-slate-700 font-medium text-sm border border-slate-100 truncate">
+                        {{ usuario.email|default:"-" }}
+                    </div>
+                </div>
+
+                <div>
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Lotação / Setor</span>
+                    <div class="p-3 bg-slate-50 rounded-xl text-slate-700 font-medium text-sm border border-slate-100">
+                        {{ usuario.lotacao|default:'Não definida' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+            
+            <a href="{% url 'reset_password' %}" class="flex items-center gap-3 p-4 border-b border-slate-100 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                <div class="w-9 h-9 shrink-0 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <ion-icon name="key-outline" class="text-lg"></ion-icon>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-slate-700 text-sm">Redefinir Senha</span>
+                    <span class="text-xs text-slate-400">Criar uma nova senha de acesso</span>
+                </div>
+                <ion-icon name="chevron-forward-outline" class="ml-auto text-slate-300"></ion-icon>
+            </a>
+            
+            <a href="{% url 'logout' %}" data-boost="false" class="flex items-center gap-3 p-4 hover:bg-red-50 active:bg-red-100 transition-colors">
+                <div class="w-9 h-9 shrink-0 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+                    <ion-icon name="log-out-outline" class="text-lg"></ion-icon>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-red-600 text-sm">Sair do Aplicativo</span>
+                    <span class="text-xs text-red-400/80">Encerrar sessão segura</span>
+                </div>
+            </a>
+
+        </div>
+
+    </main>
+</section>
+
+<div id="modal-spot"></div>

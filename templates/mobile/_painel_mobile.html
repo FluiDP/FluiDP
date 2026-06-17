@@ -51,6 +51,11 @@
             transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
             font-family: 'Inter', sans-serif;
         }
+
+        html, body {
+            height: 100vdh;
+            margin: 0;
+        }
         
         /* Oculta scrollbar para ficar com cara de App */
         ::-webkit-scrollbar {
@@ -70,7 +75,7 @@
 
     <nav class="bg-white shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] shrink-0 w-full h-16 flex justify-around items-center px-4 pb-safe z-50">
         
-        <button hx-get="{% url 'mobile:home' %}" 
+        <button hx-get="{% url 'mobile:home' %}"
                 hx-target="#content-swap" 
                 hx-swap="innerHTML" 
                 class="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-primary focus:text-primary transition-colors gap-1">
@@ -78,7 +83,7 @@
             <span class="text-[10px] font-semibold tracking-wide">Início</span>
         </button>
 
-        <button hx-get="{% url 'perfil' %}" 
+        <button hx-get="{% url 'mobile:perfil' %}"
                 hx-target="#content-swap" 
                 hx-swap="innerHTML" 
                 class="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-primary focus:text-primary transition-colors gap-1">

@@ -5,4 +5,5 @@ app_name = 'mobile'
 
 urlpatterns = [
     path('', views.mobile_index_view, name='home'),
+    path('perfil/', views.mobile_perfil_view, name='perfil'),
 ]

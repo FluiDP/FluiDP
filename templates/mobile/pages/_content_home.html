@@ -1,8 +1,8 @@
 {% load static %}
 
-<section id="conteudo-solicitacoes" class="flex flex-col w-full h-full pb-8 md:pb-0 overflow-y-auto bg-slate-50/50">
+<section id="conteudo-solicitacoes" x-data="{ filtro: 'pendentes' }" class="flex flex-col w-full h-full pb-8 md:pb-0 overflow-y-hidden bg-slate-50/50">
 
-    <div class="flex justify-center pt-4 pb-4 mb-2 bg-white shadow-sm">
+    <div class="flex justify-center pt-4 pb-4 mb-2 bg-white shadow-sm shrink-0">
         {% if tema.logo %}
             <img src="{% static 'images/logo-login-slate-400.svg' %}" alt="FluiDP" class="h-6 object-contain">
         {% else %}
@@ -10,56 +10,155 @@
         {% endif %}
     </div>
 
-    <header class="px-4 py-2 flex items-center justify-between">
-        <h2 class="text-2xl font-bold text-slate-800">Solicitações</h2>
+    <header class="px-4 py-2 flex items-center justify-between shrink-0">
+        <h2 class="text-2xl font-bold text-slate-800">Solicitações (somente visualização)</h2>
         
-        <button hx-get="{% url 'colaborador:get_create_solicitacao_select' %}" 
+        {% comment %} <button hx-get="{% url 'colaborador:get_create_solicitacao_select' %}" 
                 hx-target="#modal-spot" 
                 hx-swap="innerHTML"
-                class="w-10 h-10 flex items-center justify-center bg-primary text-white rounded-full shadow-md hover:opacity-90 transition-opacity">
+                class="w-10 h-10 flex items-center justify-center bg-primary text-white rounded-full shadow-md hover:opacity-90 active:scale-95 transition-all">
             <ion-icon name="add-outline" class="text-2xl"></ion-icon>
-        </button>
+        </button> {% endcomment %}
     </header>
 
-    <div class="px-4 py-2 flex gap-2 items-center">
-        <div class="flex-1">
-            {% include "partials/_search_bar.html" %}
-        </div>
-        <button class="w-12 h-12 shrink-0 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-xl shadow-sm hover:bg-slate-50 transition-colors">
-            <ion-icon name="filter-outline" class="text-xl"></ion-icon>
+    {% comment %} <div class="px-4 py-2 shrink-0">
+        {% include "partials/_search_bar.html" %}
+    </div> {% endcomment %}
+
+    <div class="px-4 py-2 overflow-x-auto whitespace-nowrap flex gap-2 border-b border-slate-200/60 pb-3 shrink-0" style="scrollbar-width: none;">
+        
+        <button @click="filtro = 'pendentes'"
+                :class="filtro === 'pendentes' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-slate-600 border-slate-200'"
+                class="px-4 py-1.5 rounded-full border text-sm font-semibold transition-all flex items-center gap-1.5">
+            Para Aprovar 
+            <span class="text-[10px] px-1.5 py-0.5 rounded-md" :class="filtro === 'pendentes' ? 'bg-white/20' : 'bg-slate-100'">
+                {{ solicitacoes_pendentes|length }}
+            </span>
+        </button>
+
+        <button @click="filtro = 'andamento'"
+                :class="filtro === 'andamento' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-slate-600 border-slate-200'"
+                class="px-4 py-1.5 rounded-full border text-sm font-semibold transition-all flex items-center gap-1.5">
+            Em Andamento
+            <span class="text-[10px] px-1.5 py-0.5 rounded-md" :class="filtro === 'andamento' ? 'bg-white/20' : 'bg-slate-100'">
+                {{ solicitacoes_andamento|length }}
+            </span>
+        </button>
+
+        <button @click="filtro = 'encerradas'"
+                :class="filtro === 'encerradas' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-slate-600 border-slate-200'"
+                class="px-4 py-1.5 rounded-full border text-sm font-semibold transition-all flex items-center gap-1.5">
+            Encerradas
+            <span class="text-[10px] px-1.5 py-0.5 rounded-md" :class="filtro === 'encerradas' ? 'bg-white/20' : 'bg-slate-100'">
+                {{ solicitacoes_encerradas|length }}
+            </span>
+        </button>
+
+        <button @click="filtro = 'todas'"
+                :class="filtro === 'todas' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-slate-600 border-slate-200'"
+                class="px-4 py-1.5 rounded-full border text-sm font-semibold transition-all flex items-center gap-1.5">
+            Todas
+            <span class="text-[10px] px-1.5 py-0.5 rounded-md" :class="filtro === 'todas' ? 'bg-white/20' : 'bg-slate-100'">
+                {{ solicitacoes_totais|length }}
+            </span>
         </button>
     </div>
 
-    <main class="flex flex-col gap-3 px-4 py-4">
-        {% for solicitacao in solicitacoes %}
-            
-            <div hx-get="{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}"
-                 hx-target="#modal-spot"
-                 hx-swap="innerHTML"
-                 class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
-                
-                <div class="flex justify-between items-start gap-3">
-                    <span class="font-bold text-slate-800 text-sm leading-tight">
-                        {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }} ({{ solicitacao.colaborador.matricula|default:"-" }})
-                    </span>
-                    
-                    <span class="shrink-0 origin-top-right transform scale-90">
-                        {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao is_dp=is_dp %}
-                    </span>
+    <main class="flex-1 overflow-y-auto p-4 relative">
+        
+        <div x-show="filtro === 'pendentes'" class="flex flex-col gap-3">
+            {% for solicitacao in solicitacoes_pendentes %}
+                <div hx-get="{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}" hx-target="#modal-spot" hx-swap="innerHTML" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
+                    <div class="flex justify-between items-start gap-3">
+                        <span class="font-bold text-slate-800 text-sm leading-tight">
+                            {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}
+                        </span>
+                        <span class="shrink-0 origin-top-right transform scale-90">
+                            {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao is_dp=is_dp %}
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium">
+                        {{ solicitacao.tipo_documento }} &bull; {{ solicitacao.data|date:"d/m/Y" }}
+                    </div>
                 </div>
-                
-                <div class="text-xs text-slate-500 font-medium">
-                    Tipo: {{ solicitacao.tipo_documento }}
+            {% empty %}
+                <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center gap-2">
+                    <ion-icon name="checkmark-done-circle-outline" class="text-4xl text-slate-300"></ion-icon>
+                    <p class="text-slate-500 text-sm">Nenhuma pendência para você.</p>
                 </div>
+            {% endfor %}
+        </div>
 
-            </div>
+        <div x-show="filtro === 'andamento'" x-cloak class="flex flex-col gap-3">
+            {% for solicitacao in solicitacoes_andamento %}
+                <div hx-get="{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}" hx-target="#modal-spot" hx-swap="innerHTML" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
+                    <div class="flex justify-between items-start gap-3">
+                        <span class="font-bold text-slate-800 text-sm leading-tight">
+                            {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}
+                        </span>
+                        <span class="shrink-0 origin-top-right transform scale-90">
+                            {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao is_dp=is_dp %}
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium">
+                        {{ solicitacao.tipo_documento }} &bull; {{ solicitacao.data|date:"d/m/Y" }}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center gap-2">
+                    <ion-icon name="document-text-outline" class="text-4xl text-slate-300"></ion-icon>
+                    <p class="text-slate-500 text-sm">Você não tem solicitações em andamento.</p>
+                </div>
+            {% endfor %}
+        </div>
 
-        {% empty %}
-            <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed mt-4 flex flex-col items-center gap-2">
-                <ion-icon name="document-text-outline" class="text-4xl text-slate-300"></ion-icon>
-                <p class="text-slate-500 text-sm">Nenhuma solicitação encontrada.</p>
-            </div>
-        {% endfor %}
+        <div x-show="filtro === 'encerradas'" x-cloak class="flex flex-col gap-3">
+            {% for solicitacao in solicitacoes_encerradas %}
+                <div hx-get="{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}" hx-target="#modal-spot" hx-swap="innerHTML" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5 opacity-80">
+                    <div class="flex justify-between items-start gap-3">
+                        <span class="font-bold text-slate-800 text-sm leading-tight">
+                            {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}
+                        </span>
+                        <span class="shrink-0 origin-top-right transform scale-90">
+                            {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao is_dp=is_dp %}
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium">
+                        {{ solicitacao.tipo_documento }} &bull; {{ solicitacao.data|date:"d/m/Y" }}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center gap-2">
+                    <ion-icon name="archive-outline" class="text-4xl text-slate-300"></ion-icon>
+                    <p class="text-slate-500 text-sm">Nenhuma solicitação encerrada.</p>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div x-show="filtro === 'todas'" x-cloak class="flex flex-col gap-3">
+            {% for solicitacao in solicitacoes_totais %}
+                <div hx-get="{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}" hx-target="#modal-spot" hx-swap="innerHTML" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
+                    <div class="flex justify-between items-start gap-3">
+                        <span class="font-bold text-slate-800 text-sm leading-tight">
+                            {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}
+                        </span>
+                        <span class="shrink-0 origin-top-right transform scale-90">
+                            {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao is_dp=is_dp %}
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium">
+                        {{ solicitacao.tipo_documento }} &bull; {{ solicitacao.data|date:"d/m/Y" }}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center gap-2">
+                    <ion-icon name="document-outline" class="text-4xl text-slate-300"></ion-icon>
+                    <p class="text-slate-500 text-sm">Nenhum registro encontrado no sistema.</p>
+                </div>
+            {% endfor %}
+        </div>
+
     </main>
-
 </section>
+
+<div id="modal-spot"></div>
