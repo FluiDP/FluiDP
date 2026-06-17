@@ -1,6 +1,10 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from .models import Cargo, Lotacao, CustomUser, TipoDocumento, Solicitacao
+from django.contrib.auth.forms import PasswordResetForm
+from django.core.mail import EmailMultiAlternatives
+from django.template import loader
+from email.mime.image import MIMEImage
 
 STYLE_INPUT = (
     "w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-700 shadow-sm "
@@ -178,3 +182,30 @@ class SolicitacaoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['colaborador_secundario'].required = False
         self.fields['dados_preenchidos'].required = False
+
+class CustomPasswordResetForm(PasswordResetForm):
+    def send_mail(self, subject_template_name, email_template_name,
+                  context, from_email, to_email, html_email_template_name=None):
+        
+        subject = loader.render_to_string(subject_template_name, context)
+        subject = ''.join(subject.splitlines())
+        body = loader.render_to_string(email_template_name, context)
+
+        email_message = EmailMultiAlternatives(subject, body, from_email, [to_email])
+
+        if html_email_template_name is not None:
+            html_email = loader.render_to_string(html_email_template_name, context)
+            email_message.attach_alternative(html_email, 'text/html')
+
+            tema = context.get('tema')
+            if tema and tema.logo:
+                try:
+                    with open(tema.logo.path, 'rb') as f:
+                        logo_img = MIMEImage(f.read())
+                        logo_img.add_header('Content-ID', '<logo_fluidp>')
+                        logo_img.add_header('Content-Disposition', 'inline', filename='logo.png')
+                        email_message.attach(logo_img)
+                except Exception as e:
+                    pass
+
+        email_message.send()

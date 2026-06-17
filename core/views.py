@@ -17,6 +17,7 @@ from .models import Cargo, CustomUser, Lotacao, Solicitacao
 from django.contrib.auth import logout as auth_logout
 from django.db.models import Count, Q
 import re
+from .forms import CustomPasswordResetForm
 
 def is_mobile(request):
     """Verifica pelo User-Agent se o acesso é de um dispositivo móvel."""
@@ -47,16 +48,21 @@ class CustomLoginView(auth_views.LoginView):
 
 class CustomPasswordResetView(auth_views.PasswordResetView):
     template_name = 'login/reset.html'
+    form_class = CustomPasswordResetForm
     html_email_template_name = 'emails/_reset_password.html'
     subject_template_name = 'emails/_reset_password_subject.txt'
     success_url = reverse_lazy('login')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['tema'] = get_config() 
+        return context
+
+    def form_valid(self, form):
         self.extra_email_context = {
             'tema': get_config()
         }
-        return context
+        return super().form_valid(form)
 
 class CustomPasswordResetDoneView(auth_views.PasswordResetDoneView):
     template_name = 'login/password_reset_done.html'

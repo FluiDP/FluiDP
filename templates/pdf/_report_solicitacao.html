@@ -159,14 +159,10 @@
                     <tr>
                         <td class="py-2 px-3 text-gray-500 text-xs">{{ log.data_acao|date:"d/m/Y H:i" }}</td>
                         <td class="py-2 px-3 font-bold text-primary">{{ log.get_acao_display }}</td>
-                        
-                        <td class="py-2 px-3 text-gray-900">
-                            {% if request.user.is_staff or request.user.is_superuser or request.user.cargo.hierarquia == 1 %}
-                                {{ log.ator.get_full_name }}
-                                <span class="text-xs text-gray-400 block">{{ log.ator.cargo }}</span>
-                            {% endif %}
-                        </td>
-                        
+                        {% if request.user.is_staff or request.user.is_superuser or request.user.cargo.hierarquia == 1 %}
+                            <td class="py-2 px-3 text-gray-900">{{ log.ator.get_full_name }}</td>
+                            <td class="py-2 px-3 text-gray-900">{{ log.ator.cargo }}</td>
+                        {% endif %}
                         <td class="py-2 px-3 text-gray-500 text-xs italic">{{ log.detalhes|default:"-" }}</td>
                     </tr>
                     {% endif %}

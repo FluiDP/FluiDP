@@ -107,6 +107,7 @@
             <img src="{% static 'images/header-logo-slate-400.png' %}" alt="FluiDP" class="h-6 mb-2 min-w-auto">
             <div class="text-center text-xs text-gray-400 w-[75%]">
                 Documento gerado eletronicamente pelo Sistema FluiDP em {% now "d/m/Y H:i" %}.<br>Este documento possui validade interna.
+                <br>Gerado por {{ request.user.get_full_name|default:request.user.username }} ({{ request.user.cargo }})
             </div>
         </div>
 
