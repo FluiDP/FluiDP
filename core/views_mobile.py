@@ -10,11 +10,19 @@ CustomUser = get_user_model()
 @login_required
 def mobile_index_view(request):
     user = request.user
+    search_query = request.GET.get('q', '')
 
-    # 1. Todas
+    q_search = Q()
+    if search_query:
+        q_search = Q(
+            Q(id__icontains=search_query) |
+            Q(colaborador__first_name__icontains=search_query) |
+            Q(tipo_documento__nome_documento__icontains=search_query)
+        )
+
     solicitacoes_totais = Solicitacao.objects.filter(
         Q(colaborador=user) | Q(colaborador_secundario=user)
-    ).distinct().order_by('-data')
+    ).filter(q_search).distinct().order_by('-data')
 
     status_encerrados = [
         Solicitacao.StatusChoices.FINALIZADO,
@@ -23,7 +31,6 @@ def mobile_index_view(request):
     ]
     
     solicitacoes_andamento = solicitacoes_totais.exclude(status__in=status_encerrados)
-    
     solicitacoes_encerradas = solicitacoes_totais.filter(status__in=status_encerrados)
 
     q_pendencias = Q()
@@ -48,7 +55,9 @@ def mobile_index_view(request):
             status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
         )
 
-    solicitacoes_pendentes = Solicitacao.objects.filter(q_pendencias).distinct().order_by('-data')
+    solicitacoes_pendentes = Solicitacao.objects.filter(
+        q_pendencias
+    ).filter(q_search).distinct().order_by('-data')
 
     context = {
         'usuario': user,
@@ -57,6 +66,7 @@ def mobile_index_view(request):
         'solicitacoes_andamento': solicitacoes_andamento,
         'solicitacoes_encerradas': solicitacoes_encerradas,
         'solicitacoes_pendentes': solicitacoes_pendentes,
+        'search_query': search_query,
     }
 
     if request.htmx:

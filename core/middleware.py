@@ -61,11 +61,9 @@ class MobileRedirectMiddleware:
         if is_mobile_device and request.user.is_authenticated:
             
             if request.headers.get('HX-Request') == 'true':
-                response = HttpResponseRedirect('/m/')
-                response.status_code = 200
-                response['HX-Redirect'] = '/m/'
-                return response
+                return self.get_response(request)
             
             return redirect('/m/')
 
         return self.get_response(request)
+    

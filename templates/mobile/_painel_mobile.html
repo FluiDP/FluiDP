@@ -53,11 +53,14 @@
         }
 
         html, body {
-            height: 100vdh;
+            height: 100dvh;
             margin: 0;
         }
+
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
         
-        /* Oculta scrollbar para ficar com cara de App */
         ::-webkit-scrollbar {
             width: 0px;
             background: transparent;
@@ -66,14 +69,14 @@
 
 </head>
 
-<body class="bg-linear-to-tr from-emphasis to-slate-100 text-slate-800 w-screen h-screen overflow-hidden flex flex-col" hx-boost="true">
+<body class="bg-linear-to-tr from-emphasis to-slate-100 text-slate-800 w-full h-[100dvh] overflow-hidden flex flex-col relative" hx-boost="true">
     
     <main id="content-swap" class="flex-1 overflow-y-auto w-full relative">
         {% block page_content %}
-            {% endblock page_content %}
+        {% endblock page_content %}
     </main>
 
-    <nav class="bg-white shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] shrink-0 w-full h-16 flex justify-around items-center px-4 pb-safe z-50">
+    <nav class="bg-white shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] shrink-0 w-full h-16 flex justify-around items-center px-4 pb-safe border-t border-slate-100">
         
         <button hx-get="{% url 'mobile:home' %}"
                 hx-target="#content-swap" 

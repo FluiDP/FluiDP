@@ -8,7 +8,7 @@
      x-transition:leave-start="opacity-100"
      x-transition:leave-end="opacity-0"
      @click="open = false" 
-     class="fixed inset-0 z-50 flex items-center justify-center w-screen h-screen p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur transition-opacity">
+     class="fixed inset-0 z-[60] flex items-center justify-center w-full h-[100dvh] p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur transition-opacity">
 
     <div x-show="open"
          x-transition:enter="ease-out duration-300"
@@ -18,32 +18,33 @@
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
          @click.stop
-         class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
+         class="relative w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 md:p-8 shadow-xl transition-all">
         
         <div hx-target="#modal-spot" class="flex w-full flex-col items-center justify-center text-center h-full animate-fade-in-up">
-            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3 text-red-600">
-                <ion-icon name="alert-circle" class="w-8 h-8"></ion-icon>
+            
+            <div class="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-full flex items-center justify-center mb-3 sm:mb-4 text-red-600 shrink-0">
+                <ion-icon name="alert-circle" class="w-6 h-6 sm:w-8 sm:h-8"></ion-icon>
             </div>
 
-            <h3 class="text-lg font-bold text-red-800 mb-1">
+            <h3 class="text-lg sm:text-xl font-bold text-red-800 mb-1 sm:mb-2">
                 Algo deu errado.
             </h3>
 
-            <p class="text-red-600 text-sm mb-4">
+            <p class="text-red-600 text-xs sm:text-sm mb-5 sm:mb-6 leading-relaxed">
                 {{ message }}
             </p>
 
-            <div class="mt-8 text-right flex w-full gap-2">
+            <div class="mt-2 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full">
                 <button type="button" 
                         @click="open = false" 
-                        class="flex w-full justify-center rounded-full bg-red-50 border border-red-600 px-6 py-3 text-base font-semibold text-red-600 shadow-sm hover:bg-red-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600">
+                        class="flex w-full justify-center rounded-full bg-red-50 border border-red-600 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-red-600 shadow-sm hover:bg-red-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-all">
                     Cancelar
                 </button>
                 
                 <button type="button"
                         hx-get="{{ url_retry|default:request.path }}" 
                         hx-target="#modal-spot"
-                        class="w-full justify-center rounded-full bg-primary px-6 py-3 text-base font-semibold text-white shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary transition-all">
+                        class="w-full justify-center rounded-full bg-primary px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-white shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary transition-all">
                     Tentar Novamente
                 </button>
             </div>

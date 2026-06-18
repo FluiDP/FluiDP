@@ -8,11 +8,7 @@
      x-transition:leave-start="opacity-100"
      x-transition:leave-end="opacity-0"
      @click="open = false" 
-     class="fixed inset-0 z-50 flex items-center justify-center p-4">
-
-    <div x-show="open" 
-         class="fixed inset-0 bg-[rgba(0,0,0,0.5)] bg-opacity-70 backdrop-blur-md transition-opacity">
-    </div>
+     class="fixed inset-0 z-[60] flex items-center justify-center w-full h-[100dvh] p-3 sm:p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur transition-opacity">
 
     <div id="modal-content"
          x-show="open"
@@ -23,71 +19,74 @@
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
          @click.stop
-         class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl transition-all">
+         class="relative w-full max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden rounded-2xl bg-white shadow-xl transition-all">
         
-        <div class="flex justify-between items-start mb-6 sticky top-0 bg-white z-10 border-b border-gray-100 pb-4">
+        <div class="flex justify-between items-start shrink-0 bg-white border-b border-gray-100 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 md:px-8 md:pt-8 z-10">
             <div>
-                <div class="flex items-center gap-3">
-                    <h3 class="text-xl font-bold text-gray-900">
+                <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    <h3 class="text-lg sm:text-xl font-bold text-gray-900">
                         Histórico de Ações
                     </h3>
                     
                     {% include 'partials/_solicitacao_status.html' with solicitacao=solicitacao %}
                     
                 </div>
-                <p class="text-sm text-gray-500 mt-1">Solicitação #{{ solicitacao.id }}</p>
+                <p class="text-xs sm:text-sm text-gray-500 mt-1">Solicitação #{{ solicitacao.id }}</p>
             </div>
-            <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-600 mt-1">
+            <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-600 mt-1 p-1 -mr-1 rounded-full hover:bg-slate-100 transition-colors shrink-0">
+                <span class="sr-only">Fechar</span>
                 <ion-icon name="close-outline" class="w-6 h-6"></ion-icon>
             </button>
         </div>
 
-        <div class="relative pl-4 border-l-2 border-gray-200 space-y-8 my-4">
-            {% for log in logs %}
-                
-                {% if log.ator.cargo.hierarquia != 1 and 'DIRETOR' not in log.acao %}
-                <div class="relative">
-                    <div class="absolute -left-[21px] top-1 h-4 w-4 rounded-full border-2 border-white 
-                        {% if 'CRIACAO' in log.acao %}bg-blue-500
-                        {% elif 'APROVADO' in log.acao or 'ACEITE' in log.acao %}bg-green-500
-                        {% elif 'RECUSA' in log.acao or 'CANCELADO' in log.acao %}bg-red-500
-                        {% else %}bg-gray-400{% endif %}">
-                    </div>
-
-                    <div class="flex flex-col">
-                        <span class="text-sm font-bold text-gray-800">
-                            {{ log.get_acao_display }}
-                        </span>
-                        
-                        <span class="text-xs text-gray-500 mb-1">
-                            {% if request.user.is_staff or request.user.is_superuser or request.user.cargo.hierarquia == 1 %}
-                                Por <span class="font-medium text-gray-700">{{ log.ator.get_full_name|default:log.ator.username }}</span>
-                                em {{ log.data_acao|date:"d/m/Y H:i" }}
-                            {% else %}
-                                Em {{ log.data_acao|date:"d/m/Y H:i" }}
-                            {% endif %}
-                        </span>
-                        
-                        {% if log.detalhes %}
-                        <div class="mt-1 p-3 bg-gray-50 rounded-lg text-sm text-gray-600 italic border border-gray-100">
-                            "{{ log.detalhes }}"
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+            <div class="relative pl-4 border-l-2 border-gray-200 space-y-6 sm:space-y-8 my-2">
+                {% for log in logs %}
+                    
+                    {% if log.ator.cargo.hierarquia != 1 and 'DIRETOR' not in log.acao %}
+                    <div class="relative">
+                        <div class="absolute -left-[21px] top-1 h-4 w-4 rounded-full border-2 border-white 
+                            {% if 'CRIACAO' in log.acao %}bg-blue-500
+                            {% elif 'APROVADO' in log.acao or 'ACEITE' in log.acao %}bg-green-500
+                            {% elif 'RECUSA' in log.acao or 'CANCELADO' in log.acao %}bg-red-500
+                            {% else %}bg-gray-400{% endif %}">
                         </div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endif %}
 
-            {% empty %}
-                <p class="text-gray-500 text-center italic">Nenhum registro encontrado.</p>
-            {% endfor %}
+                        <div class="flex flex-col">
+                            <span class="text-sm sm:text-base font-bold text-gray-800">
+                                {{ log.get_acao_display }}
+                            </span>
+                            
+                            <span class="text-[10px] sm:text-xs text-gray-500 mb-1">
+                                {% if request.user.is_staff or request.user.is_superuser or request.user.cargo.hierarquia == 1 %}
+                                    Por <span class="font-medium text-gray-700">{{ log.ator.get_full_name|default:log.ator.username }}</span>
+                                    em {{ log.data_acao|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    Em {{ log.data_acao|date:"d/m/Y H:i" }}
+                                {% endif %}
+                            </span>
+                            
+                            {% if log.detalhes %}
+                            <div class="mt-1.5 sm:mt-2 p-2.5 sm:p-3 bg-gray-50 rounded-lg text-xs sm:text-sm text-gray-600 italic border border-gray-100">
+                                "{{ log.detalhes }}"
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                {% empty %}
+                    <p class="text-gray-500 text-xs sm:text-sm text-center italic">Nenhum registro encontrado.</p>
+                {% endfor %}
+            </div>
         </div>
 
-        <div class="mt-8 pt-4 border-t border-gray-100 flex justify-end">
+        <div class="shrink-0 bg-white border-t border-gray-100 px-4 py-4 sm:px-6 sm:py-5 md:px-8 flex justify-end">
             <button type="button"
                     hx-get="{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}"
                     hx-target="#modal-spot"
                     hx-swap="innerHTML"
-                    class="flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-full transition-colors">
+                    class="flex w-full sm:w-auto items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm sm:text-base font-medium rounded-full transition-colors active:scale-95">
                 <ion-icon name="arrow-back-outline"></ion-icon>
                 Voltar aos Detalhes
             </button>
