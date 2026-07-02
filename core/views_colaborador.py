@@ -238,16 +238,18 @@ def salvar_solicitacao_view(request, tipo_doc_id):
             'message': f'Erro ao salvar: {e}',
             'url_retry': url_retry
         })
-    
+
 @colaborador_required
 def get_solicitacao_detalhes_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     user = request.user
 
     is_dp = user.groups.filter(name='DP').exists()
+    is_dono = solicitacao.colaborador == user
     
     pode_aprovar = False
     pode_aprovar = services._pode_ator_aprovar(solicitacao, user, request.user)
+    
     campos_schema = copy.deepcopy(solicitacao.dados_preenchidos.get('schema', []))
     dados_preenchidos = solicitacao.dados_preenchidos.get('values', {})
     
@@ -273,12 +275,21 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
 
         campos_com_valores.append(campo)
         
+    estados_irreversiveis = [
+        Solicitacao.StatusChoices.FINALIZADO,
+        Solicitacao.StatusChoices.RECUSADO,
+        Solicitacao.StatusChoices.CANCELADO
+    ]
+    pode_ser_cancelada = solicitacao.status not in estados_irreversiveis
+    pode_cancelar = (is_dono or is_dp) and pode_ser_cancelada
+        
     context = {
         'is_dp': is_dp,
         'solicitacao': solicitacao,
         'tipo_documento': solicitacao.tipo_documento,
         'campos_formulario': campos_com_valores,
         'pode_aprovar': pode_aprovar,
+        'pode_cancelar': pode_cancelar,
         'active_link': 'solicitacoes',
     }
     
