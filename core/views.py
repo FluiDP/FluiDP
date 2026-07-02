@@ -84,7 +84,7 @@ def painel_view(request):
     
     hierarquia = request.user.cargo.hierarquia if request.user.cargo else Cargo.HierarquiaChoices.PADRAO
 
-    if request.user.groups.filter(name='DP').exists():
+    if request.user.groups.filter(name='DP').exists() or request.user.groups.filter(name='SYSTEM_ADMIN').exists():
         return redirect('administracao:dashboard')
 
     elif hierarquia in [

@@ -23,8 +23,12 @@ User = get_user_model()
 @dp_required
 def dp_dashboard_view(request):
     user = request.user
+    
+    # Validações de hierarquia
     is_gestor_dp = (user.groups.filter(name='DP').exists() and (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.GERENTE or user.cargo.hierarquia == Cargo.HierarquiaChoices.COORDENADOR)) if user.cargo else False
+    is_only_gestor = (user.cargo.hierarquia in [Cargo.HierarquiaChoices.GERENTE, Cargo.HierarquiaChoices.COORDENADOR, Cargo.HierarquiaChoices.DIRETOR] and not user.groups.filter(name='DP').exists()) if user.cargo else False
 
+    # Mapear lotações filhas
     q_minhas_lotacoes = Lotacao.objects.filter(
         Q(chefia=user) |
         (
@@ -44,14 +48,15 @@ def dp_dashboard_view(request):
         is_active=True
     ).exclude(id=user.id)
 
-    q_pendencias_dp = Q(status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO])
-    
-    if is_gestor_dp:
-        q_pendencias_dp = q_pendencias_dp | Q(colaborador__in=minha_equipe, status=Solicitacao.StatusChoices.PENDENTE_GESTOR)
+    # --- CÁLCULO DE KPIs ---
+    if is_only_gestor:
+        q_pendencias_dp = Q(status=Solicitacao.StatusChoices.PENDENTE_GESTOR, colaborador__in=minha_equipe)
+    else:
+        q_pendencias_dp = Q(status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO])
+        if is_gestor_dp:
+            q_pendencias_dp = q_pendencias_dp | Q(colaborador__in=minha_equipe, status=Solicitacao.StatusChoices.PENDENTE_GESTOR)
 
-    pendencias_comigo = Solicitacao.objects.filter(
-        status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]
-    ).count()
+    pendencias_comigo = Solicitacao.objects.filter(q_pendencias_dp).count()
 
     pendencias_direcao = Solicitacao.objects.filter(
         status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
@@ -65,29 +70,39 @@ def dp_dashboard_view(request):
                     Solicitacao.StatusChoices.LANCAMENTO],
     ).count()
 
-    solicitacoes_pendentes = []
+    # --- LISTAGEM DE SOLICITAÇÕES PENDENTES (TABELA) ---
+    solicitacoes_pendentes = Solicitacao.objects.none()
 
+    # Se for do DP
     if user.groups.filter(name='DP').exists():
         solicitacoes_pendentes = Solicitacao.objects.filter(
             status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]
         )
-        
-        if is_gestor_dp:
+        if is_gestor_dp: # DP e também é gestor de uma equipe
             solicitacoes_pendentes = solicitacoes_pendentes | Solicitacao.objects.filter(
                 status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
-                aprovador_atual=user
+                colaborador__in=minha_equipe
             )
-    
-    if user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+            
+    # Se for APENAS Gestor (não é do DP)
+    elif is_only_gestor:
         solicitacoes_pendentes = Solicitacao.objects.filter(
             status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
-            aprovador_atual=user
-        ) | Solicitacao.objects.filter(
-            status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
+            colaborador__in=minha_equipe
         )
-    
+
+    # Regra cumulativa para Diretores
+    if user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+        direcao_qs = Solicitacao.objects.filter(status=Solicitacao.StatusChoices.PENDENTE_DIRETOR)
+        base_diretor_qs = Solicitacao.objects.filter(
+            status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
+            colaborador__in=minha_equipe
+        )
+        solicitacoes_pendentes = solicitacoes_pendentes | direcao_qs | base_diretor_qs
+
     solicitacoes_pendentes = list(solicitacoes_pendentes.distinct().order_by('-data'))
 
+    # --- RANKINGS ---
     ranking_query_docs = Solicitacao.objects.values('tipo_documento__nome_documento') \
         .annotate(total=Count('id')) \
         .order_by('-total')

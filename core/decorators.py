@@ -15,28 +15,34 @@ def permission_required(test_func):
         return _wrapped_view
     return decorator
 
-def check_is_colaborador(request, **kwargs):
-    user = request.user
-    has_no_cargo = not user.cargo
-    is_padrao = user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.PADRAO
-    return has_no_cargo or is_padrao or check_is_aprovador
-
 def check_is_aprovador(request, **kwargs):
     user = request.user
     if not user.cargo:
         return False
-    is_aprovador = user.cargo.hierarquia in [
+    return user.cargo.hierarquia in [
         Cargo.HierarquiaChoices.GERENTE,
         Cargo.HierarquiaChoices.COORDENADOR,
         Cargo.HierarquiaChoices.DIRETOR
     ]
-    return is_aprovador
+
+def check_is_colaborador(request, **kwargs):
+    user = request.user
+    has_no_cargo = not user.cargo
+    is_padrao = user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.PADRAO
+    # CORREÇÃO: Chamando a função corretamente
+    return has_no_cargo or is_padrao or check_is_aprovador(request, **kwargs)
 
 def check_is_dp(request, **kwargs):
     user = request.user
-    is_dp_group = user.groups.filter(name='DP').exists()
-    # is_diretor = user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR # em nova regra de negócio, a direção acessará apenas o perfil de gestor
-    return is_dp_group
+    return user.groups.filter(name='DP').exists()
+
+def check_is_system_admin(request, **kwargs):
+    user = request.user
+    return user.groups.filter(name='SYSTEM_ADMIN').exists()
+
+# CORREÇÃO: Função dedicada para unir DP, Admin e Gestores (Para a view não bloquear gestores)
+def check_dp_or_admin_or_gestor(request, **kwargs):
+    return check_is_dp(request, **kwargs) or check_is_system_admin(request, **kwargs) or check_is_aprovador(request, **kwargs)
 
 def check_aprove_permission(request, **kwargs):
     user = request.user
@@ -69,8 +75,11 @@ def check_aprove_permission(request, **kwargs):
         
     return False
 
+# Inicialização dos decorators
 colaborador_required = permission_required(check_is_colaborador)
 aprovador_required = permission_required(check_is_aprovador)
-dp_required = permission_required(check_is_dp)
-
+system_admin_required = permission_required(check_is_system_admin)
 is_aprovador_solicitacao = permission_required(check_aprove_permission)
+
+# CORREÇÃO: Utilizando a função unida que avalia corretamente e permite gestores
+dp_required = permission_required(check_dp_or_admin_or_gestor)

@@ -77,14 +77,14 @@ A infraestrutura de produção é totalmente conteneirizada, garantindo isolamen
 
 A importação deve ser feita via interface gráfica (em implementação) ou linha de comando.
 
-Para realizar a importação via linha de comando localmente, utilize o comando `import`:
+Para realizar a importação via linha de comando localmente, utilize o comando `importer`:
 ```bash
-python manage.py import [tipo] [arquivo]
+python manage.py importer [tipo] [arquivo]
 ```
 
 Se o sistema já estiver rodando via Docker, rode o comando dentro do container:
 ```bash
-docker compose exec web python manage.py import [tipo] [arquivo]
+docker compose exec web python manage.py importer [tipo] [arquivo]
 ```
 
 Sendo que:
