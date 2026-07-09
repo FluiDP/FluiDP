@@ -243,7 +243,22 @@ def gestor_solicitacoes_view(request):
         del query_params['page']
     
     url_params = f"&{query_params.urlencode()}" if query_params else ""
-    # ---------------------------------------------------------------
+
+    sort_param = request.GET.get('sort', '-data')
+    campos_permitidos = [
+        'data', '-data', 
+        'colaborador__first_name', '-colaborador__first_name',
+        'tipo_documento__nome_documento', '-tipo_documento__nome_documento',
+        'status', '-status',
+        'colaborador__lotacao__nome_lotacao', '-colaborador__lotacao__nome_lotacao'
+    ]
+    
+    if sort_param not in campos_permitidos:
+        sort_param = '-data'
+
+    solicitacoes_list = solicitacoes_list.order_by(sort_param)
+
+    context['current_sort'] = sort_param
 
     context = {
         'usuario': request.user,
@@ -262,6 +277,7 @@ def gestor_solicitacoes_view(request):
         'lotacoes': lotacoes,
         'status_choices': status_choices,
         'url_params': url_params,
+        'current_sort': sort_param,
     }
 
     if request.htmx:

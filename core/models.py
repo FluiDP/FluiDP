@@ -106,7 +106,7 @@ FORM_SCHEMA = {
             },
             "options_source": {
                 "type": "string",
-                "enum": ["manual", "colaboradores_lotacao", "cargos"]
+                "enum": ["manual", "colaboradores_lotacao", "cargos", "colaboradores_mesmo_cargo"]
             },
             "options": {
                 "type": "array",

@@ -59,6 +59,22 @@ def mobile_index_view(request):
         q_pendencias
     ).filter(q_search).distinct().order_by('-data')
 
+    sort_param = request.GET.get('sort', '-data')
+    campos_permitidos = [
+        'data', '-data', 
+        'colaborador__first_name', '-colaborador__first_name',
+        'tipo_documento__nome_documento', '-tipo_documento__nome_documento',
+        'status', '-status',
+        'colaborador__lotacao__nome_lotacao', '-colaborador__lotacao__nome_lotacao'
+    ]
+    
+    if sort_param not in campos_permitidos:
+        sort_param = '-data'
+
+    solicitacoes_list = solicitacoes_list.order_by(sort_param)
+
+    context['current_sort'] = sort_param
+
     context = {
         'usuario': user,
         'usuario_tagname': user.first_name.split()[0] if user.first_name else user.username,
@@ -67,6 +83,7 @@ def mobile_index_view(request):
         'solicitacoes_encerradas': solicitacoes_encerradas,
         'solicitacoes_pendentes': solicitacoes_pendentes,
         'search_query': search_query,
+        'current_sort': sort_param,
     }
 
     if request.htmx:

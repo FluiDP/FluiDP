@@ -82,7 +82,21 @@ def colaborador_solicitacoes_view(request):
             Q(tipo_documento__nome_documento__icontains=search_query)
         )
 
-    qs = qs.order_by('-data')
+    sort_param = request.GET.get('sort', '-data')
+    campos_permitidos = [
+        'data', '-data', 
+        'colaborador__first_name', '-colaborador__first_name',
+        'tipo_documento__nome_documento', '-tipo_documento__nome_documento',
+        'status', '-status',
+        'colaborador__lotacao__nome_lotacao', '-colaborador__lotacao__nome_lotacao'
+    ]
+    
+    if sort_param not in campos_permitidos:
+        sort_param = '-data'
+
+    solicitacoes_list = solicitacoes_list.order_by(sort_param)
+
+    context['current_sort'] = sort_param
 
     context = {
         'usuario': request.user,
@@ -90,6 +104,7 @@ def colaborador_solicitacoes_view(request):
         'solicitacoes': qs,
         'active_link': 'solicitacoes',
         'search_query': search_query,
+        'current_sort': sort_param,
     }
 
     if request.htmx:
@@ -121,7 +136,6 @@ def get_create_solicitacao_form_view(request, tipo_doc_id):
             source = campo.get("options_source")
             
             if source == "colaboradores_lotacao":
-
                 users = User.objects.filter(
                     lotacao=request.user.lotacao,
                     is_active=True
@@ -129,6 +143,17 @@ def get_create_solicitacao_form_view(request, tipo_doc_id):
 
                 campo['options'] = [
                     {'value': str(u.id), 'label': f"{u.first_name}"}
+                    for u in users
+                ]
+            
+            elif source == "colaboradores_mesmo_cargo":
+                users = User.objects.filter(
+                    cargo=request.user.cargo,
+                    is_active=True
+                ).exclude(id=request.user.id).order_by('first_name')
+
+                campo['options'] = [
+                    {'value': str(u.id), 'label': f"{u.first_name} - {u.lotacao.nome_lotacao}"}
                     for u in users
                 ]
                 
@@ -255,6 +280,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     
     campos_com_valores = []
     
+    # Mantém a query antiga para formulários que usam a mesma lotação
     colaboradores_query = User.objects.filter(
         lotacao=solicitacao.colaborador.lotacao
     ).exclude(
@@ -266,12 +292,30 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
         for c in colaboradores_query
     ]
 
+    # Percorre os campos do schema da solicitação
     for campo in campos_schema:
         campo_nome = campo.get('name')
         campo['value'] = dados_preenchidos.get(campo_nome) 
         
-        if campo.get('options_source') == 'colaboradores_lotacao':
+        # Pega a fonte de opções para saber qual query usar
+        source = campo.get('options_source')
+        
+        # Lógica 1: Mesma Lotação (A original)
+        if source == 'colaboradores_lotacao':
             campo['options'] = opcoes_colaboradores
+
+        # Lógica 2: Mesmo Cargo (A nova funcionalidade)
+        elif source == 'colaboradores_mesmo_cargo':
+            users_cargo = User.objects.filter(
+                cargo=solicitacao.colaborador.cargo
+            ).exclude(
+                id=solicitacao.colaborador.id
+            ).order_by('first_name')
+            
+            campo['options'] = [
+                {'value': str(u.id), 'label': f"{u.first_name} - {u.lotacao.nome_lotacao if u.lotacao else 'Sem Lotação'}"}
+                for u in users_cargo
+            ]
 
         campos_com_valores.append(campo)
         

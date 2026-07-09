@@ -3,7 +3,7 @@ import re
 from email.mime.image import MIMEImage
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from .models import Config, LogAprovacao, Solicitacao, Cargo, CustomUser, TipoDocumento
+from .models import Config, LogAprovacao, Solicitacao, Cargo, CustomUser, TipoDocumento, Lotacao
 import pandas as pd
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.contrib.auth import get_user_model
@@ -15,6 +15,43 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.urls import reverse
+from django.db.models import Q
+
+def obter_pendencias_do_usuario(user):
+    """
+    Retorna um QuerySet consolidado com todas as solicitações que exigem 
+    alguma ação do usuário, independentemente de onde a regra venha.
+    As regras são cumulativas (Gestor + DP + Diretor + Aceite).
+    """
+    q_filtros = Q()
+
+    if user.groups.filter(name='DP').exists():
+        q_filtros |= Q(status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO])
+
+    q_filtros |= Q(status=Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO, colaborador_secundario=user)
+
+    if user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+        q_filtros |= Q(status=Solicitacao.StatusChoices.PENDENTE_DIRETOR)
+
+    q_filtros |= Q(status=Solicitacao.StatusChoices.PENDENTE_GESTOR, aprovador_atual=user)
+
+    q_minhas_lotacoes = Lotacao.objects.filter(
+        Q(chefia=user) | (Q(chefia__isnull=True) & Q(chefia_secundaria=user))
+    )
+    
+    if q_minhas_lotacoes.exists():
+        minhas_lotacoes = set()
+        for lotacao in q_minhas_lotacoes:
+            minhas_lotacoes.add(lotacao.id)
+            descendentes = lotacao.get_descendentes(include_self=True)
+            minhas_lotacoes.update([d.id for d in descendentes])
+            
+        q_filtros |= Q(status=Solicitacao.StatusChoices.PENDENTE_GESTOR, colaborador__lotacao_id__in=minhas_lotacoes)
+
+    if not q_filtros:
+        return Solicitacao.objects.none()
+
+    return Solicitacao.objects.filter(q_filtros).distinct().order_by('-data')
 
 def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogAprovacao.AcaoChoices, detalhes: str = ""):
     """
@@ -156,7 +193,7 @@ def criar_solicitacao(colaborador: CustomUser, tipo_documento, dados_preenchidos
     
     for campo in esquema_formulario:
         nome_campo = campo.get('name')
-        if campo.get('options_source') == 'colaboradores_lotacao':
+        if campo.get('options_source') in ['colaboradores_lotacao', 'colaboradores_mesmo_cargo']:
             valor_preenchido = dados_preenchidos.get('values', {}).get(nome_campo)
             if valor_preenchido:
                 id_colaborador_secundario = valor_preenchido

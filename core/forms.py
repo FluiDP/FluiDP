@@ -69,12 +69,12 @@ class CustomUserForm(forms.ModelForm):
     Formulário para cadastrar usuário.
     """
     is_dp = forms.BooleanField(
-        label='Acesso ao Departamento Pessoal (DP)',
+        label='Acesso do Departamento Pessoal (DP)',
         required=False,
         widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
     )
     is_tic = forms.BooleanField(
-        label='Acesso à Tecnologia da Informação (TIC)',
+        label='Acesso de administrador do sistema (TIC)',
         required=False,
         widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
     )
@@ -149,12 +149,12 @@ class EditCustomUserForm(forms.ModelForm):
         })
     )
     is_dp = forms.BooleanField(
-        label='Acesso ao Departamento Pessoal (DP)',
+        label='Acesso do Departamento Pessoal (DP)',
         required=False,
         widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
     )
     is_tic = forms.BooleanField(
-        label='Acesso à Tecnologia da Informação (TIC)',
+        label='Acesso de administrador do sistema (TIC)',
         required=False,
         widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX})
     )
@@ -191,7 +191,7 @@ class EditCustomUserForm(forms.ModelForm):
 
         if self.instance and self.instance.pk:
             self.fields['is_dp'].initial = self.instance.groups.filter(name='DP').exists()
-            self.fields['is_tic'].initial = self.instance.groups.filter(name='TIC').exists()
+            self.fields['is_tic'].initial = self.instance.groups.filter(name='SYSTEM_ADMIN').exists()
 
     def clean(self):
         cleaned_data = super().clean()
@@ -220,7 +220,7 @@ class EditCustomUserForm(forms.ModelForm):
             self.save_m2m()
             
             dp_group, _ = Group.objects.get_or_create(name='DP')
-            tic_group, _ = Group.objects.get_or_create(name='TIC')
+            tic_group, _ = Group.objects.get_or_create(name='SYSTEM_ADMIN')
             
             if self.cleaned_data.get('is_dp'):
                 user.groups.add(dp_group)
