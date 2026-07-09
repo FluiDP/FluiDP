@@ -135,10 +135,14 @@ def processar_lote_solicitacoes_view(request):
         raise PermissionDenied("Você não possui permissão para executar ações em lote.")
 
     solicitacao_ids = request.POST.getlist('solicitacoes_ids')
-    action = request.POST.get('action_lote')
+    
+    action = request.GET.get('acao') or request.POST.get('action_lote')
 
     if not solicitacao_ids:
         return render(request, 'partials/_message_error.html', {'message': 'Nenhuma solicitação foi selecionada.'})
+
+    if action not in ['aprovar', 'recusar']:
+        return render(request, 'partials/_message_error.html', {'message': 'Ação de lote inválida.'})
 
     sucessos = 0
     erros = 0
@@ -154,11 +158,15 @@ def processar_lote_solicitacoes_view(request):
         except Exception as e:
             erros += 1
 
-    msg = f"{sucessos} solicitações processadas com sucesso."
-    if erros > 0:
-        msg += f" ({erros} ignoradas por restrição de status ou permissão)."
+    if sucessos > 0:
+        msg = f"{sucessos} solicitações processadas com sucesso."
+        if erros > 0:
+            msg += f" ({erros} ignoradas por restrição de status ou permissão)."
+        response = render(request, 'partials/_message_sucess.html', {'message': msg})
+    else:
+        msg = f"Nenhuma solicitação processada ({erros} falharam por restrição de status ou permissão)."
+        response = render(request, 'partials/_message_error.html', {'message': msg})
 
-    response = render(request, 'partials/_message_sucess.html', {'message': msg})
     response['HX-Trigger'] = 'updateContent'
     return response
 
