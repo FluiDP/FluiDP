@@ -57,31 +57,36 @@ def colaborador_painel_view(request):
 
 @colaborador_required
 def colaborador_solicitacoes_view(request):
-    search_query = request.GET.get('q')
-
-    qs = Solicitacao.objects.filter(
-        Q(colaborador=request.user) | Q(colaborador_secundario=request.user)
+    user = request.user
+    search_query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', '')
+    documento_filter = request.GET.get('documento', '')
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
+    
+    solicitacoes_list = Solicitacao.objects.filter(
+        Q(colaborador=user) | Q(colaborador_secundario=user)
     ).distinct()
 
-    if request.user.cargo and request.user.cargo.hierarquia in [
-        Cargo.HierarquiaChoices.GERENTE,
-        Cargo.HierarquiaChoices.COORDENADOR,
-        Cargo.HierarquiaChoices.DIRETOR
-    ]:
-        qs = Solicitacao.objects.filter(
-            colaborador__lotacao__in=request.user.lotacao.get_descendentes(include_self=True)
-        )
-
-    elif request.user.groups.filter(name='DP').exists():
-        qs = Solicitacao.objects.all()
-
     if search_query:
-        qs = qs.filter(
+        solicitacoes_list = solicitacoes_list.filter(
             Q(id__icontains=search_query) |
-            Q(colaborador__first_name__icontains=search_query) |
             Q(tipo_documento__nome_documento__icontains=search_query)
         )
 
+    if status_filter:
+        solicitacoes_list = solicitacoes_list.filter(status=status_filter)
+        
+    if documento_filter:
+        solicitacoes_list = solicitacoes_list.filter(tipo_documento_id=documento_filter)
+
+    if data_inicio:
+        solicitacoes_list = solicitacoes_list.filter(data__date__gte=data_inicio)
+        
+    if data_fim:
+        solicitacoes_list = solicitacoes_list.filter(data__date__lte=data_fim)
+
+    # 3. Ordenação Segura
     sort_param = request.GET.get('sort', '-data')
     campos_permitidos = [
         'data', '-data', 
@@ -90,20 +95,22 @@ def colaborador_solicitacoes_view(request):
         'status', '-status',
         'colaborador__lotacao__nome_lotacao', '-colaborador__lotacao__nome_lotacao'
     ]
-    
+
     if sort_param not in campos_permitidos:
         sort_param = '-data'
 
     solicitacoes_list = solicitacoes_list.order_by(sort_param)
 
-    context['current_sort'] = sort_param
-
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
-        'solicitacoes': qs,
+        'solicitacoes': solicitacoes_list,
         'active_link': 'solicitacoes',
         'search_query': search_query,
+        'status_filter': status_filter,
+        'documento_filter': documento_filter,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
         'current_sort': sort_param,
     }
 

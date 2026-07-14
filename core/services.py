@@ -184,7 +184,7 @@ def recusar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, detalhes: st
     return solicitacao
 
 @transaction.atomic
-def criar_solicitacao(colaborador: CustomUser, tipo_documento, dados_preenchidos: dict, esquema_formulario: list):
+def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esquema_formulario: list):
     """
     Cria a solicitação, define o fluxo inicial (Substituto ou Gestor) e gera o log.
     """
@@ -210,13 +210,24 @@ def criar_solicitacao(colaborador: CustomUser, tipo_documento, dados_preenchidos
         nova_solicitacao.colaborador_secundario_id = id_colaborador_secundario
         nova_solicitacao.aprovador_atual = None 
     else:
-        nova_solicitacao.status = Solicitacao.StatusChoices.PENDENTE_GESTOR
-        
+        if not colaborador.lotacao:
+            raise ValidationError("O colaborador não possui uma lotação definida. Não é possível determinar o gestor responsável.")
+
         gestor = colaborador.lotacao.find_gestor_disponivel(solicitante=colaborador)
         if not gestor:
+
+            if colaborador.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+                nova_solicitacao.status = Solicitacao.StatusChoices.PENDENTE_DP
+                nova_solicitacao.aprovador_atual = None
+
             raise ValidationError("Não foi possível encontrar um gestor disponível na sua hierarquia.")
         
-        nova_solicitacao.aprovador_atual = gestor
+        if gestor.cargo and gestor.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+            nova_solicitacao.status = Solicitacao.StatusChoices.PENDENTE_DIRETOR
+            nova_solicitacao.aprovador_atual = gestor
+        else:
+            nova_solicitacao.status = Solicitacao.StatusChoices.PENDENTE_GESTOR
+            nova_solicitacao.aprovador_atual = gestor
 
     nova_solicitacao.save()
 
