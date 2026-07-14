@@ -395,10 +395,6 @@ class TipoDocumento(models.Model):
         
         if (self.dia_inicio and not self.dia_fim) or (self.dia_fim and not self.dia_inicio):
             raise ValidationError("Para restringir datas, preencha tanto o dia de início quanto o dia de fim. Se não quiser restringir indique dia 1 como dia de início e dia 31 como dia de fim.")
-            
-        if self.dia_inicio and self.dia_fim:
-            if self.dia_inicio > self.dia_fim:
-                raise ValidationError("O dia de início deve ser menor ou igual ao dia de fim.")
 
     @property
     def periodo_abertura_texto(self):
@@ -411,10 +407,14 @@ class TipoDocumento(models.Model):
         Verifica se o dia de hoje está dentro do intervalo configurado.
         """
         if not (self.dia_inicio and self.dia_fim):
-            return True 
+            return True
 
         hoje_dia = timezone.now().day
-        return self.dia_inicio <= hoje_dia <= self.dia_fim
+
+        if self.dia_inicio <= self.dia_fim:
+            return self.dia_inicio <= hoje_dia <= self.dia_fim
+        elif self.dia_inicio > self.dia_fim:
+            return (self.dia_inicio <= hoje_dia <= 31) or (1 <= hoje_dia <= self.dia_fim)
 
     def validar_regras(self, dados_valores):
         """
