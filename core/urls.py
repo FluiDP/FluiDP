@@ -27,4 +27,6 @@ urlpatterns = [
     path('solicitacao/pdf/<int:solicitacao_id>/', views.gerar_pdf_solicitacao_view, name='gerar_pdf_solicitacao'),
 
     path('relatorio-geral/', views.relatorio_geral_view, name='relatorio_geral'),
+
+    path('solicitacoes/lote/', views.processar_lote_solicitacoes_view, name='processar_lote_solicitacoes'),
 ]

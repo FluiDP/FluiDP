@@ -1,74 +1,235 @@
-<section id="solicitacoes"
-         hx-get="{% url 'colaborador:solicitacoes' %}{% if search_query %}?q={{ search_query }}{% endif %}"
-         hx-trigger="updateContent from:body"
-         hx-swap="outerHTML"
-         class="flex flex-1 flex-col gap-2 min-h-0">
-         
+{% load custom_filters %}
+
+<div id="solicitacoes" class="flex flex-col h-full w-full">
+
     <header class="p-2">
-        <h2 class="text-2xl font-bold">Painel do Colaborador</h2>
+        <h2 class="text-2xl font-bold text-slate-800">Histórico de Solicitações</h2>
     </header>
 
     <div class="flex flex-1 flex-col gap-2 min-h-0">
-        <div class="flex flex-row gap-2">
-            {# 1. value=search_query adicionado #}
-            {% include "partials/_search_bar.html" with target_ids="solicitacoes" placeholder="Buscar solicitações..." value=search_query %}
+        
+        <form id="filter-form"
+              hx-get="{% url 'colaborador:solicitacoes' %}" 
+              hx-target="#solicitacoes" 
+              hx-swap="outerHTML"
+              hx-trigger="updateContent from:body"
+              class="flex flex-col gap-3">
             
-            {% include "partials/_solicitacao_create_button.html" with colaborador=usuario %}
-        </div>
-
-        <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div class="flex flex-col flex-1 min-h-0">
-                <h3 class="text-xl font-semibold pt-2 pb-2">
-                    Solicitações
-                    {% if usuario.cargo.hierarquia == 2 or usuario.cargo.hierarquia == 3 %} 
-                        - {{ usuario.lotacao }}
-                    {% endif %}
-                </h3>
-                
-                <div class="p-5 bg-slate-50 text-slate-600 box-border flex-1 mt-1 mb-1 rounded-lg overflow-y-auto min-h-0">
-                    <table class="w-full border-separate border-spacing-y-2">
-                        <thead>
-                            <tr class="px-2">
-                                <th class="p-2 text-left font-semibold">Solicitante</th>
-                                <th class="p-2 text-left font-semibold">Lotação</th>
-                                <th class="p-2 text-left font-semibold">Documento</th>
-                                <th class="p-2 text-left font-semibold">Data</th>
-                                <th class="p-2 text-left font-semibold">Informações</th>
-                                <th class="p-2 text-left font-semibold">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for solicitacao in solicitacoes %}
-                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
-                                <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ solicitacao.colaborador }}</td>
-                                <td class="p-2">{{ solicitacao.colaborador.lotacao }}</td>
-                                <td class="p-2">{{ solicitacao.tipo_documento }}</td>
-                                <td class="p-2">{{ solicitacao.data|date:"d/m/Y H:i" }}</td>
-                                
-                                <td class="p-2">
-                                    {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
-                                </td>
-                                
-                                <td class="p-2 first:rounded-l-full last:rounded-r-full">
-                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="py-4 text-center text-slate-400">
-                                    <div class="flex flex-col items-center justify-center">
-                                        <ion-icon name="folder-open-outline" class="text-2xl mb-1"></ion-icon>
-                                        <span>Nenhuma solicitação encontrada.</span>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div class="flex flex-row gap-2 items-center w-full">
+                {% include "partials/_search_bar.html" with target_ids="solicitacoes" placeholder="Buscar solicitações..." value=search_query disable_htmx=True %}
+                {% include "partials/_solicitacao_create_button.html" with colaborador=usuario %}
             </div>
+        </form>
+
+        <!-- Tabela de Solicitações -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-0">
+            <div class="overflow-y-auto flex-1 p-2">
+                <table class="w-full border-separate border-spacing-y-2">
+                    <thead>
+                        <tr class="px-2">
+                            
+                            <th class="p-2 pl-4 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none rounded-l-lg"
+                                hx-get="?{% if current_sort == 'colaborador__first_name' %}{% query_transform sort='-colaborador__first_name' %}{% else %}{% query_transform sort='colaborador__first_name' %}{% endif %}"
+                                hx-include="#filter-form"
+                                hx-target="#colaborador-solicitacoes" 
+                                hx-swap="outerHTML">
+                                <div class="flex items-center gap-1">
+                                    Colaborador
+                                    <span class="flex items-center justify-center w-4 h-4">
+                                        {% if current_sort == 'colaborador__first_name' %}
+                                            <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
+                                        {% elif current_sort == '-colaborador__first_name' %}
+                                            <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
+                                        {% else %}
+                                            <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </th>
+
+                            <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
+                                hx-get="?{% if current_sort == 'colaborador__lotacao__nome_lotacao' %}{% query_transform sort='-colaborador__lotacao__nome_lotacao' %}{% else %}{% query_transform sort='colaborador__lotacao__nome_lotacao' %}{% endif %}"
+                                hx-include="#filter-form"
+                                hx-target="#colaborador-solicitacoes" 
+                                hx-swap="outerHTML">
+                                <div class="flex items-center gap-1">
+                                    Lotação
+                                    <span class="flex items-center justify-center w-4 h-4">
+                                        {% if current_sort == 'colaborador__lotacao__nome_lotacao' %}
+                                            <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
+                                        {% elif current_sort == '-colaborador__lotacao__nome_lotacao' %}
+                                            <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
+                                        {% else %}
+                                            <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </th>
+
+                            <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
+                                hx-get="?{% if current_sort == 'tipo_documento__nome_documento' %}{% query_transform sort='-tipo_documento__nome_documento' %}{% else %}{% query_transform sort='tipo_documento__nome_documento' %}{% endif %}"
+                                hx-include="#filter-form"
+                                hx-target="#colaborador-solicitacoes" 
+                                hx-swap="outerHTML">
+                                <div class="flex items-center gap-1">
+                                    Documento
+                                    <span class="flex items-center justify-center w-4 h-4">
+                                        {% if current_sort == 'tipo_documento__nome_documento' %}
+                                            <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
+                                        {% elif current_sort == '-tipo_documento__nome_documento' %}
+                                            <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
+                                        {% else %}
+                                            <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </th>
+
+                            <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
+                                hx-get="?{% if current_sort == 'data' %}{% query_transform sort='-data' %}{% else %}{% query_transform sort='data' %}{% endif %}"
+                                hx-include="#filter-form"
+                                hx-target="#colaborador-solicitacoes" 
+                                hx-swap="outerHTML">
+                                <div class="flex items-center gap-1">
+                                    Data
+                                    <span class="flex items-center justify-center w-4 h-4">
+                                        {% if current_sort == 'data' %}
+                                            <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
+                                        {% elif current_sort == '-data' %}
+                                            <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
+                                        {% else %}
+                                            <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </th>
+
+                            <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 select-none">
+                                Ações
+                            </th>
+
+                            <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none rounded-r-lg"
+                                hx-get="?{% if current_sort == 'status' %}{% query_transform sort='-status' %}{% else %}{% query_transform sort='status' %}{% endif %}"
+                                hx-include="#filter-form"
+                                hx-target="#colaborador-solicitacoes" 
+                                hx-swap="outerHTML">
+                                <div class="flex items-center gap-1">
+                                    Status
+                                    <span class="flex items-center justify-center w-4 h-4">
+                                        {% if current_sort == 'status' %}
+                                            <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
+                                        {% elif current_sort == '-status' %}
+                                            <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
+                                        {% else %}
+                                            <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </th>
+
+                        </tr>
+                    </thead>
+                    <tbody id="solicitacoes-list">
+                        {% for solicitacao in solicitacoes %}
+                        <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2 transition-all group">
+                            
+                            <td class="p-2 pl-4 first:rounded-l-full last:rounded-r-full text-slate-700 font-medium whitespace-nowrap">
+                                {{ solicitacao.colaborador }}
+                            </td>
+                            
+                            <td class="p-2 text-slate-600 text-sm whitespace-nowrap">
+                                {{ solicitacao.colaborador.lotacao|default:"-" }}
+                            </td>
+                            
+                            <td class="p-2 text-slate-600 text-sm whitespace-nowrap">
+                                <div class="flex flex-col gap-1 items-start">
+                                    <span class="font-medium text-gray-800">{{ solicitacao.tipo_documento }}</span>
+                                    {% if solicitacao.score_criticidade >= 500 %}
+                                        <span class="inline-flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider animate-pulse" title="Crítico: Data limite muito próxima!">
+                                            <ion-icon name="flame"></ion-icon> URGENTE
+                                        </span>
+                                    {% elif solicitacao.score_criticidade >= 150 %}
+                                        <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider" title="Atenção: Necessita andamento rápido.">
+                                            <ion-icon name="warning"></ion-icon> ATENÇÃO
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            
+                            <td class="p-2 text-slate-500 text-sm whitespace-nowrap">
+                                <div class="flex flex-col gap-1 items-start">
+                                    <span class="font-medium text-slate-700">{{ solicitacao.data|date:"d/m/Y H:i" }}</span>
+                                    
+                                    {% if solicitacao.sla_status == 'no_prazo' %}
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-[9px] font-bold uppercase tracking-wider" title="No prazo">
+                                            <ion-icon name="timer-outline"></ion-icon> Há {{ solicitacao.data_atualizacao|timesince }}
+                                        </span>
+                                    {% elif solicitacao.sla_status == 'atencao' %}
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 text-[9px] font-bold uppercase tracking-wider" title="Atenção ao prazo na etapa atual">
+                                            <ion-icon name="warning-outline"></ion-icon> Há {{ solicitacao.data_atualizacao|timesince }}
+                                        </span>
+                                    {% elif solicitacao.sla_status == 'atrasado' %}
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 text-[9px] font-bold uppercase tracking-wider shadow-sm shadow-red-100/50" title="SLA Vencido nesta etapa">
+                                            <ion-icon name="alert-circle-outline" class="animate-pulse"></ion-icon> Atrasado: {{ solicitacao.data_atualizacao|timesince }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            
+                            <td class="p-2 whitespace-nowrap">
+                                {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
+                            </td>
+                            
+                            <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">
+                                {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
+                            </td>
+
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="py-12 text-center">
+                                <div class="flex flex-col items-center justify-center text-gray-400">
+                                    <ion-icon name="document-text-outline" class="w-16 h-16 mb-4 opacity-20"></ion-icon>
+                                    <p class="text-lg font-medium text-gray-500">Nenhuma solicitação encontrada</p>
+                                    <p class="text-sm mt-1">Tente ajustar os filtros de busca.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if solicitacoes.has_other_pages %}
+            <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+                <nav class="flex items-center justify-between">
+                    <div class="hidden sm:block">
+                        <p class="text-sm text-gray-700">
+                            Página <span class="font-medium">{{ solicitacoes.number }}</span> de 
+                            <span class="font-medium">{{ solicitacoes.paginator.num_pages }}</span>
+                        </p>
+                    </div>
+                    <div class="flex-1 flex justify-between sm:justify-end gap-2">
+                        {% if solicitacoes.has_previous %}
+                        <a href="?{% query_transform page=solicitacoes.previous_page_number %}" 
+                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                            Anterior
+                        </a>
+                        {% endif %}
+                        
+                        {% if solicitacoes.has_next %}
+                        <a href="?{% query_transform page=solicitacoes.next_page_number %}" 
+                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                            Próxima
+                        </a>
+                        {% endif %}
+                    </div>
+                </nav>
+            </div>
+            {% endif %}
         </main>
     </div>
-</section>
+
+</div>
 
 <div id="modal-spot"></div>

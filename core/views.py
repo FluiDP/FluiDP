@@ -5,7 +5,10 @@ from django.utils import timezone
 from shutil import copy
 import copy
 from django.contrib.auth import views as auth_views
+from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from core import services
 from core.services import get_config, set_config
 from .decorators import dp_required
 from django.urls import reverse_lazy
@@ -119,6 +122,53 @@ def perfil_view(request):
         return render(request, 'painel/colaborador/perfil.html', context)
         
     return redirect('painel')
+
+@require_POST
+@login_required
+def processar_lote_solicitacoes_view(request):
+    user = request.user
+    
+    is_dp = user.groups.filter(name='DP').exists()
+    is_diretor = user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
+    
+    if not (is_dp or is_diretor):
+        raise PermissionDenied("Você não possui permissão para executar ações em lote.")
+
+    solicitacao_ids = request.POST.getlist('solicitacoes_ids')
+    
+    action = request.GET.get('acao') or request.POST.get('action_lote')
+
+    if not solicitacao_ids:
+        return render(request, 'partials/_message_error.html', {'message': 'Nenhuma solicitação foi selecionada.'})
+
+    if action not in ['aprovar', 'recusar']:
+        return render(request, 'partials/_message_error.html', {'message': 'Ação de lote inválida.'})
+
+    sucessos = 0
+    erros = 0
+
+    for sig_id in solicitacao_ids:
+        try:
+            solicitacao = Solicitacao.objects.get(id=sig_id)
+            if action == 'aprovar':
+                services.aprovar_solicitacao(solicitacao, ator=user, request_user=user, detalhes="Aprovado via Painel")
+            elif action == 'recusar':
+                services.recusar_solicitacao(solicitacao, ator=user, detalhes="Recusado via Painel")
+            sucessos += 1
+        except Exception as e:
+            erros += 1
+
+    if sucessos > 0:
+        msg = f"{sucessos} solicitações processadas com sucesso."
+        if erros > 0:
+            msg += f" ({erros} ignoradas por restrição de status ou permissão)."
+        response = render(request, 'partials/_message_sucess.html', {'message': msg})
+    else:
+        msg = f"Nenhuma solicitação processada ({erros} falharam por restrição de status ou permissão)."
+        response = render(request, 'partials/_message_error.html', {'message': msg})
+
+    response['HX-Trigger'] = 'updateContent'
+    return response
 
 @dp_required
 def config_view(request):

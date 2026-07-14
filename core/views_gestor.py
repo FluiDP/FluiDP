@@ -69,10 +69,15 @@ def recusar_solicitacao_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     
     try:
+        detalhes = request.POST.get('detalhes', '').strip()
+        
+        if not detalhes:
+            raise ValidationError("A justificativa de recusa é obrigatória.")
+
         services.recusar_solicitacao(
             solicitacao, 
             ator=request.user, 
-            detalhes="Recusado via Painel"
+            detalhes=detalhes
         )
 
         msg = mark_safe('Solicitação <span class="text-slate-600 font-bold">recusada</span> com sucesso.')
@@ -84,6 +89,18 @@ def recusar_solicitacao_view(request, solicitacao_id):
         response['HX-Trigger'] = 'updateContent'
         
         return response
+        
+    except ValidationError as e:
+        url_retry = reverse('colaborador:get_solicitacao_detalhes', args=[solicitacao.id])
+        
+        msg_erro = e.message if hasattr(e, 'message') else str(e)
+        if hasattr(e, 'messages'):
+            msg_erro = " ".join(e.messages)
+
+        return render(request, 'partials/_message_error.html', {
+            'message': msg_erro,
+            'url_retry': url_retry
+        })
         
     except Exception as e:
         url_retry = reverse('colaborador:get_solicitacao_detalhes', args=[solicitacao.id])
@@ -97,6 +114,7 @@ def recusar_solicitacao_view(request, solicitacao_id):
 def gestor_dashboard_view(request):
     user = request.user
 
+    # Identificar todas as lotações que o usuário é gestor (direto ou secundário) para os KPIs de equipe
     q_minhas_lotacoes = Lotacao.objects.filter(
         Q(chefia=user) |
         (
@@ -105,9 +123,9 @@ def gestor_dashboard_view(request):
         )
     )
 
-    minhas_lotacoes = set(q_minhas_lotacoes)
-
+    minhas_lotacoes = set()
     for lotacao in q_minhas_lotacoes:
+        minhas_lotacoes.add(lotacao)
         descendentes = lotacao.get_descendentes(include_self=True)
         minhas_lotacoes.update(descendentes)
         
@@ -116,47 +134,34 @@ def gestor_dashboard_view(request):
         is_active=True
     )
     
-    # KPI 1: Pendências na minha mesa
-    pendencias_comigo = Solicitacao.objects.filter(
-        status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
-        aprovador_atual=user
-    ).count()
+    # ----------------------------------------------------------------------------------
+    # UTILIZANDO A FUNÇÃO INTELIGENTE DO SERVICE PARA PEGAR PENDÊNCIAS
+    # ----------------------------------------------------------------------------------
+    solicitacoes_pendentes = services.obter_pendencias_do_usuario(user)
 
-    # KPI 2: Aguardando Lançamento do DP
-    em_lancamento = Solicitacao.objects.filter(
-        colaborador__in=minha_equipe,
-        status=Solicitacao.StatusChoices.LANCAMENTO
+    # KPI 1: Pendências na minha mesa
+    pendencias_comigo = solicitacoes_pendentes.count()
+
+    is_diretor = request.user.cargo and request.user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
+
+    # Define a query base para os KPIs 2, 3 e 5 com base no nível hierárquico
+    if is_diretor:
+        q_kpi_base = Solicitacao.objects.all()
+    else:
+        q_kpi_base = Solicitacao.objects.filter(colaborador__in=minha_equipe)
+
+    # KPI 2: Aguardando DP (Tanto os pendentes no DP, quanto os que aguardam lançamento)
+    em_lancamento = q_kpi_base.filter(
+        status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]
     ).count()
 
     # KPI 3: Travados no Substituto
-    travados_substituto = Solicitacao.objects.filter(
-        colaborador__in=minha_equipe,
+    travados_substituto = q_kpi_base.filter(
         status=Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO
     ).count()
 
-    q_sol_pend = (
-        Q(
-            status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
-            aprovador_atual=user
-        ) |
-        Q(
-            status=Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
-            colaborador_secundario=user
-        )
-    )
-
-    if request.user.cargo and request.user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
-        q_sol_pend |= Q(
-            status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
-        )
-
-    solicitacoes_pendentes = Solicitacao.objects.filter(
-        q_sol_pend
-    ).order_by('data')
-
     # KPI 5: Distribuição por Tipo (Gráfico)
-    ranking_query = Solicitacao.objects.filter(colaborador__in=minha_equipe) \
-        .values('tipo_documento__nome_documento') \
+    ranking_query = q_kpi_base.values('tipo_documento__nome_documento') \
         .annotate(total=Count('id')) \
         .order_by('-total')
 
@@ -243,7 +248,20 @@ def gestor_solicitacoes_view(request):
         del query_params['page']
     
     url_params = f"&{query_params.urlencode()}" if query_params else ""
-    # ---------------------------------------------------------------
+
+    sort_param = request.GET.get('sort', '-data')
+    campos_permitidos = [
+        'data', '-data', 
+        'colaborador__first_name', '-colaborador__first_name',
+        'tipo_documento__nome_documento', '-tipo_documento__nome_documento',
+        'status', '-status',
+        'colaborador__lotacao__nome_lotacao', '-colaborador__lotacao__nome_lotacao'
+    ]
+    
+    if sort_param not in campos_permitidos:
+        sort_param = '-data'
+
+    solicitacoes_list = solicitacoes_list.order_by(sort_param)
 
     context = {
         'usuario': request.user,
@@ -262,9 +280,11 @@ def gestor_solicitacoes_view(request):
         'lotacoes': lotacoes,
         'status_choices': status_choices,
         'url_params': url_params,
+        'current_sort': sort_param,
     }
 
     if request.htmx:
         return render(request, 'painel/gestor/_content_solicitacoes.html', context)
     
     return render(request, 'painel/gestor/solicitacoes.html', context)
+    

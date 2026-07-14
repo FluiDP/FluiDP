@@ -41,8 +41,8 @@ def check_is_system_admin(request, **kwargs):
     return user.groups.filter(name='SYSTEM_ADMIN').exists()
 
 # CORREÇÃO: Função dedicada para unir DP, Admin e Gestores (Para a view não bloquear gestores)
-def check_dp_or_admin_or_gestor(request, **kwargs):
-    return check_is_dp(request, **kwargs) or check_is_system_admin(request, **kwargs) or check_is_aprovador(request, **kwargs)
+def check_dp_or_admin(request, **kwargs):
+    return check_is_dp(request, **kwargs) or check_is_system_admin(request, **kwargs)
 
 def check_aprove_permission(request, **kwargs):
     user = request.user
@@ -82,4 +82,4 @@ system_admin_required = permission_required(check_is_system_admin)
 is_aprovador_solicitacao = permission_required(check_aprove_permission)
 
 # CORREÇÃO: Utilizando a função unida que avalia corretamente e permite gestores
-dp_required = permission_required(check_dp_or_admin_or_gestor)
+dp_required = permission_required(check_dp_or_admin)

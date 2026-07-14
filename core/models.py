@@ -106,7 +106,7 @@ FORM_SCHEMA = {
             },
             "options_source": {
                 "type": "string",
-                "enum": ["manual", "colaboradores_lotacao", "cargos"]
+                "enum": ["manual", "colaboradores_lotacao", "cargos", "colaboradores_mesmo_cargo"]
             },
             "options": {
                 "type": "array",
@@ -285,7 +285,7 @@ class CustomUser(AbstractUser):
     
     @property
     def is_adm(self):
-        return self.is_superuser or self.groups.filter(name='dp').exists() or (self.cargo and self.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR)
+        return self.is_superuser or self.groups.filter(name='DP').exists() or self.groups.filter(name='SYSTEM_ADMIN').exists() or (self.cargo and self.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR)
 
     def get_cpf_formatado(self):
         """
@@ -469,7 +469,7 @@ class Solicitacao(models.Model):
     class StatusChoices(models.TextChoices):
         PENDENTE_ACEITE_SECUNDARIO = 'PENDENTE_ACEITE', 'Aguardando Aceite do Colega'
         PENDENTE_GESTOR = 'PENDENTE_GESTOR', 'Pendente (Gestor)'
-        PENDENTE_DIRETOR = 'PENDENTE_DIRETOR', 'Pendente (DP)' # em nova regra de negócio, não será visível a pendência da direção
+        PENDENTE_DIRETOR = 'PENDENTE_DIRETOR', 'Pendente (Diretor)' # em nova regra de negócio, não será visível a pendência da direção
         PENDENTE_DP = 'PENDENTE_DP', 'Pendente (DP)'
         LANCAMENTO = 'LANCAMENTO', 'Aguardando Lançamento' # nesse estágio, as solicitações devem ser processadas pelo DP, mas consideramos aprovadas as solicitações que passaram por todas as etapas de aprovação.
         FINALIZADO = 'FINALIZADO', 'Finalizado'
@@ -488,14 +488,14 @@ class Solicitacao(models.Model):
     @property
     def is_finalizada(self):
         return self.status in [
-            self.StatusChoices.APROVADO,
+            self.StatusChoices.FINALIZADO,
             self.StatusChoices.RECUSADO,
             self.StatusChoices.CANCELADO,
         ]
     
     @property
     def is_aprovada(self):
-        return self.status == self.StatusChoices.APROVADO
+        return self.status == self.StatusChoices.FINALIZADO
     
     status = models.CharField(
         verbose_name="Status da Solicitação",

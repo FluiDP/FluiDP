@@ -19,7 +19,7 @@
 
             <div class="bg-linear-to-tl from-emphasis to-slate-50 hover:from-gray-100 p-6 rounded-2xl shadow-sm border border-white flex items-start justify-between relative overflow-hidden">
                 <div class="z-10">
-                    <p class="text-sm font-semibold text-gray-500 mb-1">Aguardando Lançamento do DP</p>
+                    <p class="text-sm font-semibold text-gray-500 mb-1">Aguardando DP</p>
                     <h3 class="text-4xl font-bold text-primary mb-2">{{ kpi_lancamento_dp }}</h3>
                     <p class="text-xs text-gray-400">Solicitações da equipe</p>
                 </div>
@@ -46,47 +46,146 @@
         <div class="lg:col-span-2 p-6 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col flex-1">
             <div class="flex flex-1 flex-col h-full">
                 <h3 class="text-xl font-semibold pt-2 pb-2">Solicitações pendentes de minha aprovação</h3>
-                <div class="p-5 bg-slate-50 text-slate-600 box-border mt-1 mb-1 rounded-lg overflow-auto flex-1 min-h-0">
-                    <table class="w-full border-separate border-spacing-y-2">
-                        <thead>
-                            <tr class="x-2">
-                                <th class="p-2 text-left font-semibold">Solicitante</th>
-                                <th class="p-2 text-left font-semibold">Lotação</th>
-                                <th class="p-2 text-left font-semibold">Documento</th>
-                                <th class="p-2 text-left font-semibold">Data</th>
-                                <th class="p-2 text-left font-semibold">Informações</th>
-                                <th class="p-2 text-left font-semibold">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pendencias-list">
-                            {% for solicitacao in solicitacoes_pendentes %}
-                            <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
-                                <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">{{ solicitacao.colaborador }}</td>
-                                <td class="p-2 whitespace-nowrap">{{ solicitacao.colaborador.lotacao }}</td>
-                                <td class="p-2 whitespace-nowrap">{{ solicitacao.tipo_documento }}</td>
-                                <td class="p-2 whitespace-nowrap">{{ solicitacao.data | date:'d/m/y' }}</td>
-                                
-                                <td class="p-2 whitespace-nowrap">
-                                    {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
-                                </td>
-                                
-                                <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">
-                                    {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="py-2 text-center">Nenhuma solicitação encontrada.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                
+                <div class="p-5 bg-slate-50 text-slate-600 box-border mt-1 mb-1 rounded-lg overflow-auto flex-1 min-h-0"
+                     x-data="{ 
+                        selecionados: [], 
+                        get hasSelection() { return this.selecionados.length > 0; },
+                        
+                        toggleAll(e) {
+                            const checkboxes = document.querySelectorAll('.chk-solicitacao');
+                            this.selecionados = [];
+                            if (e.target.checked) {
+                                checkboxes.forEach(chk => {
+                                    if(!chk.disabled) {
+                                        chk.checked = true;
+                                        this.selecionados.push(chk.value);
+                                    }
+                                });
+                            } else {
+                                checkboxes.forEach(chk => chk.checked = false);
+                            }
+                        },
+                        
+                        updateSelection(e) {
+                            if (e.target.checked) {
+                                this.selecionados.push(e.target.value);
+                            } else {
+                                this.selecionados = this.selecionados.filter(id => id !== e.target.value);
+                            }
+                            
+                            const allCheckboxes = document.querySelectorAll('.chk-solicitacao:not([disabled])');
+                            const checkAllBox = document.getElementById('chk-all');
+                            if(allCheckboxes.length > 0) {
+                                checkAllBox.checked = this.selecionados.length === allCheckboxes.length;
+                            }
+                        }
+                     }">
+
+                    {% if is_dp or usuario.cargo.hierarquia == 1 %}
+                    <div x-show="hasSelection" 
+                         x-transition:enter="ease-out duration-300"
+                         x-transition:enter-start="opacity-0 -translate-y-2"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="ease-in duration-200"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 -translate-y-2"
+                         style="display: none;"
+                         class="flex flex-col sm:flex-row gap-3 bg-white p-4 mb-4 rounded-xl shadow-sm border border-gray-100 items-center justify-between">
+                        
+                        <span class="text-sm font-medium text-gray-700">
+                            <span x-text="selecionados.length" class="font-bold text-primary"></span> solicitação(ões) selecionada(s)
+                        </span>
+                        
+                        <div class="flex gap-2 w-full sm:w-auto">
+                            <button type="button"
+                                    hx-post="{% url 'processar_lote_solicitacoes' %}?acao=recusar"
+                                    hx-include="#form-lote-dashboard"
+                                    hx-target="#modal-spot"
+                                    hx-swap="innerHTML"
+                                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                    class="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl sm:rounded-full bg-red-50 border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 active:scale-95 transition-all">
+                                <ion-icon name="close-circle-outline" class="w-5 h-5"></ion-icon>
+                                Reprovar
+                            </button>
+
+                            <button type="button"
+                                    hx-post="{% url 'processar_lote_solicitacoes' %}?acao=aprovar"
+                                    hx-include="#form-lote-dashboard"
+                                    hx-target="#modal-spot"
+                                    hx-swap="innerHTML"
+                                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                    class="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl sm:rounded-full bg-green-50 border border-green-600 px-4 py-2 text-sm font-semibold text-green-600 shadow-sm hover:bg-green-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-green-600 active:scale-95 transition-all">
+                                <ion-icon name="checkmark-circle-outline" class="w-5 h-5"></ion-icon>
+                                Aprovar
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <form id="form-lote-dashboard" class="w-full">
+                        <table class="w-full border-separate border-spacing-y-2">
+                            <thead>
+                                <tr class="px-2">
+                                    {% if is_dp or usuario.cargo.hierarquia == 1 %}
+                                    <th class="p-2 text-left w-12 pl-4">
+                                        <input type="checkbox" id="chk-all" @change="toggleAll" 
+                                               class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer transition-colors">
+                                    </th>
+                                    {% endif %}
+                                    <th class="p-2 text-left font-semibold">Solicitante</th>
+                                    <th class="p-2 text-left font-semibold">Lotação</th>
+                                    <th class="p-2 text-left font-semibold">Documento</th>
+                                    <th class="p-2 text-left font-semibold">Data</th>
+                                    <th class="p-2 text-left font-semibold">Informações</th>
+                                    <th class="p-2 text-left font-semibold">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendencias-list">
+                                {% for solicitacao in solicitacoes_pendentes %}
+                                <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2">
+                                    
+                                    {% if is_dp or usuario.cargo.hierarquia == 1 %}
+                                    <td class="p-2 pl-4 first:rounded-l-full">
+                                        {% if solicitacao.is_pendente or solicitacao.status == 'LANCAMENTO' %}
+                                            <input type="checkbox" 
+                                                   name="solicitacoes_ids" 
+                                                   value="{{ solicitacao.id }}" 
+                                                   @change="updateSelection" 
+                                                   class="chk-solicitacao h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer transition-colors">
+                                        {% else %}
+                                            <input type="checkbox" disabled 
+                                                   class="chk-solicitacao h-4 w-4 rounded border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
+
+                                    <td class="p-2 {% if not is_dp and usuario.cargo.hierarquia != 1 %}first:rounded-l-full{% endif %} whitespace-nowrap">{{ solicitacao.colaborador }}</td>
+                                    <td class="p-2 whitespace-nowrap">{{ solicitacao.colaborador.lotacao }}</td>
+                                    <td class="p-2 whitespace-nowrap">{{ solicitacao.tipo_documento }}</td>
+                                    <td class="p-2 whitespace-nowrap">{{ solicitacao.data | date:'d/m/y' }}</td>
+                                    
+                                    <td class="p-2 whitespace-nowrap">
+                                        {% include "partials/_solicitacao_action.html" with solicitacao=solicitacao %}
+                                    </td>
+                                    
+                                    <td class="p-2 first:rounded-l-full last:rounded-r-full whitespace-nowrap">
+                                        {% include "partials/_solicitacao_status.html" with solicitacao=solicitacao usuario=usuario is_dp=is_dp %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="py-4 text-center text-gray-500 italic">Nenhuma solicitação encontrada.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </form>
                 </div>
             </div>
         </div>
 
         <div class="flex flex-col space-y-2.5">
-
             <div class="bg-white rounded-2xl shadow-sm border border-white flex flex-col flex-1 p-6">
                 <div class="flex pb-2 justify-between border-b border-gray-50">
                     <div>
@@ -116,7 +215,6 @@
                     {% endif %}
                 </div>
             </div>
-
         </div>
 
     </div>

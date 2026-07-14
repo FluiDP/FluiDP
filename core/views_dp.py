@@ -1,137 +1,94 @@
 import copy
-from django.core.cache import cache, caches
 import uuid
+from django.core.cache import cache, caches
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render, get_object_or_404
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.urls import reverse
 from django.http import HttpResponse
-from django.db.models import Count
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
+
 from django.core.files.storage import default_storage
 from django_q.tasks import async_task
 
-from core.services import importar_dados
-
+from .services import obter_pendencias_do_usuario, registrar_log_acao
 from .models import Cargo, Solicitacao, TipoDocumento, CustomUser, Lotacao
 from .decorators import dp_required
 from .forms import CustomUserForm, EditCustomUserForm, LotacaoForm, CargoForm, TipoDocumentoForm
+from core import services
 
 User = get_user_model()
+
+# ==========================================
+# DASHBOARD
+# ==========================================
 
 @dp_required
 def dp_dashboard_view(request):
     user = request.user
     
-    # Validações de hierarquia
-    is_gestor_dp = (user.groups.filter(name='DP').exists() and (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.GERENTE or user.cargo.hierarquia == Cargo.HierarquiaChoices.COORDENADOR)) if user.cargo else False
-    is_only_gestor = (user.cargo.hierarquia in [Cargo.HierarquiaChoices.GERENTE, Cargo.HierarquiaChoices.COORDENADOR, Cargo.HierarquiaChoices.DIRETOR] and not user.groups.filter(name='DP').exists()) if user.cargo else False
+    # --- 1. BUSCA CENTRALIZADA E CUMULATIVA ---
+    # Usa a função genérica que mescla DP + Direção + Gestor + Aceite
+    solicitacoes = services.obter_pendencias_do_usuario(user)
+    
+    # --- 2. KPIs ---
+    kpi_pendencias = solicitacoes.count()
 
-    # Mapear lotações filhas
-    q_minhas_lotacoes = Lotacao.objects.filter(
-        Q(chefia=user) |
-        (
-            Q(chefia__isnull=True) &
-            Q(chefia_secundaria=user)
-        )
-    )
-
-    minhas_lotacoes = set(q_minhas_lotacoes)
-
-    for lotacao in q_minhas_lotacoes:
-        descendentes = lotacao.get_descendentes(include_self=True)
-        minhas_lotacoes.update(descendentes)
-        
-    minha_equipe = CustomUser.objects.filter(
-        lotacao__in=minhas_lotacoes,
-        is_active=True
-    ).exclude(id=user.id)
-
-    # --- CÁLCULO DE KPIs ---
-    if is_only_gestor:
-        q_pendencias_dp = Q(status=Solicitacao.StatusChoices.PENDENTE_GESTOR, colaborador__in=minha_equipe)
-    else:
-        q_pendencias_dp = Q(status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO])
-        if is_gestor_dp:
-            q_pendencias_dp = q_pendencias_dp | Q(colaborador__in=minha_equipe, status=Solicitacao.StatusChoices.PENDENTE_GESTOR)
-
-    pendencias_comigo = Solicitacao.objects.filter(q_pendencias_dp).count()
-
-    pendencias_direcao = Solicitacao.objects.filter(
+    kpi_direcao = Solicitacao.objects.filter(
         status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
     ).count()
 
-    fluxo_total = Solicitacao.objects.filter(
-        status__in=[Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
-                    Solicitacao.StatusChoices.PENDENTE_GESTOR,
-                    Solicitacao.StatusChoices.PENDENTE_DIRETOR,
-                    Solicitacao.StatusChoices.PENDENTE_DP,
-                    Solicitacao.StatusChoices.LANCAMENTO],
+    kpi_fluxo = Solicitacao.objects.filter(
+        status__in=[
+            Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
+            Solicitacao.StatusChoices.PENDENTE_GESTOR,
+            Solicitacao.StatusChoices.PENDENTE_DIRETOR,
+            Solicitacao.StatusChoices.PENDENTE_DP,
+            Solicitacao.StatusChoices.LANCAMENTO
+        ]
     ).count()
 
-    # --- LISTAGEM DE SOLICITAÇÕES PENDENTES (TABELA) ---
-    solicitacoes_pendentes = Solicitacao.objects.none()
-
-    # Se for do DP
-    if user.groups.filter(name='DP').exists():
-        solicitacoes_pendentes = Solicitacao.objects.filter(
-            status__in=[Solicitacao.StatusChoices.PENDENTE_DP, Solicitacao.StatusChoices.LANCAMENTO]
-        )
-        if is_gestor_dp: # DP e também é gestor de uma equipe
-            solicitacoes_pendentes = solicitacoes_pendentes | Solicitacao.objects.filter(
-                status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
-                colaborador__in=minha_equipe
-            )
-            
-    # Se for APENAS Gestor (não é do DP)
-    elif is_only_gestor:
-        solicitacoes_pendentes = Solicitacao.objects.filter(
-            status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
-            colaborador__in=minha_equipe
-        )
-
-    # Regra cumulativa para Diretores
-    if user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
-        direcao_qs = Solicitacao.objects.filter(status=Solicitacao.StatusChoices.PENDENTE_DIRETOR)
-        base_diretor_qs = Solicitacao.objects.filter(
-            status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
-            colaborador__in=minha_equipe
-        )
-        solicitacoes_pendentes = solicitacoes_pendentes | direcao_qs | base_diretor_qs
-
-    solicitacoes_pendentes = list(solicitacoes_pendentes.distinct().order_by('-data'))
-
-    # --- RANKINGS ---
+    # --- 3. GRÁFICOS E RANKINGS ---
+    # Documentos (Geral)
     ranking_query_docs = Solicitacao.objects.values('tipo_documento__nome_documento') \
-        .annotate(total=Count('id')) \
-        .order_by('-total')
-
-    ranking_query_setores = Solicitacao.objects.values('colaborador__lotacao__nome_lotacao') \
         .annotate(total=Count('id')) \
         .order_by('-total')
 
     ranking_labels_docs = [item['tipo_documento__nome_documento'] for item in ranking_query_docs]
     ranking_data_docs = [item['total'] for item in ranking_query_docs]
 
+    # Setores (Top 5 conforme pedido no template)
+    ranking_query_setores = Solicitacao.objects.values('colaborador__lotacao__nome_lotacao') \
+        .annotate(total=Count('id')) \
+        .order_by('-total')[:5]
+
     ranking_labels_setores = [item['colaborador__lotacao__nome_lotacao'] for item in ranking_query_setores]
     ranking_data_setores = [item['total'] for item in ranking_query_setores]
 
+    # --- 4. CONTEXTO ---
     context = {
         'usuario': user,
-        'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
+        'usuario_tagname': user.first_name.split()[0] if user.first_name else user.username,
         'is_dp': True,
-        'is_aprovador': True,
-        'kpi_pendencias': pendencias_comigo,
-        'kpi_direcao': pendencias_direcao,
-        'kpi_fluxo': fluxo_total,
-        'distribuicao_tipos': ranking_query_docs,
-        'distribuicao_setores': ranking_query_setores,
-        'solicitacoes_pendentes': solicitacoes_pendentes,
+        
+        # KPIs
+        'kpi_pendencias': kpi_pendencias,
+        'kpi_direcao': kpi_direcao,
+        'kpi_fluxo': kpi_fluxo,
+        
+        # Tabela
+        'solicitacoes': solicitacoes,
+        
+        # Gráficos
+        'distribuicao_tipos': bool(ranking_query_docs),
         'ranking_labels_docs': ranking_labels_docs,
         'ranking_data_docs': ranking_data_docs,
+        
+        'distribuicao_setores': bool(ranking_query_setores),
         'ranking_labels_setores': ranking_labels_setores,
         'ranking_data_setores': ranking_data_setores,
+        
         'active_link': 'dashboard',
     }
 
@@ -140,21 +97,32 @@ def dp_dashboard_view(request):
 
     return render(request, 'painel/dp/dashboard.html', context)
 
+
+# ==========================================
+# LOTAÇÕES
+# ==========================================
+
 @dp_required
 def dp_lotacoes_view(request):
     search_query = request.GET.get('q')
     
+    # Adicionado suporte a ordenação efetiva no front-end para Lotações
+    sort_param = request.GET.get('sort', 'nome_lotacao')
+    campos_permitidos = ['nome_lotacao', '-nome_lotacao']
+    if sort_param not in campos_permitidos:
+        sort_param = 'nome_lotacao'
+    
     qs = Lotacao.objects.filter(arquivado=False)
 
     if search_query:
-        qs = qs.filter(nome_lotacao__icontains=search_query).order_by('nome_lotacao')
+        qs = qs.filter(nome_lotacao__icontains=search_query).order_by(sort_param)
         
         roots = list(qs)
         for lot in roots:
             lot.sub_lotacoes = []
             
     else:
-        all_lotacoes = qs.select_related('chefia', 'lotacao_pai').order_by('nome_lotacao')
+        all_lotacoes = qs.select_related('chefia', 'lotacao_pai').order_by(sort_param)
         lotacao_dict = {lot.id: lot for lot in all_lotacoes}
         
         for lot in all_lotacoes:
@@ -177,6 +145,7 @@ def dp_lotacoes_view(request):
         'lotacoes': roots,
         'active_link': 'lotacoes',
         'search_query': search_query,
+        'current_sort': sort_param,
     }
 
     if request.htmx:
@@ -189,8 +158,8 @@ def create_lotacao_modal_view(request):
     form = LotacaoForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
-        obj = form.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Lotação criada com sucesso!"})
+        form.save()
+        response = render(request, 'partials/_message_sucess.html', {'message': "Lotação criada com sucesso!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -207,8 +176,8 @@ def edit_lotacao_modal_view(request, lotacao_id):
     form = LotacaoForm(request.POST or None, instance=lotacao)
 
     if request.method == 'POST' and form.is_valid():
-        obj = form.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Lotação atualizada com sucesso!"})
+        form.save()
+        response = render(request, 'partials/_message_sucess.html', {'message': "Lotação atualizada com sucesso!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -226,7 +195,7 @@ def archive_lotacao_modal_view(request, pk):
     if request.method == 'POST':
         lotacao.arquivado = True
         lotacao.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Lotação arquivada!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': "Lotação arquivada!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -261,14 +230,27 @@ def delete_lotacao_view(request, pk):
         'icon_name': 'trash'
     })
 
+
+# ==========================================
+# CARGOS
+# ==========================================
+
 @dp_required
 def dp_cargos_view(request):
     search_query = request.GET.get('q')
-    
-    cargos = Cargo.objects.filter(arquivado=False).order_by('hierarquia', 'nome_cargo')
+    cargos = Cargo.objects.filter(arquivado=False)
     
     if search_query:
         cargos = cargos.filter(nome_cargo__icontains=search_query)
+
+    sort_param = request.GET.get('sort', 'hierarquia')
+    campos_permitidos = ['nome_cargo', '-nome_cargo', 'hierarquia', '-hierarquia']
+    
+    if sort_param not in campos_permitidos:
+        sort_param = 'hierarquia'
+
+    # Ordenação executada corretamente antes da montagem do contexto
+    cargos = cargos.order_by(sort_param, 'nome_cargo')
     
     context = {
         'usuario': request.user,
@@ -276,6 +258,7 @@ def dp_cargos_view(request):
         'cargos': cargos,
         'active_link': 'cargos',
         'search_query': search_query,
+        'current_sort': sort_param,
     }
 
     if request.htmx:
@@ -288,8 +271,8 @@ def create_cargo_modal_view(request):
     form = CargoForm(request.POST or None)
     
     if request.method == 'POST' and form.is_valid():
-        obj = form.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo criado com sucesso!"})
+        form.save()
+        response = render(request, 'partials/_message_sucess.html', {'message': "Cargo criado com sucesso!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -307,7 +290,7 @@ def edit_cargo_modal_view(request, pk):
     
     if request.method == 'POST' and form.is_valid():
         form.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Cargo atualizado com sucesso!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': "Cargo atualizado com sucesso!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -361,15 +344,19 @@ def delete_cargo_view(request, pk):
         'icon_name': 'trash'
     })
 
+
+# ==========================================
+# COLABORADORES
+# ==========================================
+
 @dp_required
 def dp_colaboradores_view(request):
-
     exclude_colaboradores = (Q(is_active=False) | Q(username='admin') | Q(matricula='000000'))
 
     search_query = request.GET.get('q', '')
     page_number = request.GET.get('page')
 
-    colaboradores = CustomUser.objects.filter(is_active=True).exclude(exclude_colaboradores).order_by('first_name')
+    colaboradores = CustomUser.objects.filter(is_active=True).exclude(exclude_colaboradores)
 
     if search_query:
         colaboradores = colaboradores.filter(
@@ -377,7 +364,16 @@ def dp_colaboradores_view(request):
             Q(matricula__icontains=search_query) |
             Q(email__icontains=search_query)
         )
+        
+    sort_param = request.GET.get('sort', 'first_name')
+    campos_permitidos = ['first_name', '-first_name', 'matricula', '-matricula', 'lotacao__nome_lotacao', '-lotacao__nome_lotacao']
     
+    if sort_param not in campos_permitidos:
+        sort_param = 'first_name'
+
+    # CORREÇÃO: A ordenação deve vir ANTES da paginação!
+    colaboradores = colaboradores.order_by(sort_param)
+
     paginator = Paginator(colaboradores, 15)
     page_obj = paginator.get_page(page_number)
 
@@ -387,6 +383,7 @@ def dp_colaboradores_view(request):
         'colaboradores': page_obj,
         'active_link': 'colaboradores',
         'search_query': search_query,
+        'current_sort': sort_param,
     }
 
     if request.htmx:
@@ -408,7 +405,7 @@ def create_colaborador_modal_view(request):
         
         form.save_groups(colaborador)
         
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador cadastrado!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': "Colaborador cadastrado!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -426,7 +423,7 @@ def edit_colaborador_modal_view(request, pk):
     
     if request.method == 'POST' and form.is_valid():
         form.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador atualizado!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': "Colaborador atualizado!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -445,7 +442,7 @@ def archive_colaborador_modal_view(request, pk):
         colaborador.arquivado = True
         colaborador.is_active = False
         colaborador.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Colaborador arquivado!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': "Colaborador arquivado!"})
         response['HX-Trigger'] = 'updateContent'
         return response
         
@@ -478,21 +475,34 @@ def delete_colaborador_view(request, pk):
         'icon_name': 'trash'
     })
 
+
+# ==========================================
+# TIPOS DE DOCUMENTO
+# ==========================================
+
 @dp_required
 def dp_documentos_view(request):
     search_query = request.GET.get('q')
-    
-    documentos = TipoDocumento.objects.filter(arquivado=False).order_by('nome_documento')
+    documentos = TipoDocumento.objects.filter(arquivado=False)
     
     if search_query:
         documentos = documentos.filter(nome_documento__icontains=search_query)
+
+    sort_param = request.GET.get('sort', 'nome_documento')
+    campos_permitidos = ['nome_documento', '-nome_documento']
     
+    if sort_param not in campos_permitidos:
+        sort_param = 'nome_documento'
+
+    documentos = documentos.order_by(sort_param)
+
     context = {
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'documentos': documentos,
         'active_link': 'documentos',
         'search_query': search_query,
+        'current_sort': sort_param,
     }
 
     if request.htmx:
@@ -511,7 +521,6 @@ def visualize_documento_view(request, pk):
             source = campo.get("options_source")
             
             if source == "colaboradores_lotacao":
-
                 users = User.objects.filter(
                     lotacao=request.user.lotacao,
                     is_active=True
@@ -543,8 +552,8 @@ def create_documento_modal_view(request):
     form = TipoDocumentoForm(request.POST or None)
     
     if request.method == 'POST' and form.is_valid():
-        obj = form.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Documento criado com sucesso!"})
+        form.save()
+        response = render(request, 'partials/_message_sucess.html', {'message': "Documento criado com sucesso!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -562,7 +571,7 @@ def edit_documento_modal_view(request, pk):
     
     if request.method == 'POST' and form.is_valid():
         form.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Documento atualizado com sucesso!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': "Documento atualizado com sucesso!"})
         response['HX-Trigger'] = 'updateContent'
         return response
 
@@ -580,7 +589,7 @@ def archive_documento_modal_view(request, pk):
     if request.method == 'POST':
         documento.arquivado = True
         documento.save()
-        response = render(request, 'partials/_message_sucess.html', {'message': f"Documento arquivado!"})
+        response = render(request, 'partials/_message_sucess.html', {'message': "Documento arquivado!"})
         response['HX-Trigger'] = 'updateContent'
         return response
     
@@ -616,6 +625,11 @@ def delete_documento_view(request, pk):
         'icon_name': 'trash'
     })
 
+
+# ==========================================
+# SOLICITAÇÕES
+# ==========================================
+
 @dp_required
 def dp_solicitacoes_view(request):
     search_query = request.GET.get('q', '')
@@ -626,7 +640,7 @@ def dp_solicitacoes_view(request):
     data_fim = request.GET.get('data_fim', '')
     page_number = request.GET.get('page')
 
-    solicitacoes_list = Solicitacao.objects.all().order_by('-data')
+    solicitacoes_list = Solicitacao.objects.all()
 
     if search_query:
         solicitacoes_list = solicitacoes_list.filter(
@@ -650,6 +664,21 @@ def dp_solicitacoes_view(request):
     if data_fim:
         solicitacoes_list = solicitacoes_list.filter(data__date__lte=data_fim)
 
+    sort_param = request.GET.get('sort', '-data')
+    campos_permitidos = [
+        'data', '-data', 
+        'colaborador__first_name', '-colaborador__first_name',
+        'tipo_documento__nome_documento', '-tipo_documento__nome_documento',
+        'status', '-status',
+        'colaborador__lotacao__nome_lotacao', '-colaborador__lotacao__nome_lotacao'
+    ]
+    
+    if sort_param not in campos_permitidos:
+        sort_param = '-data'
+
+    # CORREÇÃO: Ordenação deve ocorrer ANTES de instanciar o paginador!
+    solicitacoes_list = solicitacoes_list.order_by(sort_param)
+
     paginator = Paginator(solicitacoes_list, 15)
     page_obj = paginator.get_page(page_number)
     
@@ -662,7 +691,6 @@ def dp_solicitacoes_view(request):
         del query_params['page']
     
     url_params = f"&{query_params.urlencode()}" if query_params else ""
-    # ---------------------------------------------------------------
 
     context = {
         'usuario': request.user,
@@ -681,6 +709,7 @@ def dp_solicitacoes_view(request):
         'lotacoes': lotacoes,
         'status_choices': status_choices,
         'url_params': url_params,
+        'current_sort': sort_param,
     }
 
     if request.htmx:
@@ -688,8 +717,14 @@ def dp_solicitacoes_view(request):
     
     return render(request, 'painel/dp/solicitacoes.html', context)
 
+
+# ==========================================
+# IMPORTAÇÃO (TASKS HTMX)
+# ==========================================
+
 @dp_required
 def import_data_modal_view(request, tipo_dado):
+    """View para o modal de importação genérica (Lotações, Cargos, Colaboradores, etc.)"""
     config = {
         'colaboradores': {'titulo': 'Importar Colaboradores', 'url': reverse('administracao:import_data', args=['colaboradores'])},
         'lotacoes': {'titulo': 'Importar Lotações', 'url': reverse('administracao:import_data', args=['lotacoes'])},
