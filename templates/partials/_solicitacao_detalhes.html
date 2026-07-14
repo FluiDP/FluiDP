@@ -1,294 +1,348 @@
 {% load custom_filters %}
-<div x-data="{ open: true }" 
-     @keydown.escape.window="open = false" 
-     x-show="open" 
-     x-transition:enter="ease-out duration-300"
-     x-transition:enter-start="opacity-0"
-     x-transition:enter-end="opacity-100"
-     x-transition:leave="ease-in duration-200"
-     x-transition:leave-start="opacity-100"
-     x-transition:leave-end="opacity-0"
-     @click="open = false"
-     style="z-index: 9999;"
-     class="fixed inset-0 z-[60] flex items-center justify-center w-full h-[100dvh] p-3 sm:p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur-sm transition-opacity">
 
-    <div id="modal-content"
-         x-show="open"
+<div x-data="{ open: true, showModalRecusa: false }" 
+     @keydown.escape.window="if(showModalRecusa) { showModalRecusa = false; } else { open = false; }">
+
+    <div x-show="open" 
+         style="z-index: 9998;"
+         @click="if(!showModalRecusa) open = false"
+         class="fixed inset-0 flex items-center justify-center w-full h-[100dvh] p-3 sm:p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur-sm transition-opacity"
          x-transition:enter="ease-out duration-300"
-         x-transition:enter-start="opacity-0 scale-95 translate-y-4 sm:translate-y-0"
-         x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
          x-transition:leave="ease-in duration-200"
-         x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-         x-transition:leave-end="opacity-0 scale-95 translate-y-4 sm:translate-y-0"
-         @click.stop
-         class="relative w-full max-w-3xl max-h-[95dvh] flex flex-col overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-2xl transition-all">
-        
-        <div hx-target="#modal-spot" class="flex flex-col flex-1 min-h-0 max-h-[95dvh] w-full">
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+
+        <div id="modal-content"
+             @click.stop
+             x-show="open"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4 sm:translate-y-0"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-4 sm:translate-y-0"
+             class="relative w-full max-w-3xl max-h-[95dvh] flex flex-col overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-2xl transition-all">
             
-            <!-- HEADER -->
-            <div class="flex justify-between items-center shrink-0 bg-white border-b border-slate-100 px-5 sm:px-6 py-3 sm:py-4 z-10">
-                <div class="flex flex-col">
-                    <h3 class="text-base sm:text-lg font-bold text-slate-800 pr-4 leading-tight">
-                        {{ tipo_documento.nome_documento }}
-                    </h3>
-                    <span class="text-[10px] sm:text-xs font-medium text-slate-400 mt-0.5">Solicitação #{{ solicitacao.id }}</span>
-                </div>
-                <button type="button" @click="open = false" class="text-slate-400 hover:text-red-500 transition-colors p-1.5 -mr-1.5 rounded-full hover:bg-red-50 shrink-0">
-                    <span class="sr-only">Fechar</span>
-                    <ion-icon name="close-outline" class="w-5 h-5 sm:w-6 sm:h-6"></ion-icon>
-                </button>
-            </div>
-
-            <style>
-                #campos-detalhes {
-                    max-height: 60dvh;
-                    overflow-y: auto;
-                }
-            </style>
-
-            <div class="flex-1 overscroll-contain bg-slate-50/50 p-4 sm:p-5" id="campos-detalhes">
+            <div hx-target="#modal-spot" class="flex flex-col flex-1 min-h-0 max-h-[95dvh] w-full">
                 
-                <div class="bg-white border border-slate-200 shadow-sm rounded-xl p-4 mb-4">
-                    <h4 class="text-[11px] font-bold text-primary uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                        <ion-icon name="person-circle-outline" class="text-base"></ion-icon>
-                        Solicitante
-                    </h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Nome / Cargo</span>
-                            <span class="text-sm font-semibold text-slate-800 leading-tight">{{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}</span>
-                            <span class="text-[11px] font-medium text-slate-500 mt-0.5">{{ solicitacao.colaborador.cargo|default:"-" }}</span>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">CPF</span>
-                            <span class="text-xs sm:text-sm font-medium text-slate-800">{{ solicitacao.colaborador.get_cpf_formatado }}</span>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Lotação</span>
-                            <span class="text-xs sm:text-sm font-medium text-slate-800">{{ solicitacao.colaborador.lotacao.lotacao_nome|default:"-" }}</span>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Status</span>
-                            <div class="mt-0.5">{% include "partials/_solicitacao_status.html" with solicitacao=solicitacao is_dp=is_dp %}</div>
+                <div class="flex justify-between items-center shrink-0 bg-white border-b border-slate-100 px-5 sm:px-6 py-3 sm:py-4 z-10">
+                    <div class="flex flex-col">
+                        <h3 class="text-base sm:text-lg font-bold text-slate-800 pr-4 leading-tight">
+                            {{ tipo_documento.nome_documento }}
+                        </h3>
+                        <span class="text-[10px] sm:text-xs font-medium text-slate-400 mt-0.5">Solicitação #{{ solicitacao.id }}</span>
+                    </div>
+                    <button type="button" @click="open = false" class="text-slate-400 hover:text-red-500 transition-colors p-1.5 -mr-1.5 rounded-full hover:bg-red-50 shrink-0">
+                        <span class="sr-only">Fechar</span>
+                        <ion-icon name="close-outline" class="w-5 h-5 sm:w-6 sm:h-6"></ion-icon>
+                    </button>
+                </div>
+
+                <style>
+                    #campos-detalhes {
+                        max-height: 60dvh;
+                        overflow-y: auto;
+                    }
+                </style>
+
+                <div class="flex-1 overscroll-contain bg-slate-50/50 p-4 sm:p-5" id="campos-detalhes">
+                    
+                    <div class="bg-white border border-slate-200 shadow-sm rounded-xl p-4 mb-4">
+                        <h4 class="text-[11px] font-bold text-primary uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                            <ion-icon name="person-circle-outline" class="text-base"></ion-icon>
+                            Solicitante
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Nome / Cargo</span>
+                                <span class="text-sm font-semibold text-slate-800 leading-tight">{{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}</span>
+                                <span class="text-[11px] font-medium text-slate-500 mt-0.5">{{ solicitacao.colaborador.cargo|default:"-" }}</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">CPF</span>
+                                <span class="text-xs sm:text-sm font-medium text-slate-800">{{ solicitacao.colaborador.get_cpf_formatado }}</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Lotação</span>
+                                <span class="text-xs sm:text-sm font-medium text-slate-800">{{ solicitacao.colaborador.lotacao.lotacao_nome|default:"-" }}</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Status</span>
+                                <div class="mt-0.5">{% include "partials/_solicitacao_status.html" with solicitacao=solicitacao is_dp=is_dp %}</div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {% if solicitacao.colaborador_secundario %}
-                <div class="bg-emphasis/30 border border-primary/20 shadow-sm rounded-xl p-4 mb-4">
-                    <h4 class="text-[11px] font-bold text-primary uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                        <ion-icon name="swap-horizontal-outline" class="text-base"></ion-icon>
-                        Troca com (Substituto)
-                    </h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                        <div class="flex flex-col md:col-span-2">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Nome do Colega</span>
-                            <span class="text-xs sm:text-sm font-semibold text-slate-800">{{ solicitacao.colaborador_secundario.get_full_name|default:solicitacao.colaborador_secundario.username }}</span>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Matrícula</span>
-                            <span class="text-xs sm:text-sm font-medium text-slate-800">{{ solicitacao.colaborador_secundario.matricula|default:"-" }}</span>
+                    {% if solicitacao.colaborador_secundario %}
+                    <div class="bg-emphasis/30 border border-primary/20 shadow-sm rounded-xl p-4 mb-4">
+                        <h4 class="text-[11px] font-bold text-primary uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                            <ion-icon name="swap-horizontal-outline" class="text-base"></ion-icon>
+                            Troca com (Substituto)
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                            <div class="flex flex-col md:col-span-2">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Nome do Colega</span>
+                                <span class="text-xs sm:text-sm font-semibold text-slate-800">{{ solicitacao.colaborador_secundario.get_full_name|default:solicitacao.colaborador_secundario.username }}</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Matrícula</span>
+                                <span class="text-xs sm:text-sm font-medium text-slate-800">{{ solicitacao.colaborador_secundario.matricula|default:"-" }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                {% endif %}
-                
-                <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 ml-1 flex items-center gap-1.5">
-                    <ion-icon name="document-text-outline" class="text-base"></ion-icon>
-                    Dados do Formulário
-                </h4>
+                    {% endif %}
+                    
+                    <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 ml-1 flex items-center gap-1.5">
+                        <ion-icon name="document-text-outline" class="text-base"></ion-icon>
+                        Dados do Formulário
+                    </h4>
 
-                <div class="space-y-3 sm:space-y-4">
-                    {% for campo in campos_formulario %}
-                        
-                        {% if campo.type in 'text,date,email,number' %}
-                        <div class="flex flex-col">
-                            <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
-                            <input type="{{ campo.type }}" 
-                                name="{{ campo.name }}" 
-                                value="{{ campo.value|default:'' }}"
-                                disabled
-                                class="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-lg sm:rounded-xl text-slate-600 text-sm shadow-sm bg-slate-100/50 cursor-not-allowed focus:ring-0">
-                        </div>
-                        
-                        {% elif campo.type == 'textarea' %}
-                        <div class="flex flex-col">
-                            <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
-                            <textarea name="{{ campo.name }}" 
-                                    rows="2"
+                    <div class="space-y-3 sm:space-y-4">
+                        {% for campo in campos_formulario %}
+                            
+                            {% if campo.type in 'text,date,email,number' %}
+                            <div class="flex flex-col">
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
+                                <input type="{{ campo.type }}" 
+                                    name="{{ campo.name }}" 
+                                    value="{{ campo.value|default:'' }}"
                                     disabled
-                                    class="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-lg sm:rounded-xl text-slate-600 text-sm shadow-sm bg-slate-100/50 cursor-not-allowed focus:ring-0 resize-y"
-                            >{{ campo.value|default:'' }}</textarea> 
-                        </div>
+                                    class="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-lg sm:rounded-xl text-slate-600 text-sm shadow-sm bg-slate-100/50 cursor-not-allowed focus:ring-0">
+                            </div>
+                            
+                            {% elif campo.type == 'textarea' %}
+                            <div class="flex flex-col">
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
+                                <textarea name="{{ campo.name }}" 
+                                        rows="2"
+                                        disabled
+                                        class="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-lg sm:rounded-xl text-slate-600 text-sm shadow-sm bg-slate-100/50 cursor-not-allowed focus:ring-0 resize-y"
+                                >{{ campo.value|default:'' }}</textarea> 
+                            </div>
 
-                        {% elif campo.type == 'select' %}
-                        <div class="flex flex-col w-full">
-                            <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
-                            <select name="{{ campo.name }}" 
-                                    disabled
-                                    class="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-lg sm:rounded-xl text-slate-600 text-sm shadow-sm bg-slate-100/50 cursor-not-allowed appearance-none focus:ring-0">
-                                <option value="" disabled>---</option>
-                                {% for option in campo.options %}
-                                    <option value="{{ option.value }}" {% if option.value|stringformat:"s" == campo.value|stringformat:"s" %}selected{% endif %}>
-                                        {{ option.label }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                            {% elif campo.type == 'select' %}
+                            <div class="flex flex-col w-full">
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
+                                <select name="{{ campo.name }}" 
+                                        disabled
+                                        class="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-lg sm:rounded-xl text-slate-600 text-sm shadow-sm bg-slate-100/50 cursor-not-allowed appearance-none focus:ring-0">
+                                    <option value="" disabled>---</option>
+                                    {% for option in campo.options %}
+                                        <option value="{{ option.value }}" {% if option.value|stringformat:"s" == campo.value|stringformat:"s" %}selected{% endif %}>
+                                            {{ option.label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                        {% elif campo.type == 'repeater' %}
-                        <div class="flex flex-col mt-1">
-                            <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5 ml-1">{{ campo.label }}</label>
-                            <div class="w-full overflow-x-auto border border-slate-200 rounded-lg sm:rounded-xl shadow-sm bg-white">
-                                <table class="min-w-full divide-y divide-slate-200">
-                                    <thead class="bg-slate-50/80">
-                                        <tr>
-                                            {% for sub in campo.sub_fields %}
-                                                <th class="px-3 py-2 text-left text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{{ sub.label }}</th>
-                                            {% endfor %}
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-slate-100">
-                                        {% for item in campo.value %}
-                                            <tr class="hover:bg-slate-50 transition-colors">
+                            {% elif campo.type == 'repeater' %}
+                            <div class="flex flex-col mt-1">
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5 ml-1">{{ campo.label }}</label>
+                                <div class="w-full overflow-x-auto border border-slate-200 rounded-lg sm:rounded-xl shadow-sm bg-white">
+                                    <table class="min-w-full divide-y divide-slate-200">
+                                        <thead class="bg-slate-50/80">
+                                            <tr>
                                                 {% for sub in campo.sub_fields %}
-                                                    <td class="px-3 py-2.5 text-xs sm:text-sm text-slate-600 whitespace-nowrap">
-                                                        {% if sub.type == 'select' %}
-                                                            {% with valor_salvo=item|get_item:sub.name %}
-                                                                {% for opt in sub.options %}
-                                                                    {% if opt.value|stringformat:"s" == valor_salvo|stringformat:"s" %}
-                                                                        <span class="font-medium">{{ opt.label }}</span>
-                                                                    {% endif %}
-                                                                {% endfor %}
-                                                                {% if not valor_salvo %}-{% endif %}
-                                                            {% endwith %}
-                                                        
-                                                        {% elif sub.type == 'date' %}
-                                                            {{ item|get_item:sub.name|string_to_date }}
-                                                        {% else %}
-                                                            {{ item|get_item:sub.name|default:"-" }}
-                                                        {% endif %}
-                                                    </td>
+                                                    <th class="px-3 py-2 text-left text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{{ sub.label }}</th>
                                                 {% endfor %}
                                             </tr>
-                                        {% empty %}
-                                            <tr><td colspan="100%" class="px-4 py-4 text-xs sm:text-sm text-center text-slate-400 italic">Nenhum registro adicionado nesta tabela.</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        {% elif campo.type == 'radio' %}
-                        <fieldset disabled class="mt-1 bg-white p-3 sm:p-4 border border-slate-200 rounded-lg sm:rounded-xl shadow-sm">
-                            <legend class="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">{{ campo.label }}</legend>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {% for option in campo.options %}
-                                <div class="flex items-center opacity-70">
-                                    <input name="{{ campo.name }}_disabled" 
-                                        type="radio" 
-                                        value="{{ option.value }}"
-                                        {% if option.value|stringformat:"s" == campo.value|stringformat:"s" %}checked{% endif %} 
-                                        class="h-3.5 w-3.5 border-slate-300 text-primary focus:ring-primary cursor-not-allowed">
-                                    <label class="ml-2 block text-xs sm:text-sm font-medium text-slate-600">
-                                        {{ option.label }}
-                                    </label>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-slate-100">
+                                            {% for item in campo.value %}
+                                                <tr class="hover:bg-slate-50 transition-colors">
+                                                    {% for sub in campo.sub_fields %}
+                                                        <td class="px-3 py-2.5 text-xs sm:text-sm text-slate-600 whitespace-nowrap">
+                                                            {% if sub.type == 'select' %}
+                                                                {% with valor_salvo=item|get_item:sub.name %}
+                                                                    {% for opt in sub.options %}
+                                                                        {% if opt.value|stringformat:"s" == valor_salvo|stringformat:"s" %}
+                                                                            <span class="font-medium">{{ opt.label }}</span>
+                                                                        {% endif %}
+                                                                    {% endfor %}
+                                                                    {% if not valor_salvo %}-{% endif %}
+                                                                {% endwith %}
+                                                            
+                                                            {% elif sub.type == 'date' %}
+                                                                {{ item|get_item:sub.name|string_to_date }}
+                                                            {% else %}
+                                                                {{ item|get_item:sub.name|default:"-" }}
+                                                            {% endif %}
+                                                        </td>
+                                                    {% endfor %}
+                                                </tr>
+                                            {% empty %}
+                                                <tr><td colspan="100%" class="px-4 py-4 text-xs sm:text-sm text-center text-slate-400 italic">Nenhum registro adicionado nesta tabela.</td></tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                {% endfor %}
                             </div>
-                        </fieldset>
 
-                        {% elif campo.type == 'checkbox' %}
-                        <div class="flex items-center p-3 bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm opacity-80 mt-1">
-                            <input name="{{ campo.name }}" 
-                                type="checkbox" 
-                                value="true"
-                                {% if campo.value %}checked{% endif %} disabled
-                                class="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary cursor-not-allowed">
-                            <label class="ml-2 block text-xs sm:text-sm font-semibold text-slate-700">{{ campo.label }}</label>
-                        </div>
-                        {% endif %}
-                        
-                    {% empty %}
-                        <div class="p-6 bg-white border border-slate-200 border-dashed rounded-xl shadow-sm flex flex-col items-center justify-center">
-                            <ion-icon name="document-text-outline" class="text-3xl text-slate-300 mb-2"></ion-icon>
-                            <p class="text-slate-500 text-xs sm:text-sm text-center font-medium">Esta solicitação não possui formulários adicionais.</p>
-                        </div>
-                    {% endfor %}
+                            {% elif campo.type == 'radio' %}
+                            <fieldset disabled class="mt-1 bg-white p-3 sm:p-4 border border-slate-200 rounded-lg sm:rounded-xl shadow-sm">
+                                <legend class="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">{{ campo.label }}</legend>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {% for option in campo.options %}
+                                    <div class="flex items-center opacity-70">
+                                        <input name="{{ campo.name }}_disabled" 
+                                            type="radio" 
+                                            value="{{ option.value }}"
+                                            {% if option.value|stringformat:"s" == campo.value|stringformat:"s" %}checked{% endif %} 
+                                            class="h-3.5 w-3.5 border-slate-300 text-primary focus:ring-primary cursor-not-allowed">
+                                        <label class="ml-2 block text-xs sm:text-sm font-medium text-slate-600">
+                                            {{ option.label }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </fieldset>
+
+                            {% elif campo.type == 'checkbox' %}
+                            <div class="flex items-center p-3 bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm opacity-80 mt-1">
+                                <input name="{{ campo.name }}" 
+                                    type="checkbox" 
+                                    value="true"
+                                    {% if campo.value %}checked{% endif %} disabled
+                                    class="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary cursor-not-allowed">
+                                <label class="ml-2 block text-xs sm:text-sm font-semibold text-slate-700">{{ campo.label }}</label>
+                            </div>
+                            {% endif %}
+                            
+                        {% empty %}
+                            <div class="p-6 bg-white border border-slate-200 border-dashed rounded-xl shadow-sm flex flex-col items-center justify-center">
+                                <ion-icon name="document-text-outline" class="text-3xl text-slate-300 mb-2"></ion-icon>
+                                <p class="text-slate-500 text-xs sm:text-sm text-center font-medium">Esta solicitação não possui formulários adicionais.</p>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
-            
-            <div class="shrink-0 bg-white border-t border-slate-100 px-5 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 z-10 rounded-b-2xl sm:rounded-b-3xl">
                 
-                <div class="flex justify-between w-full sm:w-auto gap-2">
-                    <button type="button"
-                            hx-get="{% url 'colaborador:solicitacao_logs' solicitacao.id %}"
-                            hx-target="#modal-spot"
-                            hx-swap="innerHTML"
-                            class="flex-1 sm:flex-none justify-center text-slate-600 hover:text-primary hover:bg-emphasis px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all text-xs sm:text-sm font-bold border border-slate-200"
-                            title="Ver histórico de ações">
-                        <ion-icon name="time-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
-                        <span>Histórico</span>
-                    </button>
+                <div class="shrink-0 bg-white border-t border-slate-100 px-5 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 z-10 rounded-b-2xl sm:rounded-b-3xl">
+                    
+                    <div class="flex justify-between w-full sm:w-auto gap-2">
+                        <button type="button"
+                                hx-get="{% url 'colaborador:solicitacao_logs' solicitacao.id %}"
+                                hx-target="#modal-spot"
+                                hx-swap="innerHTML"
+                                class="flex-1 sm:flex-none justify-center text-slate-600 hover:text-primary hover:bg-emphasis px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all text-xs sm:text-sm font-bold border border-slate-200"
+                                title="Ver histórico de ações">
+                            <ion-icon name="time-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
+                            <span>Histórico</span>
+                        </button>
 
-                    <a href="{% url 'gerar_pdf_solicitacao' solicitacao.id %}" 
-                       target="_blank"
-                       class="flex-1 sm:flex-none justify-center text-slate-600 hover:text-primary hover:bg-emphasis px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all text-xs sm:text-sm font-bold border border-slate-200"
-                       title="Exportar para PDF">
-                        <ion-icon name="print-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
-                        <span>Imprimir</span>
-                    </a>
-                </div>
+                        <a href="{% url 'gerar_pdf_solicitacao' solicitacao.id %}" 
+                           target="_blank"
+                           class="flex-1 sm:flex-none justify-center text-slate-600 hover:text-primary hover:bg-emphasis px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all text-xs sm:text-sm font-bold border border-slate-200"
+                           title="Exportar para PDF">
+                            <ion-icon name="print-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
+                            <span>Imprimir</span>
+                        </a>
+                    </div>
 
-                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end">
-                    {% if pode_aprovar %}
+                    <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end">
+                        {% if pode_aprovar %}
+                            
+                            {% if solicitacao.status == 'LANCAMENTO' %}
+                                <button type="button"
+                                        hx-post="{% url 'gestor:aprovar_solicitacao' solicitacao.id %}"
+                                        hx-target="#modal-spot" 
+                                        hx-swap="innerHTML"
+                                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                        class="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-blue-50 border border-blue-600 px-5 py-2.5 sm:py-2 text-sm font-bold text-blue-600 shadow-sm hover:bg-blue-600 hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-blue-600 active:scale-95 transition-all">
+                                    <ion-icon name="checkmark-done-circle-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
+                                    Marcar Lançado
+                                </button>
+
+                            {% else %}
+                                <button type="button"
+                                        @click="showModalRecusa = true"
+                                        class="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-red-50 border border-red-600 px-5 py-2.5 sm:py-2 text-sm font-bold text-red-600 shadow-sm hover:bg-red-600 hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 active:scale-95 transition-all">
+                                    <ion-icon name="close-circle-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
+                                    Reprovar
+                                </button>
+
+                                <button type="button"
+                                        hx-post="{% url 'gestor:aprovar_solicitacao' solicitacao.id %}"
+                                        hx-target="#modal-spot" 
+                                        hx-swap="innerHTML"
+                                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                        class="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-green-50 border border-green-600 px-5 py-2.5 sm:py-2 text-sm font-bold text-green-600 shadow-sm hover:bg-green-600 hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-green-600 active:scale-95 transition-all">
+                                    <ion-icon name="checkmark-circle-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
+                                    Aprovar
+                                </button>
+                            {% endif %}
                         
-                        {% if solicitacao.status == 'LANCAMENTO' %}
-                            <button type="button"
-                                    x-init="open = true"
-                                    hx-post="{% url 'gestor:aprovar_solicitacao' solicitacao.id %}"
-                                    hx-target="#modal-spot" 
-                                    hx-swap="innerHTML"
-                                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-                                    class="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-blue-50 border border-blue-600 px-5 py-2.5 sm:py-2 text-sm font-bold text-blue-600 shadow-sm hover:bg-blue-600 hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-blue-600 active:scale-95 transition-all">
-                                <ion-icon name="checkmark-done-circle-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
-                                Marcar Lançado
-                            </button>
-
                         {% else %}
-                            <button type="button"
-                                    x-init="open = true"
-                                    hx-post="{% url 'gestor:recusar_solicitacao' solicitacao.id %}"
-                                    hx-target="#modal-spot"
-                                    hx-swap="innerHTML"
-                                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-                                    class="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-red-50 border border-red-600 px-5 py-2.5 sm:py-2 text-sm font-bold text-red-600 shadow-sm hover:bg-red-600 hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 active:scale-95 transition-all">
-                                <ion-icon name="close-circle-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
-                                Reprovar
-                            </button>
-
-                            <button type="button"
-                                    x-init="open = true"
-                                    hx-post="{% url 'gestor:aprovar_solicitacao' solicitacao.id %}"
-                                    hx-target="#modal-spot" 
-                                    hx-swap="innerHTML"
-                                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-                                    class="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-green-50 border border-green-600 px-5 py-2.5 sm:py-2 text-sm font-bold text-green-600 shadow-sm hover:bg-green-600 hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-green-600 active:scale-95 transition-all">
-                                <ion-icon name="checkmark-circle-outline" class="w-4 h-4 sm:w-5 sm:h-5"></ion-icon>
-                                Aprovar
+                            <button type="button" 
+                                    @click="open = false"
+                                    class="w-full sm:w-auto sm:min-w-[140px] flex justify-center items-center rounded-lg sm:rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-secondary focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95 transition-all">
+                                Fechar
                             </button>
                         {% endif %}
-                    
-                    {% else %}
-                        <button type="button" 
-                                @click="open = false"
-                                class="w-full sm:w-auto sm:min-w-[140px] flex justify-center items-center rounded-lg sm:rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-secondary focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95 transition-all">
-                            Fechar
-                        </button>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
-            
         </div>
     </div>
+
+    <div x-show="showModalRecusa" 
+         style="z-index: 9999; display: none;"
+         class="fixed inset-0 flex items-center justify-center w-full h-[100dvh] p-3 sm:p-4 bg-[rgba(0,0,0,0.6)] backdrop-blur-md transition-opacity"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+        
+        <div @click.away="showModalRecusa = false" 
+             x-show="showModalRecusa"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4 sm:translate-y-0"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-4 sm:translate-y-0"
+             class="relative w-full max-w-3xl max-h-[95dvh] flex flex-col overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-2xl transition-all p-4">
+            
+            <h3 class="text-lg sm:text-xl font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <ion-icon name="warning-outline" class="text-red-500 text-2xl"></ion-icon>
+                Confirmar Recusa
+            </h3>
+            <p class="text-sm text-slate-600 mb-4">
+                Detalhamento <span class="font-semibold">(visível para o colaborador solicitante)</span>:
+            </p>
+            
+            <form hx-post="{% url 'gestor:recusar_solicitacao' solicitacao.id %}" 
+                  hx-target="#modal-spot" 
+                  hx-swap="innerHTML"
+                  @submit="showModalRecusa = false">
+                {% csrf_token %}
+                
+                <textarea 
+                    name="detalhes" 
+                    required 
+                    rows="4" 
+                    class="w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 mb-2 resize-y text-sm text-slate-700 placeholder-slate-400"
+                    placeholder="Digite a justificativa detalhada aqui..."></textarea>
+                
+                <span class="block text-slate-500 text-[11px] sm:text-xs mb-6 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    * Importante para que o colaborador solicitante possa abrir um novo pedido ou entender a decisão tomada.
+                </span>
+
+                <div class="flex justify-end gap-3">
+                    <button type="button" @click="showModalRecusa = false" class="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-red-50 border border-red-600 px-5 py-2.5 sm:py-2 text-sm font-bold text-red-600 shadow-sm hover:bg-red-600 hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 active:scale-95 transition-all">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-primary px-5 py-2.5 sm:py-2 text-sm font-bold text-white shadow-sm hover:bg-secondary focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95 transition-all">
+                        <ion-icon name="close-circle-outline" class="w-5 h-5"></ion-icon>
+                        Confirmar Recusa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>

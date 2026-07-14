@@ -69,10 +69,15 @@ def recusar_solicitacao_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     
     try:
+        detalhes = request.POST.get('detalhes', '').strip()
+        
+        if not detalhes:
+            raise ValidationError("A justificativa de recusa é obrigatória.")
+
         services.recusar_solicitacao(
             solicitacao, 
             ator=request.user, 
-            detalhes="Recusado via Painel"
+            detalhes=detalhes
         )
 
         msg = mark_safe('Solicitação <span class="text-slate-600 font-bold">recusada</span> com sucesso.')
@@ -84,6 +89,18 @@ def recusar_solicitacao_view(request, solicitacao_id):
         response['HX-Trigger'] = 'updateContent'
         
         return response
+        
+    except ValidationError as e:
+        url_retry = reverse('colaborador:get_solicitacao_detalhes', args=[solicitacao.id])
+        
+        msg_erro = e.message if hasattr(e, 'message') else str(e)
+        if hasattr(e, 'messages'):
+            msg_erro = " ".join(e.messages)
+
+        return render(request, 'partials/_message_error.html', {
+            'message': msg_erro,
+            'url_retry': url_retry
+        })
         
     except Exception as e:
         url_retry = reverse('colaborador:get_solicitacao_detalhes', args=[solicitacao.id])

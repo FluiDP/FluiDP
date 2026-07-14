@@ -151,9 +151,9 @@ def processar_lote_solicitacoes_view(request):
         try:
             solicitacao = Solicitacao.objects.get(id=sig_id)
             if action == 'aprovar':
-                services.aprovar_solicitacao(solicitacao, ator=user, request_user=user, detalhes="Aprovado em lote")
+                services.aprovar_solicitacao(solicitacao, ator=user, request_user=user, detalhes="Aprovado via Painel")
             elif action == 'recusar':
-                services.recusar_solicitacao(solicitacao, ator=user, detalhes="Recusado em lote via Painel")
+                services.recusar_solicitacao(solicitacao, ator=user, detalhes="Recusado via Painel")
             sucessos += 1
         except Exception as e:
             erros += 1

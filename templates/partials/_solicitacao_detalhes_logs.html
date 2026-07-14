@@ -8,7 +8,8 @@
      x-transition:leave-start="opacity-100"
      x-transition:leave-end="opacity-0"
      @click="open = false" 
-     class="fixed inset-0 z-[60] flex items-center justify-center w-full h-[100dvh] p-3 sm:p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur transition-opacity">
+     class="fixed inset-0 z-[60] flex items-center justify-center w-full h-[100dvh] p-3 sm:p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur transition-opacity"
+     style="z-index: 9999;">
 
     <div id="modal-content"
          x-show="open"
@@ -43,7 +44,7 @@
             <div class="relative pl-4 border-l-2 border-gray-200 space-y-6 sm:space-y-8 my-2">
                 {% for log in logs %}
                     
-                    {% if log.ator.cargo.hierarquia != 1 and 'DIRETOR' not in log.acao %}
+                    {% if log.ator.cargo.hierarquia != 1 and 'DIRETOR' not in log.acao or log.ator == request.user or request.user.is_adm %}
                     <div class="relative">
                         <div class="absolute -left-[21px] top-1 h-4 w-4 rounded-full border-2 border-white 
                             {% if 'CRIACAO' in log.acao %}bg-blue-500
@@ -58,7 +59,7 @@
                             </span>
                             
                             <span class="text-[10px] sm:text-xs text-gray-500 mb-1">
-                                {% if request.user.is_staff or request.user.is_superuser or request.user.cargo.hierarquia == 1 %}
+                                {% if request.user.is_adm or request.user.cargo.hierarquia == 1 %}
                                     Por <span class="font-medium text-gray-700">{{ log.ator.get_full_name|default:log.ator.username }}</span>
                                     em {{ log.data_acao|date:"d/m/Y H:i" }}
                                 {% else %}

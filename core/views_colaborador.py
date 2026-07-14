@@ -114,6 +114,8 @@ def colaborador_solicitacoes_view(request):
         'current_sort': sort_param,
     }
 
+    
+
     if request.htmx:
         return render(request, 'painel/colaborador/_content_solicitacoes.html', context)
     
