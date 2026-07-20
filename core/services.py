@@ -240,6 +240,70 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
 
     return nova_solicitacao
 
+@transaction.atomic
+def reverter_status_solicitacao(solicitacao: Solicitacao, ator: CustomUser, detalhes: str = ""):
+    """
+    Reverte a última decisão tomada na solicitação, voltando um estágio no fluxo.
+    """
+    
+    if not solicitacao.can_reverse_status(ator):
+        raise PermissionError("Não tem permissão para reverter o status desta solicitação.")
+
+    acoes_decisao = [
+        LogAprovacao.AcaoChoices.ACEITE_SECUNDARIO,
+        LogAprovacao.AcaoChoices.RECUSA_SECUNDARIO,
+        LogAprovacao.AcaoChoices.APROVADO_GESTOR,
+        LogAprovacao.AcaoChoices.RECUSADO_GESTOR,
+        LogAprovacao.AcaoChoices.APROVADO_DIRETOR,
+        LogAprovacao.AcaoChoices.RECUSADO_DIRETOR,
+        LogAprovacao.AcaoChoices.APROVADO_DP,
+        LogAprovacao.AcaoChoices.RECUSADO_DP,
+    ]
+
+    ultimo_log = solicitacao.logs.filter(acao__in=acoes_decisao).order_by('-data_acao').first()
+
+    if not ultimo_log:
+        raise ValidationError("Não há histórico de decisão para reverter.")
+
+    novo_status = solicitacao.status
+    novo_aprovador = solicitacao.aprovador_atual
+    
+    if ultimo_log.acao in [LogAprovacao.AcaoChoices.APROVADO_DP, LogAprovacao.AcaoChoices.RECUSADO_DP]:
+        novo_status = Solicitacao.StatusChoices.PENDENTE_DP
+        novo_aprovador = None
+        
+    elif ultimo_log.acao in [LogAprovacao.AcaoChoices.APROVADO_DIRETOR, LogAprovacao.AcaoChoices.RECUSADO_DIRETOR]:
+        novo_status = Solicitacao.StatusChoices.PENDENTE_DIRETOR
+        novo_aprovador = ultimo_log.ator
+        
+    elif ultimo_log.acao in [LogAprovacao.AcaoChoices.APROVADO_GESTOR, LogAprovacao.AcaoChoices.RECUSADO_GESTOR]:
+        novo_status = Solicitacao.StatusChoices.PENDENTE_GESTOR
+        novo_aprovador = ultimo_log.ator
+        
+    elif ultimo_log.acao in [LogAprovacao.AcaoChoices.ACEITE_SECUNDARIO, LogAprovacao.AcaoChoices.RECUSA_SECUNDARIO]:
+        novo_status = Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO
+        novo_aprovador = solicitacao.colaborador_secundario
+
+    nome_acao_desfeita = ultimo_log.get_acao_display()
+    ultimo_log.delete()
+
+    texto_detalhes = f"Status revertido. A decisão anterior ('{nome_acao_desfeita}') foi desfeita."
+    if detalhes:
+        texto_detalhes += f" Justificativa: {detalhes}"
+
+    registrar_log_acao(
+        solicitacao=solicitacao,
+        ator=ator,
+        acao=LogAprovacao.AcaoChoices.COMENTARIO,
+        detalhes=texto_detalhes
+    )
+
+    solicitacao.status = novo_status
+    solicitacao.aprovador_atual = novo_aprovador
+    solicitacao.save()
+
+    return solicitacao
+
 def importar_dados(arquivo_io, nome_arquivo, model_class, mapa_de_campos, campo_busca_fk=None):
     """
     Importa dados com tratamento para CPF numérico, Username=Matrícula e auto-criação de FKs.

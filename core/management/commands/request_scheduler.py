@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from core.models import Solicitacao, LogAprovacao, Cargo
 
 User = get_user_model()
@@ -7,8 +8,11 @@ User = get_user_model()
 class Command(BaseCommand):
     help = 'Verifica gestores ausentes (férias) ou mudanças de hierarquia e escalona solicitações pendentes.'
 
+    data_hora = None
+
     def handle(self, *args, **kwargs):
-        self.stdout.write("Iniciando rotina de verificação de escalonamento...")
+        self.data_hora = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %H:%M:%S")
+        self.stdout.write(f"{self.data_hora} - Iniciando verificação de escalonamento...")
         
         sistema_user, created = User.objects.get_or_create(
             username='sistema_automacao',
@@ -23,6 +27,14 @@ class Command(BaseCommand):
         if created:
             sistema_user.set_unusable_password()
             sistema_user.save()
+
+        solicitacoes_pendencia_secundaria = Solicitacao.objects.filter(
+            status=Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO
+        ).select_related(
+            'colaborador',
+            'colaborador__lotacao',
+            'colaborador__cargo'
+        )
         
         solicitacoes_pendentes = Solicitacao.objects.filter(
             status=Solicitacao.StatusChoices.PENDENTE_GESTOR
@@ -35,6 +47,28 @@ class Command(BaseCommand):
         
         count_escalonadas = 0
 
+        for sol in solicitacoes_pendencia_secundaria:
+            colega = sol.colaborador_secundario
+            motivo_txt = ""
+
+            if not colega:
+                sol.status = Solicitacao.StatusChoices.CANCELADA
+                sol.save()
+                motivo_txt = "não há um colaborador substituto definido"
+
+            elif colega.is_ausente and colega.ausencia_fim and sol.esta_no_periodo(date=colega.ausencia_fim):
+                sol.status = Solicitacao.StatusChoices.CANCELADA
+                sol.save()
+                motivo_txt = f"o colaborador substituto ({colega.get_full_name()}) encontra-se ausente até {colega.ausencia_fim.strftime('%d/%m/%Y')}"
+
+            if motivo_txt:
+                LogAprovacao.objects.create(
+                    solicitacao=sol,
+                    ator=sistema_user,
+                    acao=LogAprovacao.AcaoChoices.COMENTARIO,
+                    detalhes=f'Cancelamento automático: {motivo_txt}.'
+                )
+
         for sol in solicitacoes_pendentes:
             gestor_atual = sol.aprovador_atual
             
@@ -43,13 +77,11 @@ class Command(BaseCommand):
                 
             is_ausente = gestor_atual.is_ausente
             
-            is_gestor_valido = self.is_gestor_na_hierarquia(sol.colaborador.lotacao, gestor_atual)
+            is_gestor_valido = self.is_prox_gestor_na_hierarquia(sol.colaborador.lotacao, gestor_atual)
             
             if is_ausente or not is_gestor_valido:
-                
                 novo_gestor = sol.colaborador.lotacao.find_gestor_disponivel(solicitante=sol.colaborador)
-
-                is_diretor = novo_gestor.cargo and novo_gestor.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
+                is_diretor = novo_gestor and novo_gestor.cargo and novo_gestor.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
 
                 if novo_gestor and novo_gestor != gestor_atual:
                     sol.aprovador_atual = novo_gestor
@@ -70,11 +102,10 @@ class Command(BaseCommand):
                         detalhes=f'Escalonamento Automático: O aprovador anterior ({gestor_atual.get_full_name()}) {motivo_txt}. Solicitação encaminhada para {"direção" if is_diretor else "novo aprovador (" + novo_gestor.get_full_name() + ")"}.'
                     )
                     
-                    self.stdout.write(self.style.SUCCESS(f"Solicitação #{sol.id} escalonada para {novo_gestor.get_full_name()}"))
+                    self.stdout.write(self.style.SUCCESS(f"{self.data_hora} - Solicitação #{sol.id} escalonada para {novo_gestor.get_full_name()}"))
                     count_escalonadas += 1
                 
                 elif not novo_gestor:
-                    
                     sol.status = Solicitacao.StatusChoices.PENDENTE_DP
                     sol.aprovador_atual = None
                     sol.save()
@@ -87,15 +118,14 @@ class Command(BaseCommand):
                         acao=LogAprovacao.AcaoChoices.COMENTARIO,
                         detalhes=f'Escalonamento Automático: O aprovador anterior ({gestor_atual.get_full_name()}) {motivo_txt} e não houveram substitutos disponíveis. Encaminhado ao DP.'
                     )
-                    self.stdout.write(self.style.WARNING(f"Solicitação #{sol.id} enviada ao DP (Sem chefia disponível)."))
+                    self.stdout.write(self.style.WARNING(f"{self.data_hora} - Solicitação #{sol.id} enviada ao DP (Sem chefia disponível)."))
                     count_escalonadas += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas automaticamente."))
+        self.stdout.write(self.style.SUCCESS(f"{self.data_hora} - Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas automaticamente."))
 
-    def is_gestor_na_hierarquia(self, lotacao_colaborador, gestor):
+    def is_prox_gestor_na_hierarquia(self, lotacao_colaborador, gestor):
         """
-        Sobe a hierarquia da lotação do colaborador para verificar se o 'gestor'
-        é o chefe direto ou chefe de alguma lotação pai.
+        Sobe a hierarquia da lotação do colaborador para verificar se o gestor é exatamente o próximo na hierarquia.
         """
         if not lotacao_colaborador:
             return False
@@ -106,8 +136,13 @@ class Command(BaseCommand):
         while atual and atual.id not in visitados:
             visitados.add(atual.id)
             
-            if atual.chefia == gestor or (atual.chefia_secundaria == gestor and (atual.chefia is None or atual.chefia.is_ausente)):
+            chefia_ausente = getattr(atual.chefia, 'is_ausente', False) if atual.chefia else False
+            
+            if atual.chefia == gestor or (atual.chefia_secundaria == gestor and (atual.chefia is None or chefia_ausente)):
                 return True
+                
+            if atual.chefia is not None or atual.chefia_secundaria is not None:
+                return False
                 
             atual = atual.lotacao_pai
             

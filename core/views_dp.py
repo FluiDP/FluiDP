@@ -31,9 +31,16 @@ def dp_dashboard_view(request):
     # --- 1. BUSCA CENTRALIZADA E CUMULATIVA ---
     # Usa a função genérica que mescla DP + Direção + Gestor + Aceite
     solicitacoes = services.obter_pendencias_do_usuario(user)
+
+    dp_pendencias = Solicitacao.objects.filter(
+        status__in=[
+            Solicitacao.StatusChoices.PENDENTE_DP,
+            Solicitacao.StatusChoices.LANCAMENTO
+            ]
+        )
     
     # --- 2. KPIs ---
-    kpi_pendencias = solicitacoes.count()
+    kpi_pendencias_dp = dp_pendencias.count()
 
     kpi_direcao = Solicitacao.objects.filter(
         status=Solicitacao.StatusChoices.PENDENTE_DIRETOR
@@ -70,10 +77,11 @@ def dp_dashboard_view(request):
     context = {
         'usuario': user,
         'usuario_tagname': user.first_name.split()[0] if user.first_name else user.username,
-        'is_dp': True,
+        'is_dp': user.groups.filter(name='DP').exists(),
+        'is_tic': user.groups.filter(name='SYSTEM_ADMIN').exists(),
         
         # KPIs
-        'kpi_pendencias': kpi_pendencias,
+        'kpi_pendencias': kpi_pendencias_dp,
         'kpi_direcao': kpi_direcao,
         'kpi_fluxo': kpi_fluxo,
         
@@ -716,6 +724,9 @@ def dp_solicitacoes_view(request):
         return render(request, 'painel/dp/_content_solicitacoes.html', context)
     
     return render(request, 'painel/dp/solicitacoes.html', context)
+
+def dp_edit_solicitacao_modal_view(request):
+    return
 
 
 # ==========================================

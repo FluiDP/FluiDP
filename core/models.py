@@ -277,8 +277,8 @@ class CustomUser(AbstractUser):
     )
 
     @property
-    def is_ausente(self):
-        today = timezone.now().date()
+    def is_ausente(self, date=None):
+        today = date if date is not None else timezone.now().date()
         if self.ausencia_inicio and self.ausencia_fim:
             return self.ausencia_inicio <= today <= self.ausencia_fim
         return False
@@ -402,19 +402,19 @@ class TipoDocumento(models.Model):
             return f"Dia {self.dia_inicio} ao dia {self.dia_fim} de todo mês"
         return "Disponível o mês todo"
 
-    def esta_no_periodo(self):
+    def esta_no_periodo(self, date=None):
         """
         Verifica se o dia de hoje está dentro do intervalo configurado.
         """
         if not (self.dia_inicio and self.dia_fim):
             return True
 
-        hoje_dia = timezone.now().day
+        dia = date.day if date is not None else timezone.now().day
 
         if self.dia_inicio <= self.dia_fim:
-            return self.dia_inicio <= hoje_dia <= self.dia_fim
+            return self.dia_inicio <= dia <= self.dia_fim
         elif self.dia_inicio > self.dia_fim:
-            return (self.dia_inicio <= hoje_dia <= 31) or (1 <= hoje_dia <= self.dia_fim)
+            return (self.dia_inicio <= dia <= 31) or (1 <= dia <= self.dia_fim)
 
     def validar_regras(self, dados_valores):
         """
@@ -471,8 +471,8 @@ class Solicitacao(models.Model):
         PENDENTE_GESTOR = 'PENDENTE_GESTOR', 'Pendente (Gestor)'
         PENDENTE_DIRETOR = 'PENDENTE_DIRETOR', 'Pendente (Diretor)' # em nova regra de negócio, não será visível a pendência da direção
         PENDENTE_DP = 'PENDENTE_DP', 'Pendente (DP)'
-        LANCAMENTO = 'LANCAMENTO', 'Aguardando Lançamento' # nesse estágio, as solicitações devem ser processadas pelo DP, mas consideramos aprovadas as solicitações que passaram por todas as etapas de aprovação.
-        FINALIZADO = 'FINALIZADO', 'Finalizado'
+        LANCAMENTO = 'LANCAMENTO', 'Recebido pelo DP' # nesse estágio, as solicitações devem ser processadas pelo DP, mas consideramos aprovadas as solicitações que passaram por todas as etapas de aprovação.
+        FINALIZADO = 'FINALIZADO', 'Aprovado'
         RECUSADO = 'RECUSADO', 'Recusado'
         CANCELADO = 'CANCELADO', 'Cancelado'
 
@@ -541,6 +541,83 @@ class Solicitacao(models.Model):
 
     arquivado = models.BooleanField(verbose_name="Arquivar?", default=False)
 
+    def can_edit(self, user):
+        """
+        Verifica se o usuário tem permissão para editar os dados da solicitação.
+        """
+        
+        if self.colaborador != user:
+            return False
+            
+        LogAprovacaoModel = self.logs.model
+        
+        acoes_aprovacao = [
+            LogAprovacaoModel.AcaoChoices.ACEITE_SECUNDARIO,
+            LogAprovacaoModel.AcaoChoices.APROVADO_GESTOR,
+            LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,
+            LogAprovacaoModel.AcaoChoices.APROVADO_DP,
+            LogAprovacaoModel.AcaoChoices.LANCADO,
+        ]
+        
+        tem_aprovacao = self.logs.filter(acao__in=acoes_aprovacao).exists()
+        
+        if tem_aprovacao:
+            return False
+            
+        return True
+
+    def can_edit_dp(self, user):
+        if user.groups.filter(name='DP').exists() and self.status in [self.StatusChoices.PENDENTE_DP, self.StatusChoices.LANCAMENTO]:
+            return True
+        
+        return False
+
+    def can_reverse_status(self, user):
+        """
+        Verifica se o usuário tem permissão para alterar/reverter o status atual.
+        """
+
+        if self.status in [self.StatusChoices.FINALIZADO, self.StatusChoices.CANCELADO]:
+            return False
+
+        LogAprovacaoModel = self.logs.model
+
+        acoes_decisao = [
+            LogAprovacaoModel.AcaoChoices.ACEITE_SECUNDARIO,
+            LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
+            LogAprovacaoModel.AcaoChoices.APROVADO_GESTOR,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_GESTOR,
+            LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_DIRETOR,
+            LogAprovacaoModel.AcaoChoices.APROVADO_DP,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
+        ]
+
+        ultimo_log = self.logs.filter(acao__in=acoes_decisao).order_by('-data_acao').first()
+
+        if not ultimo_log:
+            return False
+
+        is_user_direcao = (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR) or user.is_superuser
+        is_user_dp = user.groups.filter(name='DP').exists() or user.is_superuser
+
+        is_last_action_direcao = ultimo_log.acao in [
+            LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_DIRETOR,
+        ]
+        is_last_action_dp = ultimo_log.acao in [
+            LogAprovacaoModel.AcaoChoices.APROVADO_DP,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
+        ]
+
+        if is_user_direcao and is_last_action_direcao:
+            return True
+
+        if is_user_dp and is_last_action_dp:
+            return True
+
+        return ultimo_log.ator == user
+
     def clean(self):
         """
         Valida as regras de negócio antes de salvar.
@@ -581,9 +658,9 @@ class LogAprovacao(models.Model):
         RECUSADO_GESTOR = 'RECUSADO_GESTOR', 'Recusado pelo Gestor'
         APROVADO_DIRETOR = 'APROVADO_DIRETOR', 'Aprovado pelo Diretor'
         RECUSADO_DIRETOR = 'RECUSADO_DIRETOR', 'Recusado pelo Diretor'
-        APROVADO_DP = 'APROVADO_DP', 'Aprovado pelo DP'
+        APROVADO_DP = 'APROVADO_DP', 'Documento recebido pelo DP (aguardando a aprovação final)'
         RECUSADO_DP = 'RECUSADO_DP', 'Recusado pelo DP'
-        LANCADO = 'LANCADO', 'Lançado pelo DP'
+        LANCADO = 'LANCADO', 'Aprovado pelo DP'
         COMENTARIO = 'COMENTARIO', 'Comentário Adicionado'
 
     solicitacao = models.ForeignKey(

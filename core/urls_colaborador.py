@@ -24,4 +24,10 @@ urlpatterns = [
           views.get_solicitacao_detalhes_view, 
           name='get_solicitacao_detalhes'),
      path('solicitacoes/logs/<int:solicitacao_id>/', views.get_solicitacao_logs_view, name='solicitacao_logs'),
+     path('solicitacoes/editar/<int:solicitacao_id>/',
+          views.edit_solicitacao_modal_view,
+          name='edit_solicitacao_modal'),
+     path('solicitacoes/reverter-status/<int:solicitacao_id>/',
+          views.solicitacao_reverter_status_view,
+          name='post_solicitacao_reverter_status'),
 ]

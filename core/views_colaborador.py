@@ -335,7 +335,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     ]
     pode_ser_cancelada = solicitacao.status not in estados_irreversiveis
     pode_cancelar = (is_dono or is_dp) and pode_ser_cancelada
-        
+    
     context = {
         'is_dp': is_dp,
         'solicitacao': solicitacao,
@@ -344,6 +344,9 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
         'pode_aprovar': pode_aprovar,
         'pode_cancelar': pode_cancelar,
         'active_link': 'solicitacoes',
+        'pode_editar': solicitacao.can_edit(request.user),
+        'pode_editar_dp': solicitacao.can_edit_dp(request.user),
+        'pode_reverter': solicitacao.can_reverse_status(request.user),
     }
     
     return render(request, 'partials/_solicitacao_detalhes.html', context)
@@ -360,3 +363,28 @@ def get_solicitacao_logs_view(request, solicitacao_id):
     }
 
     return render(request, 'partials/_solicitacao_detalhes_logs.html', context)
+
+@colaborador_required
+def edit_solicitacao_modal_view(request):
+    return
+
+@colaborador_required
+def solicitacao_reverter_status_view(request, solicitacao_id):
+    solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
+    user = request.user
+
+    if not solicitacao.can_reverse_status(user):
+        return render(request, 'partials/_message_error.html', {
+            'message': 'Você não tem permissão para reverter o status desta solicitação.',
+            'url_retry': reverse('colaborador:get_solicitacao_detalhes', args=[solicitacao_id])
+        })
+    
+    context = {
+        'title': 'Confirmar reversão de status',
+        'message': f'Você tem certeza que deseja reverter o status da solicitação #{solicitacao.id}?',
+        'confirm_url': reverse('colaborador:post_solicitacao_reverter_status', args=[solicitacao_id]),
+        'cancel_url': reverse('colaborador:get_solicitacao_detalhes', args=[solicitacao_id]),
+        'active_link': 'solicitacoes',
+    }
+
+    return render(request, 'partials/_generic_confirm_modal.html', context)
