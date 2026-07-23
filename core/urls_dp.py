@@ -32,7 +32,6 @@ urlpatterns = [
     path('documentos/excluir/<int:pk>/', views.delete_documento_view, name='delete_documento'),
 
     path('solicitacoes/', views.dp_solicitacoes_view, name='solicitacoes'),
-    path('solicitacoes/editar/<int:solicitacao_id>/', views.dp_edit_solicitacao_modal_view, name='edit_solicitacao_modal'),
 
     path('importar/<str:tipo_dado>/', views.import_data_modal_view, name='import_data'),
     path('importar/checar-status/<str:task_id>/', views.check_import_status_view, name='check_import_status'),

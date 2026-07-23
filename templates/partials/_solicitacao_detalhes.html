@@ -34,10 +34,53 @@
                         </h3>
                         <span class="text-[10px] sm:text-xs font-medium text-slate-400 mt-0.5">Solicitação #{{ solicitacao.id }}</span>
                     </div>
-                    <button type="button" @click="open = false" class="text-slate-400 hover:text-red-500 transition-colors p-1.5 -mr-1.5 rounded-full hover:bg-red-50 shrink-0">
-                        <span class="sr-only">Fechar</span>
-                        <ion-icon name="close-outline" class="w-5 h-5 sm:w-6 sm:h-6"></ion-icon>
-                    </button>
+
+                    <div class="flex items-center gap-2">
+                        
+                        {% if pode_editar %}
+                        <button type="button"
+                                hx-get="{% url 'edit_solicitacao_modal' solicitacao.id %}"
+                                hx-target="#modal-spot"
+                                hx-swap="innerHTML"
+                                class="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 rounded-full hover:bg-indigo-50 shrink-0"
+                                title="Editar Solicitação">
+                            <ion-icon name="create-outline" class="w-5 h-5"></ion-icon>
+                        </button>
+                        {% endif %}
+
+                        {% if pode_cancelar %}
+                        <button type="button"
+                                hx-post="{% url 'cancelar_solicitacao' solicitacao.id %}"
+                                hx-target="#modal-spot"
+                                hx-swap="innerHTML"
+                                hx-confirm="Tem certeza que deseja cancelar esta solicitação?"
+                                class="text-slate-400 hover:text-red-600 transition-colors p-1.5 rounded-full hover:bg-red-50 shrink-0"
+                                title="Cancelar Solicitação">
+                            <ion-icon name="ban-outline" class="w-5 h-5"></ion-icon>
+                        </button>
+                        {% endif %}
+
+                        {% if pode_reverter %}
+                        <button type="button"
+                                hx-post="{% url 'reverter_status' solicitacao.id %}"
+                                hx-target="#modal-spot"
+                                hx-swap="innerHTML"
+                                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                class="text-slate-400 hover:text-amber-600 transition-colors p-1.5 rounded-full hover:bg-amber-50 shrink-0"
+                                title="Reverter Último Status">
+                            <ion-icon name="arrow-undo-outline" class="w-5 h-5"></ion-icon>
+                        </button>
+                        {% endif %}
+
+                        {% if pode_editar or pode_cancelar or pode_reverter %}
+                        <div class="h-5 w-px bg-slate-200 mx-1"></div>
+                        {% endif %}
+
+                        <button type="button" @click="open = false" class="text-slate-400 hover:text-red-500 transition-colors p-1.5 -mr-1.5 rounded-full hover:bg-red-50 shrink-0">
+                            <span class="sr-only">Fechar</span>
+                            <ion-icon name="close-outline" class="w-5 h-5 sm:w-6 sm:h-6"></ion-icon>
+                        </button>
+                    </div>
                 </div>
 
                 <style>

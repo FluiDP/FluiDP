@@ -7,7 +7,7 @@ from django.forms import ValidationError
 from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
 from jsonschema import validate
 from django.core.validators import MinValueValidator, MaxValueValidator
-import datetime
+from datetime import timedelta, datetime
 
 FORM_SCHEMA = {
     "type": "array",
@@ -442,10 +442,10 @@ class TipoDocumento(models.Model):
                 
                 if valor_str:
                     try:
-                        data_evento = datetime.datetime.strptime(valor_str, "%Y-%m-%d").date()
+                        data_evento = datetime.strptime(valor_str, "%Y-%m-%d").date()
                         hoje = timezone.now().date()
                         
-                        data_minima = hoje + datetime.timedelta(days=self.limite_dias_antecedencia)
+                        data_minima = hoje + timedelta(days=self.limite_dias_antecedencia)
                         
                         if data_evento < data_minima:
                             raise ValidationError(
@@ -542,46 +542,84 @@ class Solicitacao(models.Model):
     arquivado = models.BooleanField(verbose_name="Arquivar?", default=False)
 
     def can_edit(self, user):
+        return False
         """
-        Verifica se o usuário tem permissão para editar os dados da solicitação.
+        Editar somente se não houver nenhum log de mudança de status (solicitações recém criadas), 
+        pelo colaborador que solicitou.
         """
-        
         if self.colaborador != user:
             return False
-            
-        LogAprovacaoModel = self.logs.model
+        if self.status in [self.StatusChoices.FINALIZADO, self.StatusChoices.CANCELADO]:
+            return False
         
-        acoes_aprovacao = [
+        LogAprovacaoModel = self.logs.model
+
+        logs_mudanca = [
             LogAprovacaoModel.AcaoChoices.ACEITE_SECUNDARIO,
+            LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
+            LogAprovacaoModel.AcaoChoices.APROVADO_GESTOR,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_GESTOR,
+            LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_DIRETOR,
+            LogAprovacaoModel.AcaoChoices.APROVADO_DP,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
+            LogAprovacaoModel.AcaoChoices.LANCADO,
+            LogAprovacaoModel.AcaoChoices.CANCELAMENTO,
+        ]
+        return not self.logs.filter(acao__in=logs_mudanca).exists()
+
+    def can_cancel(self, user):
+        """
+        Cancelar apenas pelo colaborador solicitante em estado não terminal.
+        """
+        if self.colaborador != user:
+            return False
+        if self.status in [self.StatusChoices.FINALIZADO, self.StatusChoices.CANCELADO, self.StatusChoices.RECUSADO]:
+            return False
+        
+        LogAprovacaoModel = self.logs.model
+        etapas_avancadas = [
             LogAprovacaoModel.AcaoChoices.APROVADO_GESTOR,
             LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,
             LogAprovacaoModel.AcaoChoices.APROVADO_DP,
             LogAprovacaoModel.AcaoChoices.LANCADO,
         ]
-        
-        tem_aprovacao = self.logs.filter(acao__in=acoes_aprovacao).exists()
-        
-        if tem_aprovacao:
-            return False
-            
-        return True
+        return not self.logs.filter(acao__in=etapas_avancadas).exists()
 
     def can_edit_dp(self, user):
-        if user.groups.filter(name='DP').exists() and self.status in [self.StatusChoices.PENDENTE_DP, self.StatusChoices.LANCAMENTO]:
-            return True
-        
         return False
+        """
+        Editar pelo usuário da administração, somente nos status pendente DP ou lançamento, 
+        somente quando o editor for do DP.
+        """
+        is_dp = user.groups.filter(name='DP').exists() or user.is_superuser
+        return is_dp and self.status in [self.StatusChoices.PENDENTE_DP, self.StatusChoices.LANCAMENTO]
+
+    def ja_revertido_por(self, user):
+        """
+        Retorna True se este usuário já executou uma reversão nesta solicitação.
+        Cada usuário só pode reverter uma decisão por solicitação.
+        """
+        LogAprovacaoModel = self.logs.model
+        return self.logs.filter(
+            acao=LogAprovacaoModel.AcaoChoices.REVERSAO,
+            ator=user
+        ).exists()
 
     def can_reverse_status(self, user):
         """
-        Verifica se o usuário tem permissão para alterar/reverter o status atual.
+        Reverter status, apenas para solicitações que não possuam status terminal,
+        apenas pela última pessoa (secundário ou gestor) ou grupo (direção ou DP)
+        que aprovou, apenas dentro de 24h desde a última ação registrada, e apenas
+        uma vez por usuário nesta solicitação.
         """
-
         if self.status in [self.StatusChoices.FINALIZADO, self.StatusChoices.CANCELADO]:
             return False
 
-        LogAprovacaoModel = self.logs.model
+        if self.ja_revertido_por(user):
+            return False
 
+        LogAprovacaoModel = self.logs.model
         acoes_decisao = [
             LogAprovacaoModel.AcaoChoices.ACEITE_SECUNDARIO,
             LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
@@ -591,15 +629,19 @@ class Solicitacao(models.Model):
             LogAprovacaoModel.AcaoChoices.RECUSADO_DIRETOR,
             LogAprovacaoModel.AcaoChoices.APROVADO_DP,
             LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
+            LogAprovacaoModel.AcaoChoices.LANCADO,
         ]
 
         ultimo_log = self.logs.filter(acao__in=acoes_decisao).order_by('-data_acao').first()
-
         if not ultimo_log:
             return False
 
-        is_user_direcao = (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR) or user.is_superuser
-        is_user_dp = user.groups.filter(name='DP').exists() or user.is_superuser
+        prazo_limite = ultimo_log.data_acao + timedelta(hours=24)
+        if timezone.now() > prazo_limite:
+            return False
+
+        is_user_direcao = (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR)
+        is_user_dp = user.groups.filter(name='DP').exists()
 
         is_last_action_direcao = ultimo_log.acao in [
             LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,
@@ -608,6 +650,15 @@ class Solicitacao(models.Model):
         is_last_action_dp = ultimo_log.acao in [
             LogAprovacaoModel.AcaoChoices.APROVADO_DP,
             LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
+            LogAprovacaoModel.AcaoChoices.LANCADO,
+        ]
+        is_last_action_gestor = ultimo_log.acao in [
+            LogAprovacaoModel.AcaoChoices.APROVADO_GESTOR,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_GESTOR,
+        ]
+        is_last_action_colega = ultimo_log.acao in [
+            LogAprovacaoModel.AcaoChoices.ACEITE_SECUNDARIO,
+            LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
         ]
 
         if is_user_direcao and is_last_action_direcao:
@@ -616,7 +667,13 @@ class Solicitacao(models.Model):
         if is_user_dp and is_last_action_dp:
             return True
 
-        return ultimo_log.ator == user
+        if is_last_action_gestor and ultimo_log.ator == user:
+            return True
+
+        if is_last_action_colega and ultimo_log.ator == user:
+            return True
+
+        return False
 
     def clean(self):
         """
@@ -662,6 +719,7 @@ class LogAprovacao(models.Model):
         RECUSADO_DP = 'RECUSADO_DP', 'Recusado pelo DP'
         LANCADO = 'LANCADO', 'Aprovado pelo DP'
         COMENTARIO = 'COMENTARIO', 'Comentário Adicionado'
+        REVERSAO = 'REVERSAO', 'Reversão de Decisão'
 
     solicitacao = models.ForeignKey(
         Solicitacao,

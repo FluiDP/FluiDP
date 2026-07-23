@@ -1,13 +1,15 @@
 import copy
 import uuid
 from django.core.cache import cache, caches
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import redirect, render, get_object_or_404
 from django.db.models import Q, Count
 from django.urls import reverse
 from django.http import HttpResponse
+from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
+from django.utils.safestring import mark_safe
 
 from django.core.files.storage import default_storage
 from django_q.tasks import async_task
@@ -27,9 +29,7 @@ User = get_user_model()
 @dp_required
 def dp_dashboard_view(request):
     user = request.user
-    
-    # --- 1. BUSCA CENTRALIZADA E CUMULATIVA ---
-    # Usa a função genérica que mescla DP + Direção + Gestor + Aceite
+
     solicitacoes = services.obter_pendencias_do_usuario(user)
 
     dp_pendencias = Solicitacao.objects.filter(
@@ -684,7 +684,6 @@ def dp_solicitacoes_view(request):
     if sort_param not in campos_permitidos:
         sort_param = '-data'
 
-    # CORREÇÃO: Ordenação deve ocorrer ANTES de instanciar o paginador!
     solicitacoes_list = solicitacoes_list.order_by(sort_param)
 
     paginator = Paginator(solicitacoes_list, 15)
@@ -725,8 +724,73 @@ def dp_solicitacoes_view(request):
     
     return render(request, 'painel/dp/solicitacoes.html', context)
 
-def dp_edit_solicitacao_modal_view(request):
-    return
+@dp_required
+def dp_edit_solicitacao_modal_view(request, solicitacao_id):
+    solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
+    
+    if not solicitacao.can_edit_dp(request.user):
+        return render(request, 'partials/_message_error.html', {
+            'message': 'Você não tem permissão para editar esta solicitação.'
+        })
+
+    tipo_doc = solicitacao.tipo_documento
+    schema = solicitacao.dados_preenchidos.get('schema', tipo_doc.definicao_formulario)
+
+    if request.method == 'POST':
+        novos_valores = solicitacao.dados_preenchidos.get('values', {})
+        for campo in schema:
+            if campo.get('type') == 'calculated':
+                nome_campo = campo.get('name')
+                if nome_campo in request.POST:
+                    novos_valores[nome_campo] = request.POST.get(nome_campo)
+
+        try:
+            services.editar_solicitacao(
+                solicitacao=solicitacao,
+                ator=request.user,
+                novos_valores=novos_valores
+            )
+            msg = mark_safe('Campos calculados <span class="font-bold">atualizados</span> pelo DP.')
+            response = render(request, 'partials/_message_sucess.html', {'message': msg})
+            response['HX-Trigger'] = 'updateContent'
+            return response
+        except ValidationError as ve:
+            return render(request, 'partials/_message_error.html', {'message': str(ve)})
+        except Exception as e:
+            return render(request, 'partials/_message_error.html', {'message': f'Erro ao editar: {e}'})
+
+    dados_valores = solicitacao.dados_preenchidos.get('values', {})
+    campos_exclusivos_dp = []
+    for campo in schema:
+        if campo.get('type') == 'calculated':
+            campo_name = campo.get('name')
+            campo['value'] = dados_valores.get(campo_name)
+            campos_exclusivos_dp.append(campo)
+
+    context = {
+        'solicitacao': solicitacao,
+        'tipo_documento': tipo_doc,
+        'campos_exclusivos_dp': campos_exclusivos_dp,
+        'action_url': reverse('administracao:edit_solicitacao_modal', args=[solicitacao.id])
+    }
+    return render(request, 'partials/_dp_solicitacao_edit_form.html', context)
+
+@dp_required
+@require_POST
+def dp_reverter_status_view(request, solicitacao_id):
+    solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
+    detalhes = request.POST.get('detalhes', '').strip()
+
+    try:
+        services.reverter_status_solicitacao(solicitacao, request.user, detalhes)
+        msg = mark_safe('Status revertido pelo DP com sucesso.')
+        response = render(request, 'partials/_message_sucess.html', {'message': msg})
+        response['HX-Trigger'] = 'updateContent'
+        return response
+    except (ValidationError, PermissionDenied) as e:
+        return render(request, 'partials/_message_error.html', {'message': str(e)})
+    except Exception as e:
+        return render(request, 'partials/_message_error.html', {'message': f"Erro ao reverter: {e}"})
 
 
 # ==========================================

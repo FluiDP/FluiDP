@@ -287,4 +287,3 @@ def gestor_solicitacoes_view(request):
         return render(request, 'painel/gestor/_content_solicitacoes.html', context)
     
     return render(request, 'painel/gestor/solicitacoes.html', context)
-    

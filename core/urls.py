@@ -21,8 +21,11 @@ urlpatterns = [
     path('administracao/', include('core.urls_dp')),
     path('colaborador/', include('core.urls_colaborador')),
     path('gestor/', include('core.urls_gestor')),
-
     path('m/', include('core.urls_mobile')),
+
+    path('solicitacao/editar/<int:solicitacao_id>/', views.edit_solicitacao_modal_view, name='edit_solicitacao_modal'),
+    path('solicitacao/cancelar/<int:solicitacao_id>/', views.cancelar_solicitacao_view, name='cancelar_solicitacao'),
+    path('solicitacao/reverter-status/<int:solicitacao_id>/', views.solicitacao_reverter_status_view, name='reverter_status'),
 
     path('solicitacao/pdf/<int:solicitacao_id>/', views.gerar_pdf_solicitacao_view, name='gerar_pdf_solicitacao'),
 

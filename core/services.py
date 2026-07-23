@@ -241,11 +241,92 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
     return nova_solicitacao
 
 @transaction.atomic
+def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores: dict):
+    """
+    Edita os dados de uma solicitação existente.
+    - Se for o autor: Edita todos os campos livremente, desde que a solicitação permita (can_edit).
+    - Se for o DP: Edita apenas campos 'calculated' (pelo form_schema) e apenas se estiver pendente para o DP (can_edit_dp).
+    """
+    
+    is_autor = (solicitacao.colaborador == ator)
+    is_dp = ator.groups.filter(name='DP').exists()
+
+    pode_editar_como_autor = is_autor and solicitacao.can_edit(ator)
+    pode_editar_como_dp = is_dp and solicitacao.can_edit_dp(ator)
+
+    if not (pode_editar_como_autor or pode_editar_como_dp):
+        raise PermissionError("Você não tem permissão para editar os dados desta solicitação no status atual.")
+
+    esquema = solicitacao.dados_preenchidos.get('schema', [])
+    valores_atuais = solicitacao.dados_preenchidos.get('values', {})
+    
+    if isinstance(valores_atuais, list):
+        valores_atuais = {}
+
+    valores_atualizados = dict(valores_atuais)
+
+    if pode_editar_como_autor:
+        valores_atualizados.update(novos_valores)
+        log_detalhes = "O solicitante alterou os dados do formulário."
+    
+    elif pode_editar_como_dp:
+        campos_calculados = [c['name'] for c in esquema if c.get('type') == 'calculated']
+        
+        campos_alterados = []
+        for key, value in novos_valores.items():
+            if key in campos_calculados:
+                valores_atualizados[key] = value
+                campos_alterados.append(key)
+                
+        if not campos_alterados:
+            raise ValidationError("Nenhuma alteração permitida foi enviada. O DP só pode preencher campos de uso exclusivo do RH.")
+            
+        log_detalhes = f"O Departamento Pessoal preencheu os seguintes campos exclusivos: {', '.join(campos_alterados)}."
+
+    # Salva no banco
+    solicitacao.dados_preenchidos['values'] = valores_atualizados
+    solicitacao.save()
+
+    registrar_log_acao(
+        solicitacao=solicitacao,
+        ator=ator,
+        acao=LogAprovacao.AcaoChoices.COMENTARIO,
+        detalhes=log_detalhes
+    )
+
+    return solicitacao
+
+@transaction.atomic
+def cancelar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, detalhes: str = ""):
+    """
+    Cancela a solicitação. Apenas o solicitante pode executar esta ação (conforme can_cancel do Model).
+    """
+    if not solicitacao.can_cancel(ator):
+        raise PermissionError("Você não tem permissão para cancelar esta solicitação.")
+
+    solicitacao.status = Solicitacao.StatusChoices.CANCELADO
+    solicitacao.aprovador_atual = None
+    solicitacao.save()
+
+    registrar_log_acao(
+        solicitacao=solicitacao,
+        ator=ator,
+        acao=LogAprovacao.AcaoChoices.CANCELAMENTO,
+    )
+
+    return solicitacao
+
+@transaction.atomic
 def reverter_status_solicitacao(solicitacao: Solicitacao, ator: CustomUser, detalhes: str = ""):
     """
     Reverte a última decisão tomada na solicitação, voltando um estágio no fluxo.
+    Inteligente: Se for recuar para PENDENTE_GESTOR, ele procura o gestor disponível ATUAL
+    da lotação, prevenindo que a solicitação caia na mesa de um ex-gestor ou gestor de férias.
     """
-    
+
+    if solicitacao.ja_revertido_por(ator):
+        raise PermissionError("Você já reverteu uma decisão nesta solicitação. Uma reversão só pode ser realizada uma vez.")
+
     if not solicitacao.can_reverse_status(ator):
         raise PermissionError("Não tem permissão para reverter o status desta solicitação.")
 
@@ -258,34 +339,43 @@ def reverter_status_solicitacao(solicitacao: Solicitacao, ator: CustomUser, deta
         LogAprovacao.AcaoChoices.RECUSADO_DIRETOR,
         LogAprovacao.AcaoChoices.APROVADO_DP,
         LogAprovacao.AcaoChoices.RECUSADO_DP,
+        LogAprovacao.AcaoChoices.LANCADO,
     ]
 
     ultimo_log = solicitacao.logs.filter(acao__in=acoes_decisao).order_by('-data_acao').first()
 
     if not ultimo_log:
-        raise ValidationError("Não há histórico de decisão para reverter.")
+        raise ValidationError("Não há histórico de decisão válido para reverter.")
 
     novo_status = solicitacao.status
     novo_aprovador = solicitacao.aprovador_atual
-    
-    if ultimo_log.acao in [LogAprovacao.AcaoChoices.APROVADO_DP, LogAprovacao.AcaoChoices.RECUSADO_DP]:
+
+    if ultimo_log.acao in [LogAprovacao.AcaoChoices.APROVADO_DP, LogAprovacao.AcaoChoices.RECUSADO_DP, LogAprovacao.AcaoChoices.LANCADO]:
         novo_status = Solicitacao.StatusChoices.PENDENTE_DP
         novo_aprovador = None
-        
+
     elif ultimo_log.acao in [LogAprovacao.AcaoChoices.APROVADO_DIRETOR, LogAprovacao.AcaoChoices.RECUSADO_DIRETOR]:
         novo_status = Solicitacao.StatusChoices.PENDENTE_DIRETOR
         novo_aprovador = ultimo_log.ator
-        
+
     elif ultimo_log.acao in [LogAprovacao.AcaoChoices.APROVADO_GESTOR, LogAprovacao.AcaoChoices.RECUSADO_GESTOR]:
-        novo_status = Solicitacao.StatusChoices.PENDENTE_GESTOR
-        novo_aprovador = ultimo_log.ator
-        
+        gestor_responsavel = solicitacao.colaborador.lotacao.find_gestor_disponivel(solicitante=solicitacao.colaborador)
+
+        if not gestor_responsavel:
+            novo_status = Solicitacao.StatusChoices.PENDENTE_DP
+            novo_aprovador = None
+        else:
+            if gestor_responsavel.cargo and gestor_responsavel.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR:
+                novo_status = Solicitacao.StatusChoices.PENDENTE_DIRETOR
+            else:
+                novo_status = Solicitacao.StatusChoices.PENDENTE_GESTOR
+            novo_aprovador = gestor_responsavel
+
     elif ultimo_log.acao in [LogAprovacao.AcaoChoices.ACEITE_SECUNDARIO, LogAprovacao.AcaoChoices.RECUSA_SECUNDARIO]:
         novo_status = Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO
-        novo_aprovador = solicitacao.colaborador_secundario
+        novo_aprovador = None
 
     nome_acao_desfeita = ultimo_log.get_acao_display()
-    ultimo_log.delete()
 
     texto_detalhes = f"Status revertido. A decisão anterior ('{nome_acao_desfeita}') foi desfeita."
     if detalhes:
@@ -294,7 +384,7 @@ def reverter_status_solicitacao(solicitacao: Solicitacao, ator: CustomUser, deta
     registrar_log_acao(
         solicitacao=solicitacao,
         ator=ator,
-        acao=LogAprovacao.AcaoChoices.COMENTARIO,
+        acao=LogAprovacao.AcaoChoices.REVERSAO,
         detalhes=texto_detalhes
     )
 
