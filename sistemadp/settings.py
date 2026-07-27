@@ -97,7 +97,7 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = BASE_DIR / "staticfiles_prod"
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 LOGIN_REDIRECT_URL = 'painel'
 LOGOUT_REDIRECT_URL = 'login'

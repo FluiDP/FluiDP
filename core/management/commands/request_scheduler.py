@@ -1,18 +1,25 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from datetime import timedelta
 from core.models import Solicitacao, LogAprovacao, Cargo
 
 User = get_user_model()
 
 class Command(BaseCommand):
-    help = 'Verifica gestores ausentes (férias) ou mudanças de hierarquia e escalona solicitações pendentes.'
+    help = """
+    Verifica gestores ausentes (férias) ou mudanças de hierarquia e escalona solicitações pendentes.
+    Adicionalmente, cancela solicitações que possuem prazo após 30 dias do encerramento do período ou que envolvam um colaborador e/ou colaborador
+    secundário inativos no sistema.
+    """
 
     data_hora = None
 
     def handle(self, *args, **kwargs):
         self.data_hora = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %H:%M:%S")
         self.stdout.write(f"{self.data_hora} - Iniciando verificação de escalonamento...")
+
+        dias_arquivamento_apos_finalizacao = 30
         
         sistema_user, created = User.objects.get_or_create(
             username='sistema_automacao',
@@ -44,22 +51,40 @@ class Command(BaseCommand):
             'colaborador__lotacao',
             'colaborador__cargo'
         )
+
+        solicitacoes_finalizadas = Solicitacao.objects.filter(
+            status__in=[
+                Solicitacao.StatusChoices.CANCELADO,
+                Solicitacao.StatusChoices.RECUSADO,
+                Solicitacao.StatusChoices.FINALIZADO
+            ]
+        )
         
         count_escalonadas = 0
+        count_canceladas = 0
 
         for sol in solicitacoes_pendencia_secundaria:
             colega = sol.colaborador_secundario
+            tipo_doc = sol.tipo_documento
             motivo_txt = ""
 
             if not colega:
-                sol.status = Solicitacao.StatusChoices.CANCELADA
+                sol.status = Solicitacao.StatusChoices.CANCELADO
                 sol.save()
                 motivo_txt = "não há um colaborador substituto definido"
+                count_canceladas += 1
 
-            elif colega.is_ausente and colega.ausencia_fim and sol.esta_no_periodo(date=colega.ausencia_fim):
-                sol.status = Solicitacao.StatusChoices.CANCELADA
+            elif colega.is_ausente and colega.ausencia_fim and not sol.tipo_documento.esta_no_periodo(date=colega.ausencia_fim):
+                sol.status = Solicitacao.StatusChoices.CANCELADO
                 sol.save()
-                motivo_txt = f"o colaborador substituto ({colega.get_full_name()}) encontra-se ausente até {colega.ausencia_fim.strftime('%d/%m/%Y')}"
+                motivo_txt = f"o colaborador substituto ({colega.get_full_name()}) encontra-se ausente até {colega.ausencia_fim.strftime('%d/%m/%Y')} (após o prazo final de aceite para as trocas)."
+                count_canceladas += 1
+
+            elif not sol.tipo_documento.esta_no_periodo():
+                sol.status = Solicitacao.StatusChoices.CANCELADO
+                sol.save()
+                motivo_txt = f"solicitação não aceita pelo colega dentro do período determinado por regras institucionais"
+                count_canceladas += 1
 
             if motivo_txt:
                 LogAprovacao.objects.create(
@@ -121,7 +146,18 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f"{self.data_hora} - Solicitação #{sol.id} enviada ao DP (Sem chefia disponível)."))
                     count_escalonadas += 1
 
-        self.stdout.write(self.style.SUCCESS(f"{self.data_hora} - Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas automaticamente."))
+        prazo_arquivamento = timezone.now() - timedelta(days=dias_arquivamento_apos_finalizacao)
+
+        for sol in solicitacoes_finalizadas:
+            if sol.data_finalizacao and sol.data_finalizacao < prazo_arquivamento:
+                sol.arquivado = True
+                sol.save()
+                
+                self.stdout.write(self.style.SUCCESS(
+                    f"{self.data_hora} - Solicitação #{sol.id} arquivada (finalizada em {sol.data_finalizacao.strftime('%d/%m/%Y')})."
+                ))
+
+        self.stdout.write(self.style.SUCCESS(f"{self.data_hora} - Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas e {count_canceladas} canceladas automaticamente."))
 
     def is_prox_gestor_na_hierarquia(self, lotacao_colaborador, gestor):
         """

@@ -253,7 +253,7 @@ class CustomUser(AbstractUser):
         verbose_name = "Usuário"
         verbose_name_plural = "Usuários"
     
-    cpf = models.CharField(verbose_name="CPF", max_length=11, unique=True)
+    cpf = models.CharField(verbose_name="CPF", max_length=11, unique=True, null=True, blank=True)
     matricula = models.CharField(verbose_name="Matrícula", max_length=10, unique=True, null=True, blank=True)
     ausencia_inicio = models.DateField(verbose_name="Início do Período de Ausência", null=True, blank=True)
     ausencia_fim = models.DateField(verbose_name="Fim do Período de Ausência", null=True, blank=True)
@@ -496,6 +496,30 @@ class Solicitacao(models.Model):
     @property
     def is_aprovada(self):
         return self.status == self.StatusChoices.FINALIZADO
+
+    @property
+    def data_finalizacao(self):
+        """
+        Retorna a data e hora do log que finalizou a solicitação.
+        Retorna None se a solicitação não estiver em um status finalizado.
+        """
+        if not self.is_finalizada:
+            return None
+
+        LogAprovacaoModel = self.logs.model
+        
+        acoes_terminais = [
+            LogAprovacaoModel.AcaoChoices.CANCELAMENTO,
+            LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_GESTOR,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_DIRETOR,
+            LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
+            LogAprovacaoModel.AcaoChoices.LANCADO,
+        ]
+
+        ultimo_log_final = self.logs.filter(acao__in=acoes_terminais).order_by('-data_acao').first()
+
+        return ultimo_log_final.data_acao if ultimo_log_final else None
     
     status = models.CharField(
         verbose_name="Status da Solicitação",
@@ -613,7 +637,7 @@ class Solicitacao(models.Model):
         que aprovou, apenas dentro de 24h desde a última ação registrada, e apenas
         uma vez por usuário nesta solicitação.
         """
-        if self.status in [self.StatusChoices.FINALIZADO, self.StatusChoices.CANCELADO]:
+        if self.status in [self.StatusChoices.CANCELADO]:
             return False
 
         if self.ja_revertido_por(user):
@@ -636,12 +660,12 @@ class Solicitacao(models.Model):
         if not ultimo_log:
             return False
 
-        prazo_limite = ultimo_log.data_acao + timedelta(hours=24)
-        if timezone.now() > prazo_limite:
-            return False
-
         is_user_direcao = (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR)
         is_user_dp = user.groups.filter(name='DP').exists()
+
+        prazo_limite = ultimo_log.data_acao + timedelta(hours=24)
+        if (timezone.now() > prazo_limite) and not is_user_dp:
+            return False
 
         is_last_action_direcao = ultimo_log.acao in [
             LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,

@@ -234,8 +234,7 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
     registrar_log_acao(
         solicitacao=nova_solicitacao, 
         ator=colaborador, 
-        acao=LogAprovacao.AcaoChoices.CRIACAO, 
-        detalhes="Solicitação criada."
+        acao=LogAprovacao.AcaoChoices.CRIACAO,
     )
 
     return nova_solicitacao
