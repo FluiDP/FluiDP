@@ -566,18 +566,18 @@ class Solicitacao(models.Model):
     arquivado = models.BooleanField(verbose_name="Arquivar?", default=False)
 
     def can_edit(self, user):
-        return False
         """
         Editar somente se não houver nenhum log de mudança de status (solicitações recém criadas), 
         pelo colaborador que solicitou.
         """
         if self.colaborador != user:
             return False
-        if self.status in [self.StatusChoices.FINALIZADO, self.StatusChoices.CANCELADO]:
-            return False
-        
-        LogAprovacaoModel = self.logs.model
 
+        if self.status in [self.StatusChoices.FINALIZADO, self.StatusChoices.CANCELADO, self.StatusChoices.RECUSADO]:
+            return False
+            
+        LogAprovacaoModel = self.logs.model
+        
         logs_mudanca = [
             LogAprovacaoModel.AcaoChoices.ACEITE_SECUNDARIO,
             LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
@@ -589,7 +589,9 @@ class Solicitacao(models.Model):
             LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
             LogAprovacaoModel.AcaoChoices.LANCADO,
             LogAprovacaoModel.AcaoChoices.CANCELAMENTO,
+            LogAprovacaoModel.AcaoChoices.REVERSAO,
         ]
+        
         return not self.logs.filter(acao__in=logs_mudanca).exists()
 
     def can_cancel(self, user):
@@ -732,6 +734,7 @@ class LogAprovacao(models.Model):
 
     class AcaoChoices(models.TextChoices):
         CRIACAO = 'CRIACAO', 'Criação da Solicitação'
+        EDICAO = 'EDICAO', 'Edição da Solicitação'
         CANCELAMENTO = 'CANCELAMENTO', 'Cancelado pelo Solicitante'
         ACEITE_SECUNDARIO = 'ACEITE_SECUNDARIO', 'Aceite pelo Colega'
         RECUSA_SECUNDARIO = 'RECUSA_SECUNDARIO', 'Recusado pelo Colega'

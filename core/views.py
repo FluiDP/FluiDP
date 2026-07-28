@@ -443,6 +443,7 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
             for campo in schema:
                 campo_nome = campo.get('name')
                 campo_tipo = campo.get('type')
+
                 if campo_nome:
                     if campo_tipo == 'repeater':
                         lista_final_objetos = []
@@ -487,6 +488,7 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
             response = render(request, 'partials/_message_sucess.html', {'message': msg})
             response['HX-Trigger'] = 'updateContent'
             return response
+            
         except ValidationError as ve:
             msg_erro = ve.message if hasattr(ve, 'message') else str(ve)
             return render(request, 'partials/_message_error.html', {'message': mark_safe(msg_erro)})
@@ -495,6 +497,9 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
         except Exception as e:
             return render(request, 'partials/_message_error.html', {'message': f'Erro ao editar: {e}'})
 
+    # ========================================
+    # GET (Preparação do formulário de edição)
+    # ========================================
     dados_valores = solicitacao.dados_preenchidos.get('values', {})
 
     if pode_editar_como_dp and not pode_editar_como_autor:
@@ -510,14 +515,41 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
         for campo in schema:
             campo_name = campo.get('name')
             campo['value'] = dados_valores.get(campo_name)
+            
+            # --- CORREÇÃO: Repopular opções dinâmicas para o dropdown na edição ---
+            source = campo.get('options_source')
+            if source == 'colaboradores_lotacao':
+                users = User.objects.filter(
+                    lotacao=solicitacao.colaborador.lotacao,
+                    is_active=True
+                ).exclude(id=solicitacao.colaborador.id).order_by('first_name')
+                
+                campo['options'] = [
+                    {'value': str(u.id), 'label': u.first_name.strip() or u.username}
+                    for u in users
+                ]
+                
+            elif source == 'colaboradores_mesmo_cargo':
+                users = User.objects.filter(
+                    cargo=solicitacao.colaborador.cargo,
+                    is_active=True
+                ).exclude(id=solicitacao.colaborador.id).order_by('first_name')
+                
+                campo['options'] = [
+                    {'value': str(u.id), 'label': f"{u.first_name} - {u.lotacao.nome_lotacao if u.lotacao else 'Sem Lotação'}"}
+                    for u in users
+                ]
+            # ------------------------------------------------------------------------
+
             campos_formulario.append(campo)
+            
         template_name = 'partials/_solicitacao_edit_form.html'
 
     context = {
         'solicitacao': solicitacao,
         'tipo_documento': tipo_doc,
         'campos_formulario': campos_formulario,
-        'campos_exclusivos_dp': campos_formulario,
+        'campos_exclusivos_dp': campos_formulario, 
         'action_url': reverse('edit_solicitacao_modal', args=[solicitacao.id])
     }
     return render(request, template_name, context)

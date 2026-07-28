@@ -241,12 +241,6 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
 
 @transaction.atomic
 def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores: dict):
-    """
-    Edita os dados de uma solicitação existente.
-    - Se for o autor: Edita todos os campos livremente, desde que a solicitação permita (can_edit).
-    - Se for o DP: Edita apenas campos 'calculated' (pelo form_schema) e apenas se estiver pendente para o DP (can_edit_dp).
-    """
-    
     is_autor = (solicitacao.colaborador == ator)
     is_dp = ator.groups.filter(name='DP').exists()
 
@@ -263,11 +257,13 @@ def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores
         valores_atuais = {}
 
     valores_atualizados = dict(valores_atuais)
+    acao_log = None
 
     if pode_editar_como_autor:
         valores_atualizados.update(novos_valores)
         log_detalhes = "O solicitante alterou os dados do formulário."
-    
+        acao_log = LogAprovacao.AcaoChoices.EDICAO
+        
     elif pode_editar_como_dp:
         campos_calculados = [c['name'] for c in esquema if c.get('type') == 'calculated']
         
@@ -281,15 +277,15 @@ def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores
             raise ValidationError("Nenhuma alteração permitida foi enviada. O DP só pode preencher campos de uso exclusivo do RH.")
             
         log_detalhes = f"O Departamento Pessoal preencheu os seguintes campos exclusivos: {', '.join(campos_alterados)}."
+        acao_log = LogAprovacao.AcaoChoices.COMENTARIO
 
-    # Salva no banco
     solicitacao.dados_preenchidos['values'] = valores_atualizados
     solicitacao.save()
 
     registrar_log_acao(
         solicitacao=solicitacao,
         ator=ator,
-        acao=LogAprovacao.AcaoChoices.COMENTARIO,
+        acao=acao_log,
         detalhes=log_detalhes
     )
 
