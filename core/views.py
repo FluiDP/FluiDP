@@ -471,7 +471,7 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
                         novos_valores[campo_nome] = request.POST.get(campo_nome)
 
         elif pode_editar_como_dp:
-            novos_valores = dict(solicitacao.dados_preenchidos.get('values', {}))
+            novos_valores = {}
             for campo in schema:
                 if campo.get('type') == 'calculated':
                     nome_campo = campo.get('name')
@@ -484,7 +484,12 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
                 ator=user,
                 novos_valores=novos_valores
             )
-            msg = mark_safe('Solicitação <span class="font-bold">atualizada</span> com sucesso!')
+            
+            if pode_editar_como_dp:
+                msg = mark_safe('Saldos da solicitação <span class="font-bold">corrigidos</span> com sucesso pelo DP!')
+            else:
+                msg = mark_safe('Solicitação <span class="font-bold">atualizada</span> com sucesso!')
+                
             response = render(request, 'partials/_message_sucess.html', {'message': msg})
             response['HX-Trigger'] = 'updateContent'
             return response
@@ -510,6 +515,7 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
                 campo['value'] = dados_valores.get(campo_name)
                 campos_formulario.append(campo)
         template_name = 'partials/_dp_solicitacao_edit_form.html'
+        
     else:
         campos_formulario = []
         for campo in schema:
@@ -553,7 +559,6 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
         'action_url': reverse('edit_solicitacao_modal', args=[solicitacao.id])
     }
     return render(request, template_name, context)
-
 
 @require_POST
 @login_required

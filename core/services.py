@@ -241,6 +241,12 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
 
 @transaction.atomic
 def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores: dict):
+    """
+    Edita os dados de uma solicitação existente.
+    - Se for o autor: Edita todos os campos livremente, desde que a solicitação permita (can_edit).
+    - Se for o DP: Edita apenas campos 'calculated' (pelo form_schema) e apenas se estiver pendente para o DP (can_edit_dp).
+    """
+    
     is_autor = (solicitacao.colaborador == ator)
     is_dp = ator.groups.filter(name='DP').exists()
 
@@ -265,19 +271,24 @@ def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores
         acao_log = LogAprovacao.AcaoChoices.EDICAO
         
     elif pode_editar_como_dp:
-        campos_calculados = [c['name'] for c in esquema if c.get('type') == 'calculated']
+        campos_calculados = {c['name']: c.get('label', c['name']) for c in esquema if c.get('type') == 'calculated'}
         
         campos_alterados = []
-        for key, value in novos_valores.items():
+        detalhes_alteracoes = []
+
+        for key, new_value in novos_valores.items():
             if key in campos_calculados:
-                valores_atualizados[key] = value
-                campos_alterados.append(key)
-                
+                old_value = valores_atuais.get(key, '00:00')
+                if str(old_value) != str(new_value):
+                    valores_atualizados[key] = new_value
+                    campos_alterados.append(key)
+                    detalhes_alteracoes.append(f"[{campos_calculados[key]}] de '{old_value}' para '{new_value}'")
+                    
         if not campos_alterados:
-            raise ValidationError("Nenhuma alteração permitida foi enviada. O DP só pode preencher campos de uso exclusivo do RH.")
+            raise ValidationError("Nenhuma alteração nos saldos/horas foi preenchida para envio.")
             
-        log_detalhes = f"O Departamento Pessoal preencheu os seguintes campos exclusivos: {', '.join(campos_alterados)}."
-        acao_log = LogAprovacao.AcaoChoices.COMENTARIO
+        log_detalhes = "O Departamento Pessoal corrigiu os seguintes saldos: " + "; ".join(detalhes_alteracoes) + "."
+        acao_log = LogAprovacao.AcaoChoices.EDICAO
 
     solicitacao.dados_preenchidos['values'] = valores_atualizados
     solicitacao.save()

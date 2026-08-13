@@ -36,6 +36,17 @@
                     </div>
 
                     <div class="flex items-center gap-2">
+
+                        {% if pode_editar_dp %}
+                        <button type="button"
+                                hx-get="{% url 'edit_solicitacao_modal' solicitacao.id %}"
+                                hx-target="#modal-spot"
+                                hx-swap="innerHTML"
+                                class="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 rounded-full hover:bg-indigo-50 shrink-0"
+                                title="Editar Solicitação">
+                            CORRIGIR SALDO
+                        </button>
+                        {% endif %}
                         
                         {% if pode_editar %}
                         <button type="button"

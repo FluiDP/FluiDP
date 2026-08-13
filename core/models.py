@@ -613,7 +613,6 @@ class Solicitacao(models.Model):
         return not self.logs.filter(acao__in=etapas_avancadas).exists()
 
     def can_edit_dp(self, user):
-        return False
         """
         Editar pelo usuário da administração, somente nos status pendente DP ou lançamento, 
         somente quando o editor for do DP.
