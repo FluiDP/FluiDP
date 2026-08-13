@@ -347,6 +347,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
         'pode_editar': solicitacao.can_edit(request.user),
         'pode_editar_dp': solicitacao.can_edit_dp(request.user),
         'pode_reverter': solicitacao.can_reverse_status(request.user),
+        'pode_comentar': solicitacao.can_comment(request.user),
     }
     
     return render(request, 'partials/_solicitacao_detalhes.html', context)

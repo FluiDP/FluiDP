@@ -8,10 +8,13 @@
 
     <div class="flex flex-1 flex-col gap-2 min-h-0">
         
-        <form hx-get="{% url 'gestor:solicitacoes' %}" 
+        <form id="filter-form"
+              hx-get="{% url 'gestor:solicitacoes' %}" 
               hx-target="#solicitacoes" 
               hx-swap="outerHTML"
-              hx-trigger="updateContent from:body"
+              hx-trigger="input from:input[type='text'] delay:500ms, change from:select, change from:input[type='date'], submit, updateContent from:body"
+              hx-push-url="true"
+              onsubmit="event.preventDefault();"
               class="flex flex-col gap-3">
             
             <div class="flex flex-row gap-2 items-center w-full">

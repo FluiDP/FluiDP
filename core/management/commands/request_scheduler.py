@@ -62,6 +62,7 @@ class Command(BaseCommand):
         
         count_escalonadas = 0
         count_canceladas = 0
+        count_arquivadas = 0
 
         for sol in solicitacoes_pendencia_secundaria:
             colega = sol.colaborador_secundario
@@ -156,7 +157,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(
                     f"{self.data_hora} - Solicitação #{sol.id} arquivada (finalizada em {sol.data_finalizacao.strftime('%d/%m/%Y')})."
                 ))
-
+                count_arquivadas += 1
         self.stdout.write(self.style.SUCCESS(f"{self.data_hora} - Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas e {count_canceladas} canceladas automaticamente."))
 
     def is_prox_gestor_na_hierarquia(self, lotacao_colaborador, gestor):

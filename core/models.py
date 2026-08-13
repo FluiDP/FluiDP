@@ -208,7 +208,7 @@ class Lotacao(models.Model):
                 return self.chefia
 
         if self.chefia_secundaria and not self.chefia_secundaria.is_ausente:
-            if solicitante is None or self.chefia_secundaria != solicitante:
+            if solicitante is None or (self.chefia_secundaria != solicitante and self.chefia != solicitante):
                 return self.chefia_secundaria
 
         if self.lotacao_pai:
@@ -564,6 +564,34 @@ class Solicitacao(models.Model):
     data = models.DateTimeField(auto_now_add=True)
 
     arquivado = models.BooleanField(verbose_name="Arquivar?", default=False)
+
+    def can_comment(self, user):
+        """
+        Qualquer usuário na posição de aprovador atual, o DP, ou o próprio colaborador pode comentar, desde que a solicitação não esteja finalizada.
+        """
+        is_dp = user.groups.filter(name='DP').exists()
+        is_aprovador_atual = (
+            self.status == self.StatusChoices.PENDENTE_ACEITE_SECUNDARIO and self.colaborador_secundario == user or
+            self.status == self.StatusChoices.PENDENTE_GESTOR and self.aprovador_atual == user or
+            self.status == self.StatusChoices.PENDENTE_DIRETOR and user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
+        )
+        is_colaborador = self.colaborador == user
+        is_ultimo_aprovador = False
+        ultimo_log = self.logs.filter(
+            acao__in=[
+                self.logs.model.AcaoChoices.APROVADO_GESTOR,
+                self.logs.model.AcaoChoices.RECUSADO_GESTOR,
+                self.logs.model.AcaoChoices.APROVADO_DIRETOR,
+                self.logs.model.AcaoChoices.RECUSADO_DIRETOR,
+                self.logs.model.AcaoChoices.APROVADO_DP,
+                self.logs.model.AcaoChoices.RECUSADO_DP,
+                self.logs.model.AcaoChoices.LANCADO,
+            ]
+        ).order_by('-data_acao').first()
+        if ultimo_log and ultimo_log.ator == user:
+            is_ultimo_aprovador = True
+
+        return not self.is_finalizada and (is_dp or is_aprovador_atual or is_ultimo_aprovador or is_colaborador)
 
     def can_edit(self, user):
         """

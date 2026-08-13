@@ -240,6 +240,23 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
     return nova_solicitacao
 
 @transaction.atomic
+def comentar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, comentario: str):
+    """
+    Adiciona um comentário à solicitação.
+    """
+    if not comentario.strip():
+        raise ValidationError("O comentário não pode estar vazio.")
+
+    registrar_log_acao(
+        solicitacao=solicitacao,
+        ator=ator,
+        acao=LogAprovacao.AcaoChoices.COMENTARIO,
+        detalhes=comentario
+    )
+
+    return solicitacao
+
+@transaction.atomic
 def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores: dict):
     """
     Edita os dados de uma solicitação existente.

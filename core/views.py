@@ -419,6 +419,42 @@ def relatorio_geral_view(request):
 # ==========================================
 
 @login_required
+def comentar_solicitacao_modal_view(request, solicitacao_id):
+    solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
+
+    if not solicitacao.can_comment(request.user):
+         return render(request, 'partials/_message_error.html', {
+             'message': 'Você não tem permissão para adicionar comentários nesta solicitação.'
+         })
+
+    if request.method == 'POST':
+        comentario = request.POST.get('comentario', '').strip()
+
+        if not comentario:
+            return render(request, 'partials/_message_error.html', {'message': 'O comentário não pode estar vazio.'})
+
+        try:
+            services.comentar_solicitacao(solicitacao, request.user, comentario)
+            msg = mark_safe('Comentário adicionado com sucesso!')
+            response = render(request, 'partials/_message_sucess.html', {'message': msg})
+            
+            response['HX-Trigger'] = 'updateContent' 
+            return response
+            
+        except ValidationError as e:
+            return render(request, 'partials/_message_error.html', {'message': str(e)})
+        except PermissionError as e:
+            return render(request, 'partials/_message_error.html', {'message': str(e)})
+        except Exception as e:
+            return render(request, 'partials/_message_error.html', {'message': f'Erro ao adicionar comentário: {e}'})
+
+    context = {
+        'solicitacao': solicitacao,
+        'action_url': reverse('comentar_solicitacao_modal', args=[solicitacao.id])
+    }
+    return render(request, 'partials/_solicitacao_comment_modal.html', context)
+
+@login_required
 def edit_solicitacao_modal_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     user = request.user

@@ -1,0 +1,97 @@
+{% load custom_filters %}
+
+<div x-data="{ open: true }" 
+     @keydown.escape.window="open = false"
+     @update-content.window="open = false"> {# Fecha o modal automaticamente quando o HTMX disparar sucesso no Django #}
+
+    <div x-show="open" 
+         style="z-index: 9998;"
+         @click="open = false"
+         class="fixed inset-0 flex items-center justify-center w-full h-[100dvh] p-3 sm:p-4 bg-[rgba(0,0,0,0.5)] backdrop-blur-sm transition-opacity"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+
+        <div id="modal-content"
+             @click.stop
+             x-show="open"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4 sm:translate-y-0"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-4 sm:translate-y-0"
+             class="relative w-full max-w-2xl max-h-[95dvh] flex flex-col overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-2xl transition-all">
+            
+            <div class="flex flex-col flex-1 min-h-0 max-h-[95dvh] w-full">
+                
+                {# Cabeçalho idêntico ao padrão dos detalhes #}
+                <div class="flex justify-between items-center shrink-0 bg-white border-b border-slate-100 px-5 sm:px-6 py-3 sm:py-4 z-10">
+                    <div class="flex flex-col">
+                        <h3 class="text-base sm:text-lg font-bold text-slate-800 pr-4 leading-tight">
+                            Adicionar Comentário
+                        </h3>
+                        <span class="text-[10px] sm:text-xs font-medium text-slate-400 mt-0.5">Solicitação #{{ solicitacao.id }}</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="open = false" class="text-slate-400 hover:text-red-500 transition-colors p-1.5 -mr-1.5 rounded-full hover:bg-red-50 shrink-0">
+                            <span class="sr-only">Fechar</span>
+                            <ion-icon name="close-outline" class="w-5 h-5 sm:w-6 sm:h-6"></ion-icon>
+                        </button>
+                    </div>
+                </div>
+
+                {# Formulário integrado com o container interno idêntico #}
+                <form id="form-comentario"
+                      hx-post="{{ action_url }}" 
+                      hx-target="#error-message-container" 
+                      hx-swap="innerHTML" 
+                      class="flex flex-col flex-1 min-h-0 w-full">
+                    {% csrf_token %}
+
+                    <div class="flex-1 overscroll-contain bg-slate-50/50 p-4 sm:p-5 overflow-y-auto">
+                        
+                        {# Bloco interno seguindo o padrão de card (White border-slate-200) #}
+                        <div class="bg-white border border-slate-200 shadow-sm rounded-xl p-4 mb-2">
+                            <h4 class="text-[11px] font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <ion-icon name="chatbubble-ellipses-outline" class="text-base"></ion-icon>
+                                Escreva sua mensagem
+                            </h4>
+                            
+                            {# Container reservado para exibir as mensagens de erro retornadas pela view #}
+                            <div id="error-message-container" class="w-full mb-2"></div>
+
+                            <div class="flex flex-col w-full">
+                                <textarea name="comentario" 
+                                          placeholder="Digite o motivo ou observação do seu comentário aqui..." 
+                                          required 
+                                          class="w-full rounded-xl border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none h-40 text-slate-700 placeholder-slate-400"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Rodapé de Ações fixado e alinhado como o grid do seu exemplo #}
+                    <div class="shrink-0 bg-white border-t border-slate-100 px-5 sm:px-6 py-3 sm:py-4 z-10">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full">
+                            <button type="button" 
+                                    @click="open = false" 
+                                    class="w-full flex justify-center items-center rounded-full px-4 sm:px-6 py-2.5 sm:py-3 text-sm font-semibold border border-primary text-primary shadow-sm hover:bg-indigo-50 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary transition-all">
+                                Cancelar
+                            </button>
+                            
+                            <button type="submit"
+                                    class="w-full flex justify-center items-center rounded-full bg-primary px-4 sm:px-6 py-2.5 sm:py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary transition-all">
+                                Confirmar Comentário
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
