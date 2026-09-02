@@ -1,0 +1,73 @@
+{% if notificacoes %}
+    <div class="sticky top-0 z-10 px-5 py-3 bg-white/95 backdrop-blur border-b border-slate-100 flex justify-end">
+        <button type="button"
+                hx-post="{% url 'marcar_todas_notificacoes_lidas' %}"
+                hx-target="#lista-notificacoes"
+                hx-swap="innerHTML"
+                class="text-xs font-semibold text-primary hover:underline">
+            Marcar todas como lidas
+        </button>
+    </div>
+    <div class="divide-y divide-slate-100">
+        {% for notificacao in notificacoes %}
+            <article id="notificacao-{{ notificacao.id }}"
+                     {% if not notificacao.visualizada_em %}style="background:#fff7f7;border-left:4px solid #ef4444;"{% endif %}
+                     class="relative p-5 hover:bg-slate-50 {% if not notificacao.visualizada_em %}bg-red-50/30{% endif %}">
+                {% if not notificacao.visualizada_em %}
+                    <span title="Notificação não lida"
+                          style="position:absolute;top:.75rem;right:.75rem;background:#ef4444;color:white;border-radius:9999px;padding:.125rem .45rem;font-size:.625rem;font-weight:700;line-height:1rem;">
+                        NOVA
+                    </span>
+                {% endif %}
+                <div class="flex gap-3">
+                    <div class="shrink-0 w-9 h-9 rounded-full bg-emphasis text-primary flex items-center justify-center">
+                        <ion-icon name="{% if notificacao.tipo == 'COMENTARIO' %}chatbubble-outline{% elif notificacao.tipo == 'RECUSADA' or notificacao.tipo == 'CANCELADA_SISTEMA' %}alert-circle-outline{% elif notificacao.tipo == 'APROVADA_DP' %}checkmark-circle-outline{% else %}notifications-outline{% endif %}"></ion-icon>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h3 class="font-semibold text-sm text-slate-900">{{ notificacao.titulo }}</h3>
+                        <p class="mt-1 text-sm text-slate-600 leading-relaxed">{{ notificacao.mensagem }}</p>
+                        <div class="mt-2 flex items-center justify-between gap-3 pr-1">
+                            <time class="text-xs text-slate-400">{{ notificacao.criada_em|date:'d/m/Y H:i' }}</time>
+                            <div class="flex items-center gap-3">
+                            {% if not notificacao.visualizada_em %}
+                                <button type="button"
+                                        hx-post="{% url 'marcar_notificacao_lida' notificacao.id %}"
+                                        hx-target="#lista-notificacoes"
+                                        hx-swap="innerHTML"
+                                        class="text-xs font-medium text-slate-500 hover:text-primary hover:underline">
+                                    Marcar como lida
+                                </button>
+                            {% endif %}
+                            {% if notificacao.solicitacao_id %}
+                                <button type="button"
+                                        onclick="fecharNotificacoes()"
+                                        hx-post="{% url 'abrir_notificacao' notificacao.id %}"
+                                        hx-target="#notificacoes-modal-spot"
+                                        hx-swap="innerHTML"
+                                        class="text-xs font-semibold text-primary hover:underline">
+                                    Ver solicitação
+                                </button>
+                            {% endif %}
+                                <button type="button"
+                                        title="Apagar notificação"
+                                        aria-label="Apagar notificação"
+                                        onclick="fecharNotificacoes()"
+                                        hx-get="{% url 'excluir_notificacao' notificacao.id %}"
+                                        hx-target="#notificacoes-modal-spot"
+                                        hx-swap="innerHTML"
+                                        class="text-slate-400 hover:text-red-600">
+                                    <ion-icon name="trash-outline"></ion-icon>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="h-full flex flex-col items-center justify-center px-6 text-center text-slate-400">
+        <ion-icon name="notifications-off-outline" class="text-4xl"></ion-icon>
+        <p class="mt-3 text-sm">Você ainda não possui notificações.</p>
+    </div>
+{% endif %}

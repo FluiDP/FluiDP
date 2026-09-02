@@ -72,10 +72,9 @@
 
                         {% if pode_cancelar %}
                         <button type="button"
-                                hx-post="{% url 'cancelar_solicitacao' solicitacao.id %}"
+                                hx-get="{% url 'cancelar_solicitacao' solicitacao.id %}"
                                 hx-target="#modal-spot"
                                 hx-swap="innerHTML"
-                                hx-confirm="Tem certeza que deseja cancelar esta solicitação?"
                                 class="text-slate-400 hover:text-red-600 transition-colors p-1.5 rounded-full hover:bg-red-50 shrink-0"
                                 title="Cancelar Solicitação">
                             <ion-icon name="ban-outline" class="w-5 h-5"></ion-icon>

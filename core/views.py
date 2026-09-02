@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 from pathlib import Path
 from shutil import copy
@@ -22,11 +23,92 @@ from django.views.decorators.http import require_POST
 from core import services
 from core.services import get_config, set_config
 from .decorators import dp_required
-from .models import Cargo, CustomUser, Lotacao, Solicitacao
+from .models import Cargo, CustomUser, Lotacao, Notificacao, Solicitacao
 from .forms import CustomPasswordResetForm
 
 User = get_user_model()
 BASE_DIR = getattr(settings, 'BASE_DIR', Path(__file__).resolve().parent.parent)
+
+
+@login_required
+@require_POST
+def visualizar_notificacoes_view(request):
+    return _renderizar_notificacoes(request)
+
+
+def _renderizar_notificacoes(request):
+    notificacoes = request.user.notificacoes.select_related(
+        'solicitacao', 'solicitacao__tipo_documento'
+    )[:50]
+    response = render(request, 'partials/_notificacoes_lista.html', {'notificacoes': notificacoes})
+    response['HX-Trigger'] = json.dumps({
+        'notificacoesAtualizadas': {
+            'temNaoLidas': request.user.notificacoes.filter(visualizada_em__isnull=True).exists()
+        }
+    })
+    return response
+
+
+@login_required
+@require_POST
+def marcar_notificacao_lida_view(request, notificacao_id):
+    notificacao = get_object_or_404(Notificacao, pk=notificacao_id, destinatario=request.user)
+    if notificacao.visualizada_em is None:
+        notificacao.visualizada_em = timezone.now()
+        notificacao.save(update_fields=['visualizada_em'])
+    return _renderizar_notificacoes(request)
+
+
+@login_required
+@require_POST
+def marcar_todas_notificacoes_lidas_view(request):
+    request.user.notificacoes.filter(visualizada_em__isnull=True).update(
+        visualizada_em=timezone.now()
+    )
+    return _renderizar_notificacoes(request)
+
+
+@login_required
+def excluir_notificacao_view(request, notificacao_id):
+    notificacao = get_object_or_404(Notificacao, pk=notificacao_id, destinatario=request.user)
+    if request.method != 'POST':
+        return render(request, 'partials/_generic_confirm_modal.html', {
+            'modal_title': 'Apagar notificação',
+            'message': f'Deseja apagar a notificação <strong>{notificacao.titulo}</strong>?',
+            'action_url': reverse('excluir_notificacao', args=[notificacao.id]),
+            'submit_text': 'Apagar',
+            'color': 'red',
+            'icon_name': 'trash',
+            'hx_target': '#lista-notificacoes',
+            'after_request': "document.getElementById('notificacoes-modal-spot').innerHTML = ''",
+        })
+    notificacao.excluida_em = timezone.now()
+    notificacao.save(update_fields=['excluida_em'])
+    return _renderizar_notificacoes(request)
+
+
+@login_required
+@require_POST
+def abrir_notificacao_view(request, notificacao_id):
+    notificacao = get_object_or_404(
+        Notificacao.objects.select_related('solicitacao'),
+        pk=notificacao_id,
+        destinatario=request.user,
+    )
+    if not notificacao.solicitacao_id:
+        raise ValidationError('Esta notificação não possui uma solicitação relacionada.')
+    if notificacao.visualizada_em is None:
+        notificacao.visualizada_em = timezone.now()
+        notificacao.save(update_fields=['visualizada_em'])
+
+    from .views_colaborador import get_solicitacao_detalhes_view
+    response = get_solicitacao_detalhes_view(request, notificacao.solicitacao_id)
+    response['HX-Trigger'] = json.dumps({
+        'notificacoesAtualizadas': {
+            'temNaoLidas': request.user.notificacoes.filter(visualizada_em__isnull=True).exists()
+        }
+    })
+    return response
 
 def is_mobile(request):
     user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
@@ -596,10 +678,20 @@ def edit_solicitacao_modal_view(request, solicitacao_id):
     }
     return render(request, template_name, context)
 
-@require_POST
 @login_required
 def cancelar_solicitacao_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
+    if request.method != 'POST':
+        if not solicitacao.can_cancel(request.user):
+            raise PermissionDenied('Você não tem permissão para cancelar esta solicitação.')
+        return render(request, 'partials/_generic_confirm_modal.html', {
+            'modal_title': 'Cancelar solicitação',
+            'message': f'Deseja cancelar a solicitação <strong>#{solicitacao.id}</strong>? Esta ação não poderá ser desfeita.',
+            'action_url': reverse('cancelar_solicitacao', args=[solicitacao.id]),
+            'submit_text': 'Cancelar solicitação',
+            'color': 'red',
+            'icon_name': 'ban',
+        })
     detalhes = request.POST.get('detalhes', '').strip()
 
     try:

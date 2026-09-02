@@ -1,9 +1,10 @@
 import os
 import re
+from datetime import timedelta
 from email.mime.image import MIMEImage
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from .models import Config, LogAprovacao, Solicitacao, Cargo, CustomUser, TipoDocumento, Lotacao
+from .models import Config, LogAprovacao, Notificacao, Solicitacao, Cargo, CustomUser, TipoDocumento, Lotacao
 import pandas as pd
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.contrib.auth import get_user_model
@@ -16,6 +17,83 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.urls import reverse
 from django.db.models import Q
+from django.utils import timezone
+
+
+def criar_notificacao(destinatario, tipo, titulo, mensagem, solicitacao=None, chave=None):
+    """Cria uma notificação interna; a chave torna eventos periódicos idempotentes."""
+    if not destinatario:
+        return None
+    notificacao, _ = Notificacao.todos_objetos.get_or_create(
+        chave=chave,
+        defaults={
+            'destinatario': destinatario,
+            'solicitacao': solicitacao,
+            'tipo': tipo,
+            'titulo': titulo,
+            'mensagem': mensagem,
+        },
+    ) if chave else (Notificacao.objects.create(
+        destinatario=destinatario,
+        solicitacao=solicitacao,
+        tipo=tipo,
+        titulo=titulo,
+        mensagem=mensagem,
+    ), True)
+    return notificacao
+
+
+def notificar_cancelamento_automatico(solicitacao, motivo):
+    """Ponto de integração para as futuras rotinas de cancelamento automático."""
+    return criar_notificacao(
+        solicitacao.colaborador,
+        Notificacao.TipoChoices.CANCELADA_SISTEMA,
+        'Solicitação cancelada pelo sistema',
+        f'A solicitação #{solicitacao.pk} foi cancelada automaticamente: {motivo}.',
+        solicitacao,
+    )
+
+
+def criar_resumos_semanais(data_referencia=None):
+    """Gera uma notificação semanal por gestor/diretor com pendências atuais."""
+    hoje = data_referencia or timezone.localdate()
+    inicio_semana = hoje - timedelta(days=hoje.weekday())
+    usuarios = CustomUser.objects.filter(
+        is_active=True,
+        cargo__hierarquia__in=[Cargo.HierarquiaChoices.DIRETOR, Cargo.HierarquiaChoices.GERENTE,
+                              Cargo.HierarquiaChoices.COORDENADOR],
+    ).select_related('cargo')
+    criadas = 0
+    for usuario in usuarios:
+        criadas += int(criar_resumo_semanal_usuario(usuario, inicio_semana))
+    return criadas
+
+
+def criar_resumo_semanal_usuario(usuario, inicio_semana=None):
+    """Cria, no máximo, um resumo por usuário em cada semana."""
+    if not usuario.cargo or usuario.cargo.hierarquia not in [
+        Cargo.HierarquiaChoices.DIRETOR,
+        Cargo.HierarquiaChoices.GERENTE,
+        Cargo.HierarquiaChoices.COORDENADOR,
+    ]:
+        return False
+    inicio_semana = inicio_semana or (timezone.localdate() - timedelta(days=timezone.localdate().weekday()))
+    quantidade = obter_pendencias_do_usuario(usuario).filter(
+        status__in=[Solicitacao.StatusChoices.PENDENTE_GESTOR,
+                    Solicitacao.StatusChoices.PENDENTE_DIRETOR]
+    ).count()
+    if not quantidade:
+        return False
+    _, criada = Notificacao.todos_objetos.get_or_create(
+        chave=f'resumo-semanal:{usuario.pk}:{inicio_semana.isoformat()}',
+        defaults={
+            'destinatario': usuario,
+            'tipo': Notificacao.TipoChoices.RESUMO_SEMANAL,
+            'titulo': 'Resumo semanal de aprovações',
+            'mensagem': f'Você possui {quantidade} solicitação(ões) aguardando sua aprovação.',
+        },
+    )
+    return criada
 
 def obter_pendencias_do_usuario(user):
     """
@@ -158,6 +236,15 @@ def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, request_user
 
     registrar_log_acao(solicitacao, ator, acao_log, detalhes)
 
+    if novo_status == Solicitacao.StatusChoices.FINALIZADO:
+        criar_notificacao(
+            solicitacao.colaborador,
+            Notificacao.TipoChoices.APROVADA_DP,
+            'Solicitação aprovada pelo DP',
+            f'Sua solicitação #{solicitacao.pk} foi aprovada pelo Departamento Pessoal.',
+            solicitacao,
+        )
+
     return solicitacao
 
 @transaction.atomic
@@ -181,6 +268,14 @@ def recusar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, detalhes: st
 
     registrar_log_acao(solicitacao, ator, acao_log, detalhes)
 
+    criar_notificacao(
+        solicitacao.colaborador,
+        Notificacao.TipoChoices.RECUSADA,
+        'Solicitação recusada',
+        f'Sua solicitação #{solicitacao.pk} foi recusada por {ator.get_full_name() or ator.username}.',
+        solicitacao,
+    )
+
     return solicitacao
 
 @transaction.atomic
@@ -189,6 +284,8 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
     Cria a solicitação, define o fluxo inicial (Substituto ou Gestor) e gera o log.
     """
     
+    valores = dados_preenchidos.get('values', {})
+    mes_referencia = tipo_documento.validar_regras(valores)
     id_colaborador_secundario = None
     
     for campo in esquema_formulario:
@@ -202,7 +299,8 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
     nova_solicitacao = Solicitacao(
         colaborador=colaborador,
         tipo_documento=tipo_documento,
-        dados_preenchidos=dados_preenchidos
+        dados_preenchidos=dados_preenchidos,
+        mes_referencia=mes_referencia,
     )
 
     if id_colaborador_secundario:
@@ -237,6 +335,22 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
         acao=LogAprovacao.AcaoChoices.CRIACAO,
     )
 
+    criar_notificacao(
+        colaborador,
+        Notificacao.TipoChoices.SOLICITACAO_ABERTA,
+        'Solicitação aberta com sucesso',
+        f'Sua solicitação #{nova_solicitacao.pk} de {tipo_documento.nome_documento} foi registrada.',
+        nova_solicitacao,
+    )
+    if nova_solicitacao.status == Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO:
+        criar_notificacao(
+            nova_solicitacao.colaborador_secundario,
+            Notificacao.TipoChoices.PENDENCIA_SECUNDARIO,
+            'Nova solicitação aguardando seu aceite',
+            f'A solicitação #{nova_solicitacao.pk} de {colaborador.get_full_name() or colaborador.username} aguarda seu aceite.',
+            nova_solicitacao,
+        )
+
     return nova_solicitacao
 
 @transaction.atomic
@@ -253,6 +367,23 @@ def comentar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, comentario:
         acao=LogAprovacao.AcaoChoices.COMENTARIO,
         detalhes=comentario
     )
+
+    destinatarios_ids = {
+        solicitacao.colaborador_id,
+        solicitacao.colaborador_secundario_id,
+        solicitacao.aprovador_atual_id,
+        *solicitacao.logs.exclude(ator=ator).values_list('ator_id', flat=True),
+    }
+    destinatarios_ids.discard(None)
+    destinatarios_ids.discard(ator.pk)
+    for destinatario in CustomUser.objects.filter(pk__in=destinatarios_ids, is_active=True):
+        criar_notificacao(
+            destinatario,
+            Notificacao.TipoChoices.COMENTARIO,
+            'Novo comentário na solicitação',
+            f'{ator.get_full_name() or ator.username} comentou na solicitação #{solicitacao.pk}.',
+            solicitacao,
+        )
 
     return solicitacao
 

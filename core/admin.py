@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Cargo, Lotacao, TipoDocumento, Solicitacao, LogAprovacao
+from .models import CustomUser, Cargo, Lotacao, TipoDocumento, Solicitacao, LogAprovacao, Notificacao
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = (
@@ -48,7 +48,7 @@ class TipoDocumentoAdmin(admin.ModelAdmin):
 
 @admin.register(Solicitacao)
 class SolicitacaoAdmin(admin.ModelAdmin):
-    list_display = ('id', '__str__', 'status', 'colaborador', 'aprovador_atual')
+    list_display = ('id', '__str__', 'status', 'colaborador', 'mes_referencia', 'aprovador_atual')
     search_fields = ('colaborador__username', 'tipo_documento__nome_documento')
     list_filter = ('status', 'tipo_documento')
 
@@ -57,3 +57,14 @@ class LogAprovacaoAdmin(admin.ModelAdmin):
     list_display = ('solicitacao', 'acao', 'ator', 'data_acao')
     list_filter = ('acao',)
     readonly_fields = ('solicitacao', 'ator', 'acao', 'data_acao', 'detalhes')
+
+
+@admin.register(Notificacao)
+class NotificacaoAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'destinatario', 'tipo', 'criada_em', 'visualizada_em', 'excluida_em')
+    list_filter = ('tipo', 'visualizada_em', 'excluida_em')
+    search_fields = ('titulo', 'mensagem', 'destinatario__username')
+    readonly_fields = ('criada_em', 'visualizada_em', 'excluida_em')
+
+    def get_queryset(self, request):
+        return Notificacao.todos_objetos.all()

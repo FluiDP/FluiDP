@@ -1,4 +1,5 @@
 import re
+import calendar
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
@@ -7,7 +8,7 @@ from django.forms import ValidationError
 from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
 from jsonschema import validate
 from django.core.validators import MinValueValidator, MaxValueValidator
-from datetime import timedelta, datetime
+from datetime import date, timedelta, datetime
 
 FORM_SCHEMA = {
     "type": "array",
@@ -31,6 +32,10 @@ FORM_SCHEMA = {
             "is_event_date": {
                 "type": "boolean",
                 "description": "Se True, usa este campo para validar o limite de dias de antecedência."
+            },
+            "reference_month_date": {
+                "type": "boolean",
+                "description": "Se True, exige que a data pertença ao mês de referência da solicitação."
             },
 
             "sub_fields": {
@@ -325,6 +330,10 @@ class CustomUser(AbstractUser):
         return self.first_name  + ' (' + self.matricula + ')' if self.first_name and self.matricula else self.first_name or self.username
 
 class TipoDocumento(models.Model):
+    class TipoReferenciaChoices(models.TextChoices):
+        NENHUMA = 'NENHUMA', 'Sem referência mensal'
+        MENSAL = 'MENSAL', 'Referência mensal'
+
     class Meta:
         verbose_name = "Tipo de Documento"
         verbose_name_plural = "Tipos de Documento"
@@ -354,6 +363,34 @@ class TipoDocumento(models.Model):
         verbose_name="Dias de antecedência necessários",
         null=True, blank=True,
         help_text="Mínimo de dias entre hoje e a data do evento (ex: troca de plantão)."
+    )
+
+    tipo_referencia = models.CharField(
+        max_length=20,
+        choices=TipoReferenciaChoices.choices,
+        default=TipoReferenciaChoices.NENHUMA,
+        verbose_name="Tipo de referência",
+        help_text="Use referência mensal para documentos cuja janela começa no mês anterior."
+    )
+
+    dia_abertura_mes_anterior = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+        verbose_name="Dia de abertura no mês anterior",
+        help_text="Ex.: 25 abre solicitações para o mês seguinte."
+    )
+
+    dia_limite_mes_referencia = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+        verbose_name="Dia limite no mês de referência",
+        help_text="Último dia para solicitar no próprio mês de referência."
+    )
+
+    restringir_datas_ao_mes_referencia = models.BooleanField(
+        default=False,
+        verbose_name="Restringir datas ao mês de referência",
+        help_text="Exige que os campos marcados no schema pertençam ao mês de referência."
     )
     
     definicao_formulario = models.JSONField(default=list, blank=True)
@@ -396,8 +433,29 @@ class TipoDocumento(models.Model):
         if (self.dia_inicio and not self.dia_fim) or (self.dia_fim and not self.dia_inicio):
             raise ValidationError("Para restringir datas, preencha tanto o dia de início quanto o dia de fim. Se não quiser restringir indique dia 1 como dia de início e dia 31 como dia de fim.")
 
+        if self.tipo_referencia == self.TipoReferenciaChoices.MENSAL:
+            if not self.dia_abertura_mes_anterior or not self.dia_limite_mes_referencia:
+                raise ValidationError(
+                    "Para referência mensal, informe o dia de abertura no mês anterior e o dia limite no mês de referência."
+                )
+            if self.dia_abertura_mes_anterior <= self.dia_limite_mes_referencia:
+                raise ValidationError(
+                    "O dia de abertura no mês anterior deve ser maior que o dia limite do mês de referência."
+                )
+            if self.restringir_datas_ao_mes_referencia and not any(
+                campo.get('reference_month_date') for campo in self.definicao_formulario
+            ):
+                raise ValidationError(
+                    "Marque ao menos um campo do formulário com 'reference_month_date' para restringir datas ao mês de referência."
+                )
+
     @property
     def periodo_abertura_texto(self):
+        if self.tipo_referencia == self.TipoReferenciaChoices.MENSAL:
+            return (
+                f"Dia {self.dia_abertura_mes_anterior} do mês anterior ao dia "
+                f"{self.dia_limite_mes_referencia} do mês de referência"
+            )
         if self.dia_inicio and self.dia_fim:
             return f"Dia {self.dia_inicio} ao dia {self.dia_fim} de todo mês"
         return "Disponível o mês todo"
@@ -406,17 +464,49 @@ class TipoDocumento(models.Model):
         """
         Verifica se o dia de hoje está dentro do intervalo configurado.
         """
+        data_consulta = date or timezone.localdate()
+        if isinstance(data_consulta, datetime):
+            data_consulta = data_consulta.date()
+
+        if self.tipo_referencia == self.TipoReferenciaChoices.MENSAL:
+            return self.obter_mes_referencia(data_consulta) is not None
+
         if not (self.dia_inicio and self.dia_fim):
             return True
 
-        dia = date.day if date is not None else timezone.now().day
+        dia = data_consulta.day
 
         if self.dia_inicio <= self.dia_fim:
             return self.dia_inicio <= dia <= self.dia_fim
         elif self.dia_inicio > self.dia_fim:
             return (self.dia_inicio <= dia <= 31) or (1 <= dia <= self.dia_fim)
 
-    def validar_regras(self, dados_valores):
+    @staticmethod
+    def _primeiro_dia_mes_seguinte(data_base):
+        if data_base.month == 12:
+            return date(data_base.year + 1, 1, 1)
+        return date(data_base.year, data_base.month + 1, 1)
+
+    def obter_mes_referencia(self, data_solicitacao=None):
+        """Retorna o primeiro dia do mês de referência ou None fora da janela."""
+        if self.tipo_referencia != self.TipoReferenciaChoices.MENSAL:
+            return None
+
+        data_solicitacao = data_solicitacao or timezone.localdate()
+        if isinstance(data_solicitacao, datetime):
+            data_solicitacao = data_solicitacao.date()
+
+        ultimo_dia = calendar.monthrange(data_solicitacao.year, data_solicitacao.month)[1]
+        dia_abertura = min(self.dia_abertura_mes_anterior, ultimo_dia)
+        dia_limite = min(self.dia_limite_mes_referencia, ultimo_dia)
+
+        if data_solicitacao.day >= dia_abertura:
+            return self._primeiro_dia_mes_seguinte(data_solicitacao)
+        if data_solicitacao.day <= dia_limite:
+            return data_solicitacao.replace(day=1)
+        return None
+
+    def validar_regras(self, dados_valores, data_solicitacao=None):
         """
         Valida as regras de negócio para uma nova solicitação:
         1. Janela de Abertura (Dia do Mês).
@@ -428,32 +518,50 @@ class TipoDocumento(models.Model):
                 f"O tipo de documento '{self.nome_documento}' foi descontinuado e não aceita novas solicitações."
             )
 
-        if not self.esta_no_periodo():
+        data_solicitacao = data_solicitacao or timezone.localdate()
+        if isinstance(data_solicitacao, datetime):
+            data_solicitacao = data_solicitacao.date()
+
+        if not self.esta_no_periodo(data_solicitacao):
             raise ValidationError(
-                f"Este tipo de documento só aceita solicitações entre os dias {self.dia_inicio} e {self.dia_fim} de cada mês."
+                f"Este tipo de documento só aceita solicitações no período: {self.periodo_abertura_texto}."
             )
 
-        if self.limite_dias_antecedencia is not None and self.limite_dias_antecedencia > 0:
-            campo_evento = next((campo for campo in self.definicao_formulario if campo.get('is_event_date')), None)
-            
-            if campo_evento:
-                nome_campo = campo_evento.get('name')
-                valor_str = dados_valores.get(nome_campo)
-                
-                if valor_str:
-                    try:
-                        data_evento = datetime.strptime(valor_str, "%Y-%m-%d").date()
-                        hoje = timezone.now().date()
-                        
-                        data_minima = hoje + timedelta(days=self.limite_dias_antecedencia)
-                        
-                        if data_evento < data_minima:
-                            raise ValidationError(
-                                f"A data escolhida ({data_evento.strftime('%d/%m/%Y')}) não respeita a antecedência mínima de {self.limite_dias_antecedencia} dias. "
-                                f"Selecione uma data a partir de {data_minima.strftime('%d/%m/%Y')}."
-                            )
-                    except ValueError:
-                        pass 
+        mes_referencia = self.obter_mes_referencia(data_solicitacao)
+        for campo in self.definicao_formulario:
+            valida_antecedencia = campo.get('is_event_date')
+            valida_referencia = (
+                self.restringir_datas_ao_mes_referencia and campo.get('reference_month_date')
+            )
+            if not (valida_antecedencia or valida_referencia):
+                continue
+
+            valor_str = dados_valores.get(campo.get('name'))
+            if not valor_str:
+                continue
+            try:
+                data_evento = datetime.strptime(valor_str, "%Y-%m-%d").date()
+            except (TypeError, ValueError):
+                raise ValidationError(f"A data informada em '{campo.get('label')}' é inválida.")
+
+            if valida_antecedencia and self.limite_dias_antecedencia and self.limite_dias_antecedencia > 0:
+                data_minima = data_solicitacao + timedelta(days=self.limite_dias_antecedencia)
+                if data_evento < data_minima:
+                    raise ValidationError(
+                        f"A data de '{campo.get('label')}' ({data_evento.strftime('%d/%m/%Y')}) não respeita "
+                        f"a antecedência mínima de {self.limite_dias_antecedencia} dias. "
+                        f"Selecione uma data a partir de {data_minima.strftime('%d/%m/%Y')}."
+                    )
+
+            if valida_referencia and mes_referencia and (
+                data_evento.year != mes_referencia.year or data_evento.month != mes_referencia.month
+            ):
+                raise ValidationError(
+                    f"A data de '{campo.get('label')}' deve pertencer ao mês de referência "
+                    f"{mes_referencia.strftime('%m/%Y')}."
+                )
+
+        return mes_referencia
 
     def is_empty_form(self):
         return len(self.definicao_formulario) == 0
@@ -560,6 +668,12 @@ class Solicitacao(models.Model):
     )
 
     dados_preenchidos = models.JSONField(verbose_name="Dados Preenchidos", default=dict, blank=True)
+
+    mes_referencia = models.DateField(
+        null=True, blank=True,
+        verbose_name="Mês de referência",
+        help_text="Armazenado como o primeiro dia do mês para preservar o histórico da regra aplicada."
+    )
 
     data = models.DateTimeField(auto_now_add=True)
 
@@ -745,7 +859,7 @@ class Solicitacao(models.Model):
             if not valores and isinstance(self.dados_preenchidos, dict):
                 valores = self.dados_preenchidos
 
-            self.tipo_documento.validar_regras(valores)
+            self.mes_referencia = self.tipo_documento.validar_regras(valores)
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -753,6 +867,56 @@ class Solicitacao(models.Model):
 
     def __str__(self):
         return f"Solicitação {self.id} - {self.tipo_documento.nome_documento} - {self.status}"
+
+class NotificacaoAtivaManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(excluida_em__isnull=True)
+
+
+class Notificacao(models.Model):
+    class TipoChoices(models.TextChoices):
+        SOLICITACAO_ABERTA = 'SOLICITACAO_ABERTA', 'Solicitação aberta'
+        PENDENCIA_SECUNDARIO = 'PENDENCIA_SECUNDARIO', 'Pendente de aceite'
+        RESUMO_SEMANAL = 'RESUMO_SEMANAL', 'Resumo semanal'
+        APROVADA_DP = 'APROVADA_DP', 'Aprovada pelo DP'
+        RECUSADA = 'RECUSADA', 'Solicitação recusada'
+        COMENTARIO = 'COMENTARIO', 'Comentário adicionado'
+        CANCELADA_SISTEMA = 'CANCELADA_SISTEMA', 'Cancelada pelo sistema'
+
+    destinatario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notificacoes',
+    )
+    solicitacao = models.ForeignKey(
+        Solicitacao,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='notificacoes',
+    )
+    tipo = models.CharField(max_length=30, choices=TipoChoices.choices)
+    titulo = models.CharField(max_length=150)
+    mensagem = models.TextField()
+    criada_em = models.DateTimeField(auto_now_add=True)
+    visualizada_em = models.DateTimeField(null=True, blank=True)
+    excluida_em = models.DateTimeField(null=True, blank=True)
+    chave = models.CharField(max_length=180, null=True, blank=True, unique=True)
+
+    objects = NotificacaoAtivaManager()
+    todos_objetos = models.Manager()
+
+    class Meta:
+        ordering = ['-criada_em']
+        indexes = [
+            models.Index(fields=['destinatario', 'visualizada_em', '-criada_em']),
+        ]
+        verbose_name = 'Notificação'
+        verbose_name_plural = 'Notificações'
+
+    def __str__(self):
+        return f'{self.titulo} para {self.destinatario}'
+
 
 class LogAprovacao(models.Model):
     class Meta:

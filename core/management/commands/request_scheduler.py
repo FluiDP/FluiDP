@@ -158,7 +158,15 @@ class Command(BaseCommand):
                     f"{self.data_hora} - Solicitação #{sol.id} arquivada (finalizada em {sol.data_finalizacao.strftime('%d/%m/%Y')})."
                 ))
                 count_arquivadas += 1
-        self.stdout.write(self.style.SUCCESS(f"{self.data_hora} - Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas e {count_canceladas} canceladas automaticamente."))
+        resumos_criados = 0
+        if timezone.localdate().weekday() == 0:
+            from core.services import criar_resumos_semanais
+            resumos_criados = criar_resumos_semanais()
+
+        self.stdout.write(self.style.SUCCESS(
+            f"{self.data_hora} - Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas, "
+            f"{count_canceladas} canceladas automaticamente e {resumos_criados} resumos semanais criados."
+        ))
 
     def is_prox_gestor_na_hierarquia(self, lotacao_colaborador, gestor):
         """
