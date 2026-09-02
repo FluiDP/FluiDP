@@ -1,5 +1,6 @@
 import os
 import re
+import logging
 from datetime import timedelta
 from email.mime.image import MIMEImage
 from django.db import transaction
@@ -19,27 +20,81 @@ from django.urls import reverse
 from django.db.models import Q
 from django.utils import timezone
 
+logger = logging.getLogger(__name__)
+
+
+def enviar_email_notificacao(notificacao_id):
+    """Envia o e-mail correspondente sem propagar falhas para o fluxo principal."""
+    try:
+        notificacao = Notificacao.todos_objetos.select_related(
+            'destinatario', 'solicitacao', 'solicitacao__tipo_documento'
+        ).get(pk=notificacao_id)
+        destinatario = notificacao.destinatario
+        if not destinatario.email:
+            return False
+
+        url_fluidp = f"{settings.SITE_URL.rstrip('/')}{reverse('painel')}"
+        contexto = {
+            'notificacao': notificacao,
+            'nome_usuario': destinatario.first_name or destinatario.username,
+            'url_fluidp': url_fluidp,
+            'tema': get_config(),
+        }
+        html_content = render_to_string('emails/_notificacao.html', contexto)
+        email = EmailMultiAlternatives(
+            subject=f'FluiDP | {notificacao.titulo}',
+            body=strip_tags(html_content),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[destinatario.email],
+        )
+        email.attach_alternative(html_content, 'text/html')
+
+        logo_path = os.path.join(settings.BASE_DIR, 'staticfiles', 'images', 'header-logo-slate-400.png')
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as img_file:
+                logo = MIMEImage(img_file.read())
+                logo.add_header('Content-ID', '<logo_fluidp>')
+                logo.add_header('Content-Disposition', 'inline')
+                email.attach(logo)
+                email.mixed_subtype = 'related'
+
+        email.send(fail_silently=False)
+        return True
+    except Exception:
+        logger.exception('Falha ao enviar e-mail da notificação %s.', notificacao_id)
+        return False
+
+
+def _agendar_email_notificacao(notificacao):
+    transaction.on_commit(lambda: enviar_email_notificacao(notificacao.pk))
+
 
 def criar_notificacao(destinatario, tipo, titulo, mensagem, solicitacao=None, chave=None):
     """Cria uma notificação interna; a chave torna eventos periódicos idempotentes."""
     if not destinatario:
         return None
-    notificacao, _ = Notificacao.todos_objetos.get_or_create(
-        chave=chave,
-        defaults={
-            'destinatario': destinatario,
-            'solicitacao': solicitacao,
-            'tipo': tipo,
-            'titulo': titulo,
-            'mensagem': mensagem,
-        },
-    ) if chave else (Notificacao.objects.create(
-        destinatario=destinatario,
-        solicitacao=solicitacao,
-        tipo=tipo,
-        titulo=titulo,
-        mensagem=mensagem,
-    ), True)
+    if chave:
+        notificacao, criada = Notificacao.todos_objetos.get_or_create(
+            chave=chave,
+            defaults={
+                'destinatario': destinatario,
+                'solicitacao': solicitacao,
+                'tipo': tipo,
+                'titulo': titulo,
+                'mensagem': mensagem,
+            },
+        )
+    else:
+        notificacao = Notificacao.objects.create(
+            destinatario=destinatario,
+            solicitacao=solicitacao,
+            tipo=tipo,
+            titulo=titulo,
+            mensagem=mensagem,
+        )
+        criada = True
+    if criada:
+        _agendar_email_notificacao(notificacao)
     return notificacao
 
 
@@ -84,7 +139,7 @@ def criar_resumo_semanal_usuario(usuario, inicio_semana=None):
     ).count()
     if not quantidade:
         return False
-    _, criada = Notificacao.todos_objetos.get_or_create(
+    notificacao, criada = Notificacao.todos_objetos.get_or_create(
         chave=f'resumo-semanal:{usuario.pk}:{inicio_semana.isoformat()}',
         defaults={
             'destinatario': usuario,
@@ -93,6 +148,8 @@ def criar_resumo_semanal_usuario(usuario, inicio_semana=None):
             'mensagem': f'Você possui {quantidade} solicitação(ões) aguardando sua aprovação.',
         },
     )
+    if criada:
+        _agendar_email_notificacao(notificacao)
     return criada
 
 def obter_pendencias_do_usuario(user):
