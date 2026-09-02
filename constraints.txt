@@ -1,0 +1,5 @@
+# Versões críticas alinhadas ao ambiente atualmente em produção.
+# Atualize-as apenas em uma manutenção própria, com backup e teste de migrations.
+Django==4.2.29
+django-q2==1.7.6
+gunicorn==23.0.0

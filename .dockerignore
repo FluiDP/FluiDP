@@ -14,4 +14,7 @@ node_modules/
 theme/static_src/node_modules/
 package-lock.json
 staticfiles/
+staticfiles_prod/
 media/
+logs/
+import/

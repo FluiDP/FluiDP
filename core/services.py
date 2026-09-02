@@ -49,7 +49,7 @@ def enviar_email_notificacao(notificacao_id):
         )
         email.attach_alternative(html_content, 'text/html')
 
-        logo_path = os.path.join(settings.BASE_DIR, 'staticfiles', 'images', 'header-logo-slate-400.png')
+        logo_path = os.path.join(settings.STATIC_ROOT, 'images', 'header-logo-slate-400.png')
         if os.path.exists(logo_path):
             with open(logo_path, 'rb') as img_file:
                 logo = MIMEImage(img_file.read())
@@ -66,7 +66,14 @@ def enviar_email_notificacao(notificacao_id):
 
 
 def _agendar_email_notificacao(notificacao):
-    transaction.on_commit(lambda: enviar_email_notificacao(notificacao.pk))
+    def enfileirar():
+        try:
+            from django_q.tasks import async_task
+            async_task('core.services.enviar_email_notificacao', notificacao.pk)
+        except Exception:
+            logger.exception('Falha ao colocar o e-mail da notificação %s na fila.', notificacao.pk)
+
+    transaction.on_commit(enfileirar)
 
 
 def criar_notificacao(destinatario, tipo, titulo, mensagem, solicitacao=None, chave=None):
@@ -764,7 +771,7 @@ def new_collaborator_email(instance):
         
         email.mixed_subtype = 'related'
         
-        logo_path = os.path.join(settings.BASE_DIR, 'staticfiles', 'images', 'header-logo-slate-400.png')
+        logo_path = os.path.join(settings.STATIC_ROOT, 'images', 'header-logo-slate-400.png')
         
         try:
             with open(logo_path, 'rb') as img_file:
