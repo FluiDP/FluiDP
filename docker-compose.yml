@@ -31,7 +31,7 @@ services:
       - ./staticfiles:/app/staticfiles_prod:ro
       - ./media:/app/media
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/login/"]
+      test: ["CMD-SHELL", "curl --fail --silent --output /dev/null --header 'Host: $${HEALTHCHECK_HOST:-fluidp.intranet.com}' http://127.0.0.1:8000/login/"]
       interval: 30s
       timeout: 5s
       retries: 5
