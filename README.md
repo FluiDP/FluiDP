@@ -2,6 +2,11 @@
 
 O **FluiDP** é um gerenciador de fluxo de solicitações ao Departamento Pessoal (DP). Essas solicitações são vinculadas aos colaboradores interessados e ao tipo do documento, além de passar pela aprovação da chefia imediata, do diretor responsável e do DP.
 
+## Documentação
+
+- [Guia resumido de modificações](docs/GUIA_MODIFICACOES.md)
+- [Manual de utilização](docs/MANUAL_USUARIO.md)
+
 ---
 
 ## Desenvolvimento Local (Sem Docker)
@@ -62,8 +67,8 @@ No Linux, `host.docker.internal` é mapeado pelo Compose para o host. O PostgreS
 Os serviços são separados por responsabilidade:
 
 - `migrate`: aplica migrations, compila o Tailwind e coleta os arquivos estáticos; termina após concluir.
-- `web`: inicia o Gunicorn somente depois que `migrate` termina com sucesso.
-- `worker`: processa a fila e os e-mails pelo Django Q depois que `migrate` termina.
+- `web`: executa o Gunicorn; o restart comum não executa migrations.
+- `worker`: processa a fila e os e-mails pelo Django Q; o restart comum não executa migrations.
 
 1. No servidor, clone ou atualize o repositório.
 2. Certifique-se de ter criado o arquivo `.env` na raiz do projeto com as credenciais de produção (Banco de dados, E-mail, `DJANGO_DEBUG=False`).
