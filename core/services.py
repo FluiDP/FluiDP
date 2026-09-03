@@ -23,14 +23,24 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
+def deve_enviar_email_notificacao(notificacao):
+    """Diretores recebem por e-mail somente o resumo semanal."""
+    destinatario = notificacao.destinatario
+    is_direcao = bool(
+        destinatario.cargo_id
+        and destinatario.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR
+    )
+    return not is_direcao or notificacao.tipo == Notificacao.TipoChoices.RESUMO_SEMANAL
+
+
 def enviar_email_notificacao(notificacao_id):
     """Envia o e-mail correspondente sem propagar falhas para o fluxo principal."""
     try:
         notificacao = Notificacao.todos_objetos.select_related(
-            'destinatario', 'solicitacao', 'solicitacao__tipo_documento'
+            'destinatario', 'destinatario__cargo', 'solicitacao', 'solicitacao__tipo_documento'
         ).get(pk=notificacao_id)
         destinatario = notificacao.destinatario
-        if not destinatario.email:
+        if not destinatario.email or not deve_enviar_email_notificacao(notificacao):
             return False
 
         url_fluidp = f"{settings.SITE_URL.rstrip('/')}{reverse('painel')}"
@@ -66,6 +76,9 @@ def enviar_email_notificacao(notificacao_id):
 
 
 def _agendar_email_notificacao(notificacao):
+    if not deve_enviar_email_notificacao(notificacao):
+        return False
+
     def enfileirar():
         try:
             from django_q.tasks import async_task
@@ -74,6 +87,7 @@ def _agendar_email_notificacao(notificacao):
             logger.exception('Falha ao colocar o e-mail da notificação %s na fila.', notificacao.pk)
 
     transaction.on_commit(enfileirar)
+    return True
 
 
 def criar_notificacao(destinatario, tipo, titulo, mensagem, solicitacao=None, chave=None):
@@ -146,19 +160,22 @@ def criar_resumos_semanais(data_referencia=None):
     ).select_related('cargo')
     criadas = 0
     for usuario in usuarios:
-        criadas += int(criar_resumo_semanal_usuario(usuario, inicio_semana))
+        criadas += int(criar_resumo_semanal_usuario(usuario, inicio_semana, data_referencia=hoje))
     return criadas
 
 
-def criar_resumo_semanal_usuario(usuario, inicio_semana=None):
+def criar_resumo_semanal_usuario(usuario, inicio_semana=None, data_referencia=None):
     """Cria, no máximo, um resumo por usuário em cada semana."""
+    hoje = data_referencia or timezone.localdate()
+    if hoje.weekday() != 0:
+        return False
     if not usuario.cargo or usuario.cargo.hierarquia not in [
         Cargo.HierarquiaChoices.DIRETOR,
         Cargo.HierarquiaChoices.GERENTE,
         Cargo.HierarquiaChoices.COORDENADOR,
     ]:
         return False
-    inicio_semana = inicio_semana or (timezone.localdate() - timedelta(days=timezone.localdate().weekday()))
+    inicio_semana = inicio_semana or hoje
     quantidade = obter_pendencias_do_usuario(usuario).filter(
         status__in=[Solicitacao.StatusChoices.PENDENTE_GESTOR,
                     Solicitacao.StatusChoices.PENDENTE_DIRETOR]

@@ -1,11 +1,16 @@
 from datetime import date
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase
 
-from .models import CustomUser, Notificacao, TipoDocumento
-from .services import preparar_aviso_login
+from .models import Cargo, CustomUser, Notificacao, TipoDocumento
+from .services import (
+    criar_resumo_semanal_usuario,
+    deve_enviar_email_notificacao,
+    preparar_aviso_login,
+)
 
 
 class ReferenciaMensalTipoDocumentoTests(SimpleTestCase):
@@ -110,3 +115,43 @@ class AvisoLoginTests(TestCase):
         segunda_requisicao = SimpleNamespace(session={})
         preparar_aviso_login(segunda_requisicao, usuario)
         self.assertNotIn('aviso_solicitacoes_login', segunda_requisicao.session)
+
+
+class RestricaoEmailDirecaoTests(TestCase):
+    def setUp(self):
+        cargo = Cargo.objects.create(
+            nome_cargo='Diretor de teste', hierarquia=Cargo.HierarquiaChoices.DIRETOR
+        )
+        self.diretor = CustomUser.objects.create_user(
+            username='diretor_teste', password='senha-segura', cpf='98765432100', cargo=cargo
+        )
+
+    def criar_notificacao(self, tipo):
+        return Notificacao.objects.create(
+            destinatario=self.diretor, tipo=tipo, titulo='Aviso', mensagem='Mensagem'
+        )
+
+    def test_direcao_nao_recebe_email_de_acoes_individuais(self):
+        tipos_individuais = [
+            Notificacao.TipoChoices.SOLICITACAO_ABERTA,
+            Notificacao.TipoChoices.PENDENCIA_SECUNDARIO,
+            Notificacao.TipoChoices.APROVADA_DP,
+            Notificacao.TipoChoices.RECUSADA,
+            Notificacao.TipoChoices.COMENTARIO,
+            Notificacao.TipoChoices.CANCELADA_SISTEMA,
+        ]
+        for tipo in tipos_individuais:
+            with self.subTest(tipo=tipo):
+                self.assertFalse(deve_enviar_email_notificacao(self.criar_notificacao(tipo)))
+
+    def test_direcao_recebe_email_do_resumo_semanal(self):
+        notificacao = self.criar_notificacao(Notificacao.TipoChoices.RESUMO_SEMANAL)
+        self.assertTrue(deve_enviar_email_notificacao(notificacao))
+
+    @patch('core.services.obter_pendencias_do_usuario')
+    def test_resumo_nao_e_criado_fora_da_segunda_feira(self, obter_pendencias):
+        criado = criar_resumo_semanal_usuario(
+            self.diretor, data_referencia=date(2026, 9, 3)
+        )
+        self.assertFalse(criado)
+        obter_pendencias.assert_not_called()
