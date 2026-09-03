@@ -23,13 +23,14 @@ services:
     <<: *app
     environment:
       FLUIDP_PROCESS: web
+      HEALTHCHECK_HOST: ${HEALTHCHECK_HOST:-localhost}
     ports:
       - "${FLUIDP_HTTP_BIND:-127.0.0.1:8080}:8000"
     volumes:
       - ./staticfiles:/app/staticfiles_prod:ro
       - ./media:/app/media
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent --output /dev/null -H Host:$${HEALTHCHECK_HOST:-fluidp.intranet.com} http://127.0.0.1:8000/login/"]
+      test: ["CMD-SHELL", "curl --fail --silent --output /dev/null -H Host:$${HEALTHCHECK_HOST} http://127.0.0.1:8000/login/"]
       interval: 30s
       timeout: 5s
       retries: 5
