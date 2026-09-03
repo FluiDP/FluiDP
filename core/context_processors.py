@@ -11,5 +11,6 @@ def notificacoes_globais(request):
     return {
         'tem_notificacoes_nao_visualizadas': request.user.notificacoes.filter(
             visualizada_em__isnull=True
-        ).exists()
+        ).exists(),
+        'aviso_solicitacoes_login': request.session.pop('aviso_solicitacoes_login', None),
     }

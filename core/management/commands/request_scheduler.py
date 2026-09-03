@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 from core.models import Solicitacao, LogAprovacao, Cargo
+from core.services import notificar_cancelamento_automatico
 
 User = get_user_model()
 
@@ -64,7 +65,32 @@ class Command(BaseCommand):
         count_canceladas = 0
         count_arquivadas = 0
 
+        solicitacoes_com_prazo_expirado = Solicitacao.objects.filter(
+            status__in=[
+                Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
+                Solicitacao.StatusChoices.PENDENTE_GESTOR,
+                Solicitacao.StatusChoices.PENDENTE_DIRETOR,
+                Solicitacao.StatusChoices.PENDENTE_DP,
+            ]
+        ).select_related('tipo_documento', 'colaborador')
+
+        canceladas_por_prazo = set()
+        hoje = timezone.localdate()
+        for sol in solicitacoes_com_prazo_expirado:
+            valores = sol.dados_preenchidos.get('values', {})
+            if not valores and isinstance(sol.dados_preenchidos, dict):
+                valores = sol.dados_preenchidos
+            motivo = sol.tipo_documento.motivo_prazo_expirado(
+                valores, sol.data, mes_referencia=sol.mes_referencia, data_consulta=hoje
+            )
+            if motivo:
+                self.cancelar_automaticamente(sol, sistema_user, motivo)
+                canceladas_por_prazo.add(sol.pk)
+                count_canceladas += 1
+
         for sol in solicitacoes_pendencia_secundaria:
+            if sol.pk in canceladas_por_prazo:
+                continue
             colega = sol.colaborador_secundario
             tipo_doc = sol.tipo_documento
             motivo_txt = ""
@@ -91,9 +117,10 @@ class Command(BaseCommand):
                 LogAprovacao.objects.create(
                     solicitacao=sol,
                     ator=sistema_user,
-                    acao=LogAprovacao.AcaoChoices.COMENTARIO,
+                    acao=LogAprovacao.AcaoChoices.CANCELAMENTO_SISTEMA,
                     detalhes=f'Cancelamento automático: {motivo_txt}.'
                 )
+                notificar_cancelamento_automatico(sol, motivo_txt)
 
         for sol in solicitacoes_pendentes:
             gestor_atual = sol.aprovador_atual
@@ -167,6 +194,18 @@ class Command(BaseCommand):
             f"{self.data_hora} - Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas, "
             f"{count_canceladas} canceladas automaticamente e {resumos_criados} resumos semanais criados."
         ))
+
+    def cancelar_automaticamente(self, solicitacao, sistema_user, motivo):
+        solicitacao.status = Solicitacao.StatusChoices.CANCELADO
+        solicitacao.aprovador_atual = None
+        solicitacao.save(update_fields=['status', 'aprovador_atual'])
+        LogAprovacao.objects.create(
+            solicitacao=solicitacao,
+            ator=sistema_user,
+            acao=LogAprovacao.AcaoChoices.CANCELAMENTO_SISTEMA,
+            detalhes=f'Cancelamento automático: {motivo}.',
+        )
+        notificar_cancelamento_automatico(solicitacao, motivo)
 
     def is_prox_gestor_na_hierarquia(self, lotacao_colaborador, gestor):
         """

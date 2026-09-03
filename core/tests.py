@@ -1,9 +1,11 @@
 from datetime import date
+from types import SimpleNamespace
 
 from django.core.exceptions import ValidationError
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
-from .models import TipoDocumento
+from .models import CustomUser, Notificacao, TipoDocumento
+from .services import preparar_aviso_login
 
 
 class ReferenciaMensalTipoDocumentoTests(SimpleTestCase):
@@ -55,3 +57,56 @@ class ReferenciaMensalTipoDocumentoTests(SimpleTestCase):
             self.tipo.validar_regras(
                 {'origem': '2026-02-20', 'destino': '2026-02-22'}, date(2026, 2, 11)
             )
+
+    def test_prazo_existente_expira_apos_dia_limite_da_referencia(self):
+        motivo = self.tipo.motivo_prazo_expirado(
+            {'origem': '2026-02-20', 'destino': '2026-02-22'},
+            date(2026, 1, 25),
+            mes_referencia=date(2026, 2, 1),
+            data_consulta=date(2026, 2, 11),
+        )
+        self.assertIn('02/2026', motivo)
+
+    def test_prazo_existente_expira_quando_perde_antecedencia_minima(self):
+        motivo = self.tipo.motivo_prazo_expirado(
+            {'origem': '2026-02-11', 'destino': '2026-02-20'},
+            date(2026, 1, 25),
+            mes_referencia=date(2026, 2, 1),
+            data_consulta=date(2026, 2, 10),
+        )
+        self.assertIn('antecedência mínima de 2 dias', motivo)
+
+    def test_prazo_existente_permanece_valido(self):
+        motivo = self.tipo.motivo_prazo_expirado(
+            {'origem': '2026-02-12', 'destino': '2026-02-20'},
+            date(2026, 1, 25),
+            mes_referencia=date(2026, 2, 1),
+            data_consulta=date(2026, 2, 9),
+        )
+        self.assertIsNone(motivo)
+
+
+class AvisoLoginTests(TestCase):
+    def test_agrupa_eventos_e_nao_exibe_novamente(self):
+        usuario = CustomUser.objects.create_user(
+            username='usuario_teste', password='senha-segura', cpf='12345678909'
+        )
+        for tipo in [
+            Notificacao.TipoChoices.CANCELADA_SISTEMA,
+            Notificacao.TipoChoices.CANCELADA_SISTEMA,
+            Notificacao.TipoChoices.RECUSADA,
+        ]:
+            Notificacao.objects.create(
+                destinatario=usuario, tipo=tipo, titulo='Aviso', mensagem='Mensagem'
+            )
+
+        primeira_requisicao = SimpleNamespace(session={})
+        preparar_aviso_login(primeira_requisicao, usuario)
+        self.assertEqual(
+            primeira_requisicao.session['aviso_solicitacoes_login'],
+            {'canceladas': 2, 'recusadas': 1},
+        )
+
+        segunda_requisicao = SimpleNamespace(session={})
+        preparar_aviso_login(segunda_requisicao, usuario)
+        self.assertNotIn('aviso_solicitacoes_login', segunda_requisicao.session)

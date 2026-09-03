@@ -563,6 +563,52 @@ class TipoDocumento(models.Model):
 
         return mes_referencia
 
+    def motivo_prazo_expirado(self, dados_valores, data_abertura, mes_referencia=None, data_consulta=None):
+        """Retorna o motivo de expiração de uma solicitação ativa, ou ``None``."""
+        hoje = data_consulta or timezone.localdate()
+        if isinstance(hoje, datetime):
+            hoje = hoje.date()
+        if isinstance(data_abertura, datetime):
+            data_abertura = timezone.localtime(data_abertura).date()
+
+        if self.tipo_referencia == self.TipoReferenciaChoices.MENSAL:
+            referencia_atual = self.obter_mes_referencia(hoje)
+            if not mes_referencia or referencia_atual != mes_referencia:
+                return f'o prazo de solicitação para a referência {mes_referencia:%m/%Y} foi encerrado' if mes_referencia else 'o prazo configurado para a solicitação foi encerrado'
+        elif self.dia_inicio and self.dia_fim:
+            if self.dia_inicio <= self.dia_fim:
+                ultimo_dia = calendar.monthrange(data_abertura.year, data_abertura.month)[1]
+                encerramento = data_abertura.replace(day=min(self.dia_fim, ultimo_dia))
+            elif data_abertura.day >= self.dia_inicio:
+                proximo_mes = self._primeiro_dia_mes_seguinte(data_abertura)
+                ultimo_dia = calendar.monthrange(proximo_mes.year, proximo_mes.month)[1]
+                encerramento = proximo_mes.replace(day=min(self.dia_fim, ultimo_dia))
+            else:
+                ultimo_dia = calendar.monthrange(data_abertura.year, data_abertura.month)[1]
+                encerramento = data_abertura.replace(day=min(self.dia_fim, ultimo_dia))
+            if hoje > encerramento:
+                return f'o prazo configurado para este documento encerrou em {encerramento:%d/%m/%Y}'
+
+        antecedencia = self.limite_dias_antecedencia or 0
+        if antecedencia > 0:
+            data_minima = hoje + timedelta(days=antecedencia)
+            for campo in self.definicao_formulario:
+                if not campo.get('is_event_date'):
+                    continue
+                valor = dados_valores.get(campo.get('name'))
+                if not valor:
+                    continue
+                try:
+                    data_evento = datetime.strptime(valor, '%Y-%m-%d').date()
+                except (TypeError, ValueError):
+                    continue
+                if data_evento < data_minima:
+                    return (
+                        f"a data de '{campo.get('label')}' deixou de respeitar a antecedência "
+                        f'mínima de {antecedencia} dias'
+                    )
+        return None
+
     def is_empty_form(self):
         return len(self.definicao_formulario) == 0
 
@@ -618,6 +664,7 @@ class Solicitacao(models.Model):
         
         acoes_terminais = [
             LogAprovacaoModel.AcaoChoices.CANCELAMENTO,
+            LogAprovacaoModel.AcaoChoices.CANCELAMENTO_SISTEMA,
             LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
             LogAprovacaoModel.AcaoChoices.RECUSADO_GESTOR,
             LogAprovacaoModel.AcaoChoices.RECUSADO_DIRETOR,
@@ -901,6 +948,7 @@ class Notificacao(models.Model):
     criada_em = models.DateTimeField(auto_now_add=True)
     visualizada_em = models.DateTimeField(null=True, blank=True)
     excluida_em = models.DateTimeField(null=True, blank=True)
+    aviso_login_exibido_em = models.DateTimeField(null=True, blank=True)
     chave = models.CharField(max_length=180, null=True, blank=True, unique=True)
 
     objects = NotificacaoAtivaManager()
@@ -927,6 +975,7 @@ class LogAprovacao(models.Model):
         CRIACAO = 'CRIACAO', 'Criação da Solicitação'
         EDICAO = 'EDICAO', 'Edição da Solicitação'
         CANCELAMENTO = 'CANCELAMENTO', 'Cancelado pelo Solicitante'
+        CANCELAMENTO_SISTEMA = 'CANCELAMENTO_SISTEMA', 'Cancelado automaticamente pelo Sistema'
         ACEITE_SECUNDARIO = 'ACEITE_SECUNDARIO', 'Aceite pelo Colega'
         RECUSA_SECUNDARIO = 'RECUSA_SECUNDARIO', 'Recusado pelo Colega'
         APROVADO_GESTOR = 'APROVADO_GESTOR', 'Aprovado pelo Gestor'

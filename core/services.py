@@ -17,7 +17,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.urls import reverse
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -114,6 +114,25 @@ def notificar_cancelamento_automatico(solicitacao, motivo):
         f'A solicitação #{solicitacao.pk} foi cancelada automaticamente: {motivo}.',
         solicitacao,
     )
+
+
+def preparar_aviso_login(request, usuario):
+    """Agrupa recusas/cancelamentos novos para exibição única após o login."""
+    tipos = [Notificacao.TipoChoices.RECUSADA, Notificacao.TipoChoices.CANCELADA_SISTEMA]
+    pendentes = Notificacao.todos_objetos.filter(
+        destinatario=usuario,
+        tipo__in=tipos,
+        aviso_login_exibido_em__isnull=True,
+        excluida_em__isnull=True,
+    )
+    contagens = dict(pendentes.values_list('tipo').annotate(total=Count('id')))
+    if not contagens:
+        return
+    pendentes.update(aviso_login_exibido_em=timezone.now())
+    request.session['aviso_solicitacoes_login'] = {
+        'canceladas': contagens.get(Notificacao.TipoChoices.CANCELADA_SISTEMA, 0),
+        'recusadas': contagens.get(Notificacao.TipoChoices.RECUSADA, 0),
+    }
 
 
 def criar_resumos_semanais(data_referencia=None):

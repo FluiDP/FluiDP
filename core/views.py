@@ -121,6 +121,11 @@ class CustomLoginView(auth_views.LoginView):
 
     def get_success_url(self):
         return reverse_lazy('painel')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        services.preparar_aviso_login(self.request, self.request.user)
+        return response
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
