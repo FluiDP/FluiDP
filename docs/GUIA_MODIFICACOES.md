@@ -121,4 +121,3 @@ O Nginx continua encaminhando `fluidp.intranet.com` para `127.0.0.1:8080`; não 
 ## Verificação e retorno
 
 Confirme a tela de login, uma consulta sem escrita e a saúde da fila. Em caso de falha, preserve logs e identifique o último commit estável. O retorno deve usar um commit conhecido e o procedimento documentado para a versão, nunca alterações manuais sobre o diretório ativo.
-

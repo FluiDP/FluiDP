@@ -110,4 +110,3 @@ Apagar uma notificação não apaga a solicitação nem seu histórico.
 Em **Perfil**, confira seus dados e altere a senha quando necessário. Não compartilhe credenciais e encerre a sessão ao deixar um computador compartilhado.
 
 Em caso de dados cadastrais incorretos, ausência de uma solicitação esperada ou permissão indevida, procure o Departamento Pessoal ou o suporte interno e informe o número da solicitação, quando existir.
-
