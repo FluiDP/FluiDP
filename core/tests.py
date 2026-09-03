@@ -209,6 +209,9 @@ class RelatorioGeralStatusIntegrationTests(TestCase):
         resposta_padrao = self.client.get(reverse('relatorio_geral'))
         self.assertEqual(resposta_padrao.status_code, 200)
         self.assertEqual(resposta_padrao.context['ranking_data'][0]['total'], 1)
+        self.assertContains(resposta_padrao, '<details class="relative">')
+        self.assertContains(resposta_padrao, 'aria-label="Imprimir / Salvar PDF"')
+        self.assertNotContains(resposta_padrao, '>\n            Imprimir\n')
 
         resposta_encerradas = self.client.get(reverse('relatorio_geral'), {
             'status_filter_applied': '1',

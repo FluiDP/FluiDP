@@ -39,36 +39,40 @@
 </head>
 <body class="bg-gray-50 text-gray-800 p-8 min-h-screen">
 
-    <div class="no-print max-w-7xl mx-auto mb-6 bg-white p-4 rounded-xl shadow-sm border border-emphasis flex flex-wrap gap-4 items-center justify-between">
-        <form method="get" class="flex flex-wrap items-center gap-4">
+    <div class="no-print max-w-7xl mx-auto mb-6 bg-white px-3 py-2 rounded-xl shadow-sm border border-emphasis flex items-center gap-2">
+        <form method="get" class="flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap">
             <input type="hidden" name="status_filter_applied" value="1">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1">
                 <label class="text-sm font-medium text-gray-700">De:</label>
-                <input type="date" name="data_inicio" value="{{ data_inicio }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <input type="date" name="data_inicio" value="{{ data_inicio }}" class="px-2 py-1.5 border border-gray-300 rounded-lg text-xs">
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1">
                 <label class="text-sm font-medium text-gray-700">Até:</label>
-                <input type="date" name="data_fim" value="{{ data_fim }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <input type="date" name="data_fim" value="{{ data_fim }}" class="px-2 py-1.5 border border-gray-300 rounded-lg text-xs">
             </div>
-            <fieldset class="flex flex-wrap items-center gap-2 rounded-lg border border-gray-300 px-3 py-2">
-                <legend class="px-1 text-xs font-semibold text-gray-600">Status</legend>
-                {% for value, label in status_choices %}
-                    <label class="inline-flex items-center gap-1.5 text-xs text-gray-700 whitespace-nowrap">
-                        <input type="checkbox" name="status" value="{{ value }}"
-                               {% if value in status_selecionados %}checked{% endif %}
-                               class="rounded border-gray-300 text-primary focus:ring-primary">
-                        {{ label }}
-                    </label>
-                {% endfor %}
-            </fieldset>
-            <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 shadow transition-opacity">
+            <details class="relative">
+                <summary class="cursor-pointer list-none rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    Status ({{ status_selecionados|length }}) <span aria-hidden="true">&#9662;</span>
+                </summary>
+                <fieldset class="absolute left-0 top-full z-20 mt-1 grid min-w-64 gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                    <legend class="sr-only">Selecionar status</legend>
+                    {% for value, label in status_choices %}
+                        <label class="inline-flex items-center gap-2 text-xs text-gray-700 whitespace-nowrap">
+                            <input type="checkbox" name="status" value="{{ value }}"
+                                   {% if value in status_selecionados %}checked{% endif %}
+                                   class="rounded border-gray-300 text-primary focus:ring-primary">
+                            {{ label }}
+                        </label>
+                    {% endfor %}
+                </fieldset>
+            </details>
+            <button type="submit" class="bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 shadow transition-opacity">
                 Filtrar
             </button>
         </form>
 
-        <button onclick="window.print()" class="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 shadow-sm">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-            Imprimir
+        <button type="button" onclick="window.print()" title="Imprimir / Salvar PDF" aria-label="Imprimir / Salvar PDF" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50">
+            <svg class="h-4 w-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
         </button>
     </div>
 
