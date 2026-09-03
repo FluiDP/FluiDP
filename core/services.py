@@ -231,6 +231,22 @@ def obter_pendencias_do_usuario(user):
 
     return Solicitacao.objects.filter(q_filtros).distinct().order_by('-data')
 
+
+def obter_status_relatorio(status_informados=None, filtro_aplicado=False):
+    """Normaliza o filtro do relatório; por padrão omite recusadas e canceladas."""
+    valores_validos = {valor for valor, _ in Solicitacao.StatusChoices.choices}
+    if filtro_aplicado:
+        return list(dict.fromkeys(
+            status for status in (status_informados or []) if status in valores_validos
+        ))
+    return [
+        status for status, _ in Solicitacao.StatusChoices.choices
+        if status not in {
+            Solicitacao.StatusChoices.RECUSADO,
+            Solicitacao.StatusChoices.CANCELADO,
+        }
+    ]
+
 def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogAprovacao.AcaoChoices, detalhes: str = ""):
     """
     Registra uma ação no histórico da solicitação.

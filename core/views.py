@@ -402,11 +402,21 @@ def relatorio_geral_view(request):
         data_inicio = datetime.datetime.combine(padrao_inicio, datetime.time.min)
         data_fim = datetime.datetime.combine(padrao_fim, datetime.time.max)
 
+    if timezone.is_naive(data_inicio):
+        data_inicio = timezone.make_aware(data_inicio)
+    if timezone.is_naive(data_fim):
+        data_fim = timezone.make_aware(data_fim)
+
     qs_base = Solicitacao.objects.filter(
         colaborador__lotacao__in=minhas_lotacoes,
         arquivado=False,
         data__range=(data_inicio, data_fim)
     )
+    status_selecionados = services.obter_status_relatorio(
+        request.GET.getlist('status'),
+        filtro_aplicado=request.GET.get('status_filter_applied') == '1',
+    )
+    qs_base = qs_base.filter(status__in=status_selecionados)
 
     total_minutos_extras = 0
     total_minutos_compensados = 0
@@ -491,6 +501,8 @@ def relatorio_geral_view(request):
         'ranking_data': ranking_data,
         'data_inicio': data_inicio_str,
         'data_fim': data_fim_str,
+        'status_choices': Solicitacao.StatusChoices.choices,
+        'status_selecionados': status_selecionados,
         'chart_docs_labels': [x['tipo_documento__nome_documento'] for x in docs_scoped],
         'chart_docs_data': [x['total'] for x in docs_scoped],
         'chart_lot_labels': [x['colaborador__lotacao__nome_lotacao'] for x in lotacoes_scoped],

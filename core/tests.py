@@ -3,12 +3,14 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
-from django.test import SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase
+from django.urls import reverse
 
-from .models import Cargo, CustomUser, Notificacao, TipoDocumento
+from .models import Cargo, CustomUser, Lotacao, Notificacao, Solicitacao, TipoDocumento
 from .services import (
     criar_resumo_semanal_usuario,
     deve_enviar_email_notificacao,
+    obter_status_relatorio,
     preparar_aviso_login,
 )
 
@@ -155,3 +157,62 @@ class RestricaoEmailDirecaoTests(TestCase):
         )
         self.assertFalse(criado)
         obter_pendencias.assert_not_called()
+
+
+class FiltroStatusRelatorioTests(SimpleTestCase):
+    def test_padrao_exclui_canceladas_e_recusadas(self):
+        status = obter_status_relatorio()
+        self.assertNotIn('CANCELADO', status)
+        self.assertNotIn('RECUSADO', status)
+        self.assertIn('FINALIZADO', status)
+
+    def test_usuario_pode_escolher_incluir_canceladas_e_recusadas(self):
+        status = obter_status_relatorio(['CANCELADO', 'RECUSADO'], filtro_aplicado=True)
+        self.assertEqual(status, ['CANCELADO', 'RECUSADO'])
+
+    def test_status_invalido_e_ignorado(self):
+        status = obter_status_relatorio(['FINALIZADO', 'INEXISTENTE'], filtro_aplicado=True)
+        self.assertEqual(status, ['FINALIZADO'])
+
+
+class RelatorioGeralStatusIntegrationTests(TestCase):
+    def setUp(self):
+        cargo_diretor = Cargo.objects.create(
+            nome_cargo='Diretor relatório', hierarquia=Cargo.HierarquiaChoices.DIRETOR
+        )
+        self.diretor = CustomUser.objects.create_user(
+            username='diretor_relatorio', password='senha-segura',
+            cpf='11122233396', cargo=cargo_diretor,
+        )
+        self.lotacao = Lotacao.objects.create(nome_lotacao='Setor de teste')
+        self.colaborador = CustomUser.objects.create_user(
+            username='colaborador_relatorio', password='senha-segura',
+            cpf='52998224725', lotacao=self.lotacao,
+        )
+        self.tipo = TipoDocumento.objects.create(
+            nome_documento='Documento de teste', definicao_formulario=[]
+        )
+        for status in [
+            Solicitacao.StatusChoices.FINALIZADO,
+            Solicitacao.StatusChoices.RECUSADO,
+            Solicitacao.StatusChoices.CANCELADO,
+        ]:
+            Solicitacao.objects.create(
+                colaborador=self.colaborador,
+                tipo_documento=self.tipo,
+                status=status,
+            )
+        self.client = Client()
+        self.client.force_login(self.diretor)
+
+    def test_relatorio_aplica_padrao_e_selecao_explicita(self):
+        resposta_padrao = self.client.get(reverse('relatorio_geral'))
+        self.assertEqual(resposta_padrao.status_code, 200)
+        self.assertEqual(resposta_padrao.context['ranking_data'][0]['total'], 1)
+
+        resposta_encerradas = self.client.get(reverse('relatorio_geral'), {
+            'status_filter_applied': '1',
+            'status': ['RECUSADO', 'CANCELADO'],
+        })
+        self.assertEqual(resposta_encerradas.status_code, 200)
+        self.assertEqual(resposta_encerradas.context['ranking_data'][0]['total'], 2)
