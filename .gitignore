@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !.env.template
+!.env.docker.example
 Acesso SSH Servidor
 *.log
 *.key

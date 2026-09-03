@@ -13,9 +13,12 @@ case "$process" in
         echo "Aplicando migrations..."
         python manage.py migrate --noinput
 
+        echo "Garantindo a tabela de cache..."
+        python manage.py createcachetable
+
         echo "Preparando Tailwind CSS..."
-        python manage.py tailwind install --no-input
-        python manage.py tailwind build --no-input
+        python manage.py tailwind install
+        python manage.py tailwind build
 
         echo "Coletando arquivos estáticos..."
         python manage.py collectstatic --noinput --clear

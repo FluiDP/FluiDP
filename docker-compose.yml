@@ -1,7 +1,7 @@
 x-app: &app
   build: .
   env_file:
-    - .env
+    - ${FLUIDP_ENV_FILE:-.env}
   extra_hosts:
     - "host.docker.internal:host-gateway"
   init: true
@@ -10,6 +10,7 @@ x-app: &app
 services:
   migrate:
     <<: *app
+    profiles: ["maintenance"]
     restart: "no"
     environment:
       FLUIDP_PROCESS: migrate
@@ -22,16 +23,13 @@ services:
     <<: *app
     environment:
       FLUIDP_PROCESS: web
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     ports:
-      - "127.0.0.1:8080:8000"
+      - "${FLUIDP_HTTP_BIND:-127.0.0.1:8080}:8000"
     volumes:
       - ./staticfiles:/app/staticfiles_prod:ro
       - ./media:/app/media
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent --output /dev/null --header 'Host: $${HEALTHCHECK_HOST:-fluidp.intranet.com}' http://127.0.0.1:8000/login/"]
+      test: ["CMD-SHELL", "curl --fail --silent --output /dev/null -H Host:$${HEALTHCHECK_HOST:-fluidp.intranet.com} http://127.0.0.1:8000/login/"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -42,9 +40,6 @@ services:
     <<: *app
     environment:
       FLUIDP_PROCESS: worker
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     volumes:
       - ./staticfiles:/app/staticfiles_prod:ro
       - ./media:/app/media

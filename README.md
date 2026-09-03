@@ -81,8 +81,41 @@ Os serviços são separados por responsabilidade:
     docker compose logs -f migrate web worker
     ```
 
-> Atenção: `docker compose up` executa o serviço `migrate` contra o banco configurado no `.env`. Nunca reutilize credenciais de produção em testes locais.
-> Em produção, não execute esse comando antes de criar e validar o backup e o plano de retorno.
+> Atenção: o restart comum não executa migrations. O serviço `migrate` só participa quando o perfil `maintenance` é solicitado explicitamente. Nunca reutilize credenciais de produção em testes locais e não execute esse perfil em produção antes de validar backup e plano de retorno.
+
+### Teste Docker local isolado
+
+O complemento local cria um PostgreSQL 12 temporário em `tmpfs`. Ele não publica a porta do banco e não utiliza as credenciais de produção:
+
+```bash
+docker compose --env-file .env.docker.example \
+  -f docker-compose.yml -f docker-compose.local.yml \
+  --profile maintenance up -d --build
+```
+
+A aplicação fica disponível em `http://127.0.0.1:18080`. Para verificar e remover todo o ambiente temporário:
+
+```bash
+docker compose --env-file .env.docker.example \
+  -f docker-compose.yml -f docker-compose.local.yml \
+  --profile maintenance ps
+
+docker compose --env-file .env.docker.example \
+  -f docker-compose.yml -f docker-compose.local.yml \
+  --profile maintenance down
+```
+
+### Inicialização via systemd em produção
+
+O arquivo `deploy/systemd/sistemadp.service` mantém o comando operacional `systemctl restart sistemadp`, mas passa a controlar os containers `web` e `worker`. O PostgreSQL e o Nginx permanecem no host.
+
+Migrations são deliberadamente separadas do restart comum:
+
+```bash
+docker compose --profile maintenance run --rm migrate
+```
+
+Antes de instalar a unit em produção é obrigatório validar backup/retorno, acesso restrito do container ao PostgreSQL externo e desativar a unit antiga `qcluster.service`, evitando dois consumidores da mesma fila.
 
 **Comandos Úteis no Docker:**
 * Para ver os logs em tempo real:

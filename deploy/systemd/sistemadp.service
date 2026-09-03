@@ -1,0 +1,19 @@
+[Unit]
+Description=FluiDP via Docker Compose
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/var/www/sistemadp
+ExecStartPre=/usr/bin/docker compose config --quiet
+ExecStart=/usr/bin/docker compose up -d --build --remove-orphans --wait --wait-timeout 180 web worker
+ExecReload=/usr/bin/docker compose up -d --build --no-deps --wait --wait-timeout 180 web worker
+ExecStop=/usr/bin/docker compose stop -t 30 web worker
+TimeoutStartSec=0
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target

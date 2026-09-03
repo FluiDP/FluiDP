@@ -8,7 +8,8 @@ pycache/
 *.pyo
 *.pyd
 .Python
-.env
+.env*
+!.env.example
 db.sqlite3
 node_modules/
 theme/static_src/node_modules/
