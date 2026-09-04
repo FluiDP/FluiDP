@@ -1,9 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.test import Client, SimpleTestCase, TestCase
+from django.utils import timezone
 from django.urls import reverse
 
 from .models import Cargo, CustomUser, Lotacao, Notificacao, Solicitacao, TipoDocumento
@@ -219,3 +221,45 @@ class RelatorioGeralStatusIntegrationTests(TestCase):
         })
         self.assertEqual(resposta_encerradas.status_code, 200)
         self.assertEqual(resposta_encerradas.context['ranking_data'][0]['total'], 2)
+
+
+class SchedulerNaoCancelaPorPrazoTests(TestCase):
+    def test_solicitacao_em_andamento_permanece_ativa_apos_fim_do_periodo(self):
+        cargo_gestor = Cargo.objects.create(
+            nome_cargo='Gestor scheduler', hierarquia=Cargo.HierarquiaChoices.COORDENADOR
+        )
+        cargo_colaborador = Cargo.objects.create(
+            nome_cargo='Colaborador scheduler', hierarquia=Cargo.HierarquiaChoices.PADRAO
+        )
+        gestor = CustomUser.objects.create_user(
+            username='gestor_scheduler', cpf='11144477735', cargo=cargo_gestor,
+        )
+        lotacao = Lotacao.objects.create(nome_lotacao='Setor scheduler', chefia=gestor)
+        colaborador = CustomUser.objects.create_user(
+            username='colaborador_scheduler', cpf='12345678909',
+            cargo=cargo_colaborador, lotacao=lotacao,
+        )
+        tipo = TipoDocumento.objects.create(
+            nome_documento='Documento mensal encerrado', dia_inicio=1, dia_fim=31,
+            definicao_formulario=[],
+        )
+        solicitacao = Solicitacao.objects.create(
+            colaborador=colaborador, tipo_documento=tipo,
+            status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
+            aprovador_atual=gestor,
+        )
+        Solicitacao.objects.filter(pk=solicitacao.pk).update(
+            data=timezone.now() - timedelta(days=60)
+        )
+        TipoDocumento.objects.filter(pk=tipo.pk).update(dia_fim=1)
+
+        with patch(
+            'core.management.commands.request_scheduler.timezone.localdate',
+            return_value=date(2026, 9, 1),
+        ):
+            call_command('request_scheduler')
+
+        solicitacao.refresh_from_db()
+        self.assertEqual(solicitacao.status, Solicitacao.StatusChoices.PENDENTE_GESTOR)
+        self.assertEqual(solicitacao.aprovador_atual, gestor)
+        self.assertFalse(solicitacao.logs.filter(acao='CANCELAMENTO_SISTEMA').exists())

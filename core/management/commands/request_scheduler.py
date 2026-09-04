@@ -10,8 +10,9 @@ User = get_user_model()
 class Command(BaseCommand):
     help = """
     Verifica gestores ausentes (férias) ou mudanças de hierarquia e escalona solicitações pendentes.
-    Adicionalmente, cancela solicitações que possuem prazo após 30 dias do encerramento do período ou que envolvam um colaborador e/ou colaborador
-    secundário inativos no sistema.
+    Adicionalmente, trata solicitações que envolvam colaboradores indisponíveis.
+    O encerramento do período mensal impede novas solicitações, mas nunca cancela
+    solicitações que já estejam em andamento.
     """
 
     data_hora = None
@@ -65,52 +66,14 @@ class Command(BaseCommand):
         count_canceladas = 0
         count_arquivadas = 0
 
-        solicitacoes_com_prazo_expirado = Solicitacao.objects.filter(
-            status__in=[
-                Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
-                Solicitacao.StatusChoices.PENDENTE_GESTOR,
-                Solicitacao.StatusChoices.PENDENTE_DIRETOR,
-                Solicitacao.StatusChoices.PENDENTE_DP,
-            ]
-        ).select_related('tipo_documento', 'colaborador')
-
-        canceladas_por_prazo = set()
-        hoje = timezone.localdate()
-        for sol in solicitacoes_com_prazo_expirado:
-            valores = sol.dados_preenchidos.get('values', {})
-            if not valores and isinstance(sol.dados_preenchidos, dict):
-                valores = sol.dados_preenchidos
-            motivo = sol.tipo_documento.motivo_prazo_expirado(
-                valores, sol.data, mes_referencia=sol.mes_referencia, data_consulta=hoje
-            )
-            if motivo:
-                self.cancelar_automaticamente(sol, sistema_user, motivo)
-                canceladas_por_prazo.add(sol.pk)
-                count_canceladas += 1
-
         for sol in solicitacoes_pendencia_secundaria:
-            if sol.pk in canceladas_por_prazo:
-                continue
             colega = sol.colaborador_secundario
-            tipo_doc = sol.tipo_documento
             motivo_txt = ""
 
             if not colega:
                 sol.status = Solicitacao.StatusChoices.CANCELADO
                 sol.save()
                 motivo_txt = "não há um colaborador substituto definido"
-                count_canceladas += 1
-
-            elif colega.is_ausente and colega.ausencia_fim and not sol.tipo_documento.esta_no_periodo(date=colega.ausencia_fim):
-                sol.status = Solicitacao.StatusChoices.CANCELADO
-                sol.save()
-                motivo_txt = f"o colaborador substituto ({colega.get_full_name()}) encontra-se ausente até {colega.ausencia_fim.strftime('%d/%m/%Y')} (após o prazo final de aceite para as trocas)."
-                count_canceladas += 1
-
-            elif not sol.tipo_documento.esta_no_periodo():
-                sol.status = Solicitacao.StatusChoices.CANCELADO
-                sol.save()
-                motivo_txt = f"solicitação não aceita pelo colega dentro do período determinado por regras institucionais"
                 count_canceladas += 1
 
             if motivo_txt:
@@ -194,18 +157,6 @@ class Command(BaseCommand):
             f"{self.data_hora} - Rotina finalizada. {count_escalonadas} solicitações reatribuídas/escalonadas, "
             f"{count_canceladas} canceladas automaticamente e {resumos_criados} resumos semanais criados."
         ))
-
-    def cancelar_automaticamente(self, solicitacao, sistema_user, motivo):
-        solicitacao.status = Solicitacao.StatusChoices.CANCELADO
-        solicitacao.aprovador_atual = None
-        solicitacao.save(update_fields=['status', 'aprovador_atual'])
-        LogAprovacao.objects.create(
-            solicitacao=solicitacao,
-            ator=sistema_user,
-            acao=LogAprovacao.AcaoChoices.CANCELAMENTO_SISTEMA,
-            detalhes=f'Cancelamento automático: {motivo}.',
-        )
-        notificar_cancelamento_automatico(solicitacao, motivo)
 
     def is_prox_gestor_na_hierarquia(self, lotacao_colaborador, gestor):
         """
