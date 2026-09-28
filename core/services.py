@@ -247,7 +247,7 @@ def obter_status_relatorio(status_informados=None, filtro_aplicado=False):
         }
     ]
 
-def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogAprovacao.AcaoChoices, detalhes: str = ""):
+def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogAprovacao.AcaoChoices, detalhes: str = "", *, decisao_anulada=None):
     """
     Registra uma ação no histórico da solicitação.
     """
@@ -255,7 +255,8 @@ def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogApro
         solicitacao=solicitacao,
         ator=ator,
         acao=acao,
-        detalhes=detalhes
+        detalhes=detalhes,
+        decisao_anulada=decisao_anulada,
     )
 
 def _pode_ator_aprovar(solicitacao: Solicitacao, ator: CustomUser, request_user: CustomUser) -> bool:
@@ -600,19 +601,7 @@ def reverter_status_solicitacao(solicitacao: Solicitacao, ator: CustomUser, deta
     if not solicitacao.can_reverse_status(ator):
         raise PermissionError("Não tem permissão para reverter o status desta solicitação.")
 
-    acoes_decisao = [
-        LogAprovacao.AcaoChoices.ACEITE_SECUNDARIO,
-        LogAprovacao.AcaoChoices.RECUSA_SECUNDARIO,
-        LogAprovacao.AcaoChoices.APROVADO_GESTOR,
-        LogAprovacao.AcaoChoices.RECUSADO_GESTOR,
-        LogAprovacao.AcaoChoices.APROVADO_DIRETOR,
-        LogAprovacao.AcaoChoices.RECUSADO_DIRETOR,
-        LogAprovacao.AcaoChoices.APROVADO_DP,
-        LogAprovacao.AcaoChoices.RECUSADO_DP,
-        LogAprovacao.AcaoChoices.LANCADO,
-    ]
-
-    ultimo_log = solicitacao.logs.filter(acao__in=acoes_decisao).order_by('-data_acao').first()
+    ultimo_log = solicitacao.decisoes_validas().first()
 
     if not ultimo_log:
         raise ValidationError("Não há histórico de decisão válido para reverter.")
@@ -655,6 +644,7 @@ def reverter_status_solicitacao(solicitacao: Solicitacao, ator: CustomUser, deta
         solicitacao=solicitacao,
         ator=ator,
         acao=LogAprovacao.AcaoChoices.REVERSAO,
+        decisao_anulada=ultimo_log,
         detalhes=texto_detalhes
     )
 

@@ -754,34 +754,25 @@ class Solicitacao(models.Model):
 
         return not self.is_finalizada and (is_dp or is_aprovador_atual or is_ultimo_aprovador or is_colaborador)
 
-    def can_edit(self, user):
-        """
-        Editar somente se não houver nenhum log de mudança de status (solicitações recém criadas), 
-        pelo colaborador que solicitou.
-        """
-        if self.colaborador != user:
-            return False
+    def decisoes_validas(self):
+        """Decisões do fluxo que ainda não foram anuladas por uma reversão."""
+        return self.logs.filter(
+            acao__in=self.logs.model.acoes_decisao(), reversao__isnull=True,
+        ).order_by('-data_acao', '-pk')
 
-        if self.status in [self.StatusChoices.FINALIZADO, self.StatusChoices.CANCELADO, self.StatusChoices.RECUSADO]:
+    def tem_reversao_sem_vinculo(self):
+        return self.logs.filter(acao='REVERSAO', decisao_anulada__isnull=True).exists()
+
+    def can_edit(self, user):
+        """O autor pode editar enquanto não houver decisões válidas no fluxo."""
+        if self.colaborador != user or self.is_finalizada:
             return False
-            
-        LogAprovacaoModel = self.logs.model
-        
-        logs_mudanca = [
-            LogAprovacaoModel.AcaoChoices.ACEITE_SECUNDARIO,
-            LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
-            LogAprovacaoModel.AcaoChoices.APROVADO_GESTOR,
-            LogAprovacaoModel.AcaoChoices.RECUSADO_GESTOR,
-            LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,
-            LogAprovacaoModel.AcaoChoices.RECUSADO_DIRETOR,
-            LogAprovacaoModel.AcaoChoices.APROVADO_DP,
-            LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
-            LogAprovacaoModel.AcaoChoices.LANCADO,
-            LogAprovacaoModel.AcaoChoices.CANCELAMENTO,
-            LogAprovacaoModel.AcaoChoices.REVERSAO,
-        ]
-        
-        return not self.logs.filter(acao__in=logs_mudanca).exists()
+        # Históricos antigos ambíguos não devem liberar edição automaticamente.
+        if self.tem_reversao_sem_vinculo():
+            return False
+        return not self.decisoes_validas().exists() and not self.logs.filter(
+            acao__in=['CANCELAMENTO', 'CANCELAMENTO_SISTEMA'],
+        ).exists()
 
     def can_cancel(self, user):
         """
@@ -834,19 +825,9 @@ class Solicitacao(models.Model):
             return False
 
         LogAprovacaoModel = self.logs.model
-        acoes_decisao = [
-            LogAprovacaoModel.AcaoChoices.ACEITE_SECUNDARIO,
-            LogAprovacaoModel.AcaoChoices.RECUSA_SECUNDARIO,
-            LogAprovacaoModel.AcaoChoices.APROVADO_GESTOR,
-            LogAprovacaoModel.AcaoChoices.RECUSADO_GESTOR,
-            LogAprovacaoModel.AcaoChoices.APROVADO_DIRETOR,
-            LogAprovacaoModel.AcaoChoices.RECUSADO_DIRETOR,
-            LogAprovacaoModel.AcaoChoices.APROVADO_DP,
-            LogAprovacaoModel.AcaoChoices.RECUSADO_DP,
-            LogAprovacaoModel.AcaoChoices.LANCADO,
-        ]
-
-        ultimo_log = self.logs.filter(acao__in=acoes_decisao).order_by('-data_acao').first()
+        if self.tem_reversao_sem_vinculo():
+            return False
+        ultimo_log = self.decisoes_validas().first()
         if not ultimo_log:
             return False
 
@@ -987,6 +968,21 @@ class LogAprovacao(models.Model):
         LANCADO = 'LANCADO', 'Aprovado pelo DP'
         COMENTARIO = 'COMENTARIO', 'Comentário Adicionado'
         REVERSAO = 'REVERSAO', 'Reversão de Decisão'
+
+    @classmethod
+    def acoes_decisao(cls):
+        return [
+            cls.AcaoChoices.ACEITE_SECUNDARIO, cls.AcaoChoices.RECUSA_SECUNDARIO,
+            cls.AcaoChoices.APROVADO_GESTOR, cls.AcaoChoices.RECUSADO_GESTOR,
+            cls.AcaoChoices.APROVADO_DIRETOR, cls.AcaoChoices.RECUSADO_DIRETOR,
+            cls.AcaoChoices.APROVADO_DP, cls.AcaoChoices.RECUSADO_DP,
+            cls.AcaoChoices.LANCADO,
+        ]
+
+    decisao_anulada = models.OneToOneField(
+        'self', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='reversao',
+    )
 
     solicitacao = models.ForeignKey(
         Solicitacao,

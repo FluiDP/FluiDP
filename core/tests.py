@@ -263,3 +263,183 @@ class SchedulerNaoCancelaPorPrazoTests(TestCase):
         self.assertEqual(solicitacao.status, Solicitacao.StatusChoices.PENDENTE_GESTOR)
         self.assertEqual(solicitacao.aprovador_atual, gestor)
         self.assertFalse(solicitacao.logs.filter(acao='CANCELAMENTO_SISTEMA').exists())
+
+
+class DecisoesValidasTests(TestCase):
+    def setUp(self):
+        from .models import LogAprovacao
+        self.Log = LogAprovacao
+        self.lotacao = Lotacao.objects.create(nome_lotacao='Setor reversões')
+        self.autor = CustomUser.objects.create_user(
+            username='autor_reversao', cpf='52998224725', lotacao=self.lotacao,
+        )
+        self.gestor = CustomUser.objects.create_user(
+            username='gestor_reversao', cpf='11122233396',
+        )
+        cargo = Cargo.objects.create(nome_cargo='Diretor reversões', hierarquia=Cargo.HierarquiaChoices.DIRETOR)
+        self.diretor = CustomUser.objects.create_user(
+            username='diretor_reversao', cpf='12345678909', cargo=cargo,
+        )
+        tipo = TipoDocumento.objects.create(nome_documento='Teste reversões', definicao_formulario=[])
+        self.solicitacao = Solicitacao.objects.create(
+            colaborador=self.autor, tipo_documento=tipo,
+            status=Solicitacao.StatusChoices.PENDENTE_GESTOR,
+            dados_preenchidos={'schema': [], 'values': {}},
+        )
+        self.log('CRIACAO', self.autor)
+
+    def log(self, acao, ator):
+        return self.Log.objects.create(solicitacao=self.solicitacao, ator=ator, acao=acao)
+
+    def reverter(self, ator):
+        from .services import reverter_status_solicitacao
+        with patch.object(Lotacao, 'find_gestor_disponivel', return_value=self.gestor):
+            reverter_status_solicitacao(self.solicitacao, ator)
+        self.solicitacao.refresh_from_db()
+
+    def test_gestor_aprova_reverte_e_autor_edita(self):
+        from .services import editar_solicitacao
+        self.assertTrue(self.solicitacao.can_edit(self.autor))
+        decisao = self.log('APROVADO_GESTOR', self.gestor)
+        self.solicitacao.status = Solicitacao.StatusChoices.PENDENTE_DP
+        self.solicitacao.save()
+        self.assertFalse(self.solicitacao.can_edit(self.autor))
+        self.reverter(self.gestor)
+        self.assertEqual(self.solicitacao.logs.get(acao='REVERSAO').decisao_anulada_id, decisao.pk)
+        self.assertTrue(self.solicitacao.can_edit(self.autor))
+        editar_solicitacao(self.solicitacao, self.autor, {'motivo': 'Corrigido'})
+        self.solicitacao.refresh_from_db()
+        self.assertEqual(self.solicitacao.dados_preenchidos['values']['motivo'], 'Corrigido')
+        self.assertTrue(self.solicitacao.can_edit(self.autor))
+        self.assertFalse(self.solicitacao.can_edit(self.gestor))
+        self.assertTrue(self.solicitacao.logs.filter(pk=decisao.pk).exists())
+        self.assertFalse(self.solicitacao.can_reverse_status(self.gestor))
+
+    def test_diretor_reverte_e_depois_gestor_reverte(self):
+        gestor = self.log('APROVADO_GESTOR', self.gestor)
+        diretor = self.log('APROVADO_DIRETOR', self.diretor)
+        self.solicitacao.status = Solicitacao.StatusChoices.PENDENTE_DP
+        self.solicitacao.save()
+        self.assertFalse(self.solicitacao.can_reverse_status(self.gestor))
+        self.reverter(self.diretor)
+        self.assertEqual(self.solicitacao.decisoes_validas().get().pk, gestor.pk)
+        self.assertTrue(self.solicitacao.can_reverse_status(self.gestor))
+        self.assertFalse(self.solicitacao.can_edit(self.autor))
+        self.reverter(self.gestor)
+        self.assertFalse(self.solicitacao.decisoes_validas().exists())
+        self.assertTrue(self.solicitacao.can_edit(self.autor))
+        self.assertEqual(set(self.solicitacao.logs.filter(acao='REVERSAO').values_list('decisao_anulada_id', flat=True)), {gestor.pk, diretor.pk})
+
+    def test_aceite_do_colega_continua_bloqueando_edicao(self):
+        aceite = self.log('ACEITE_SECUNDARIO', self.diretor)
+        self.log('APROVADO_GESTOR', self.gestor)
+        self.reverter(self.gestor)
+        self.assertEqual(self.solicitacao.decisoes_validas().get().pk, aceite.pk)
+        self.assertFalse(self.solicitacao.can_edit(self.autor))
+
+    def test_nova_aprovacao_volta_a_bloquear_edicao(self):
+        self.log('APROVADO_GESTOR', self.gestor)
+        self.reverter(self.gestor)
+        nova = self.log('APROVADO_GESTOR', self.gestor)
+        self.assertEqual(self.solicitacao.decisoes_validas().get().pk, nova.pk)
+        self.assertFalse(self.solicitacao.can_edit(self.autor))
+        self.assertFalse(self.solicitacao.can_reverse_status(self.gestor))
+
+    def test_prazo_da_decisao_do_gestor_continua_valendo(self):
+        gestor = self.log('APROVADO_GESTOR', self.gestor)
+        self.Log.objects.filter(pk=gestor.pk).update(data_acao=timezone.now() - timedelta(hours=25))
+        self.log('APROVADO_DIRETOR', self.diretor)
+        self.reverter(self.diretor)
+        self.assertFalse(self.solicitacao.can_reverse_status(self.gestor))
+
+    def test_estados_encerrados_nao_permitem_edicao(self):
+        for status in ['FINALIZADO', 'CANCELADO', 'RECUSADO']:
+            with self.subTest(status=status):
+                self.solicitacao.status = status
+                self.assertFalse(self.solicitacao.can_edit(self.autor))
+
+    def migrar_logs(self):
+        from importlib import import_module
+        from django.apps import apps
+        from django.db import connection
+        migration = import_module('core.migrations.0008_vincular_reversoes_anteriores')
+        migration.vincular_reversoes(apps, SimpleNamespace(connection=connection))
+
+    def test_migracao_vincula_reversao_antiga(self):
+        decisao = self.log('APROVADO_GESTOR', self.gestor)
+        reversao = self.log('REVERSAO', self.gestor)
+        reversao.detalhes = f"Status revertido. A decisão anterior ('{decisao.get_acao_display()}') foi desfeita. Justificativa: erro"
+        reversao.save()
+        self.migrar_logs()
+        reversao.refresh_from_db()
+        self.assertEqual(reversao.decisao_anulada_id, decisao.pk)
+        self.assertTrue(self.solicitacao.can_edit(self.autor))
+
+    def test_migracao_nao_inventa_vinculo_para_reversao_ambigua(self):
+        self.log('APROVADO_GESTOR', self.gestor)
+        reversao = self.log('REVERSAO', self.gestor)
+        self.migrar_logs()
+        reversao.refresh_from_db()
+        self.assertIsNone(reversao.decisao_anulada_id)
+        self.assertFalse(self.solicitacao.can_edit(self.autor))
+        self.assertFalse(self.solicitacao.can_reverse_status(self.diretor))
+
+
+    def test_encadeamento_completo_ate_aceite_do_colega(self):
+        from django.contrib.auth.models import Group
+        dp_group = Group.objects.create(name='DP')
+        dp = CustomUser.objects.create_user(username='dp_reversao', cpf='00000000001')
+        dp_final = CustomUser.objects.create_user(username='dp_final_reversao', cpf='00000000002')
+        colega = CustomUser.objects.create_user(username='colega_reversao', cpf='00000000003')
+        dp.groups.add(dp_group)
+        dp_final.groups.add(dp_group)
+        etapas = [
+            ('ACEITE_SECUNDARIO', colega),
+            ('APROVADO_GESTOR', self.gestor),
+            ('APROVADO_DIRETOR', self.diretor),
+            ('APROVADO_DP', dp),
+            ('LANCADO', dp_final),
+        ]
+        decisoes = [self.log(acao, ator) for acao, ator in etapas]
+        self.solicitacao.status = Solicitacao.StatusChoices.FINALIZADO
+        self.solicitacao.save()
+        for indice in range(len(etapas) - 1, -1, -1):
+            with self.subTest(acao=etapas[indice][0]):
+                self.assertEqual(self.solicitacao.decisoes_validas().first(), decisoes[indice])
+                self.assertTrue(self.solicitacao.can_reverse_status(etapas[indice][1]))
+                self.reverter(etapas[indice][1])
+                self.assertEqual(self.solicitacao.can_edit(self.autor), indice == 0)
+        self.assertEqual(self.solicitacao.status, Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO)
+
+    def test_recusas_tambem_sao_decisoes_anulaveis(self):
+        from django.contrib.auth.models import Group
+        dp = CustomUser.objects.create_user(username='dp_recusa', cpf='00000000004')
+        dp.groups.add(Group.objects.create(name='DP'))
+        for acao, ator in [
+            ('RECUSA_SECUNDARIO', self.autor),
+            ('RECUSADO_GESTOR', self.gestor),
+            ('RECUSADO_DIRETOR', self.diretor),
+            ('RECUSADO_DP', dp),
+        ]:
+            with self.subTest(acao=acao):
+                self.solicitacao = Solicitacao.objects.create(
+                    colaborador=self.autor, tipo_documento=self.solicitacao.tipo_documento,
+                    status=Solicitacao.StatusChoices.RECUSADO,
+                )
+                decisao = self.log(acao, ator)
+                self.assertFalse(self.solicitacao.can_edit(self.autor))
+                self.reverter(ator)
+                self.assertEqual(self.solicitacao.logs.get(acao='REVERSAO').decisao_anulada_id, decisao.pk)
+                self.assertTrue(self.solicitacao.can_edit(self.autor))
+
+    def test_migracao_nao_interpreta_reversao_repetida_como_outra_decisao(self):
+        self.log('APROVADO_GESTOR', self.gestor)
+        diretor = self.log('APROVADO_DIRETOR', self.diretor)
+        for _ in range(2):
+            reversao = self.log('REVERSAO', self.diretor)
+            reversao.detalhes = f"Status revertido. A decisão anterior ('{diretor.get_acao_display()}') foi desfeita."
+            reversao.save()
+        self.migrar_logs()
+        self.assertEqual(self.solicitacao.logs.filter(decisao_anulada=diretor).count(), 1)
+        self.assertTrue(self.solicitacao.tem_reversao_sem_vinculo())
+        self.assertFalse(self.solicitacao.can_edit(self.autor))
