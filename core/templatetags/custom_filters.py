@@ -18,7 +18,7 @@ def string_to_date(value):
         return value
     
 @register.simple_tag(takes_context=True)
-def query_transform(context, **kwargs):
+def query_transform(context, reset_page=True, **kwargs):
     """
     Atualiza a querystring atual mesclando com novos parâmetros.
     Ex: {% query_transform sort='-data' %}
@@ -27,6 +27,6 @@ def query_transform(context, **kwargs):
     for k, v in kwargs.items():
         query[k] = v
 
-    if 'page' in query and 'sort' in kwargs:
+    if reset_page and 'page' in query and 'sort' in kwargs:
         del query['page']
     return query.urlencode()

@@ -219,7 +219,6 @@ def gestor_solicitacoes_view(request):
             Q(tipo_documento__nome_documento__icontains=search_query)
         )
 
-    solicitacoes_list = solicitacoes_list.order_by('-data')
     
     if status_filter:
         solicitacoes_list = solicitacoes_list.filter(status=status_filter)
@@ -236,8 +235,6 @@ def gestor_solicitacoes_view(request):
     if data_fim:
         solicitacoes_list = solicitacoes_list.filter(data__date__lte=data_fim)
 
-    paginator = Paginator(solicitacoes_list, 15)
-    page_obj = paginator.get_page(page_number)
     
     tipos_documento = TipoDocumento.objects.filter(arquivado=False).order_by('nome_documento')
     lotacoes = Lotacao.objects.all() if (request.user.cargo and request.user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR) else request.user.lotacao.get_descendentes(include_self=True)
@@ -261,7 +258,10 @@ def gestor_solicitacoes_view(request):
     if sort_param not in campos_permitidos:
         sort_param = '-data'
 
-    solicitacoes_list = solicitacoes_list.order_by(sort_param)
+    solicitacoes_list = solicitacoes_list.order_by(sort_param, 'pk')
+
+    paginator = Paginator(solicitacoes_list, 15)
+    page_obj = paginator.get_page(page_number)
 
     context = {
         'usuario': request.user,

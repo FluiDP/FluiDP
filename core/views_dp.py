@@ -684,7 +684,7 @@ def dp_solicitacoes_view(request):
     if sort_param not in campos_permitidos:
         sort_param = '-data'
 
-    solicitacoes_list = solicitacoes_list.order_by(sort_param)
+    solicitacoes_list = solicitacoes_list.order_by(sort_param, 'pk')
 
     paginator = Paginator(solicitacoes_list, 15)
     page_obj = paginator.get_page(page_number)

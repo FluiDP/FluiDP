@@ -1,4 +1,5 @@
 {% load custom_filters %}
+{% url "gestor:solicitacoes" as list_url %}
 
 <section id="solicitacoes" class="flex flex-1 flex-col gap-2 min-h-0">
          
@@ -12,7 +13,8 @@
               hx-get="{% url 'gestor:solicitacoes' %}" 
               hx-target="#solicitacoes" 
               hx-swap="outerHTML"
-              hx-trigger="input from:input[type='text'] delay:500ms, change from:select, change from:input[type='date'], submit, updateContent from:body"
+              hx-sync="this:replace"
+              hx-trigger="input from:input[type='search'] delay:500ms, change from:select, change from:input[type='date'], submit, updateContent from:body"
               hx-push-url="true"
               onsubmit="event.preventDefault();"
               class="flex flex-col gap-3">
@@ -50,6 +52,7 @@
                     <input type="date" name="data_fim" value="{{ data_fim }}" class="py-2 px-2 bg-transparent text-slate-700 focus:outline-none text-sm cursor-pointer border-none ring-0">
                 </div>
             </div>
+            <input type="hidden" name="sort" value="{{ current_sort }}">
         </form>
 
         <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden mt-1">
@@ -60,99 +63,19 @@
                     <table class="w-full border-separate border-spacing-y-2">
                         <thead>
                             <tr class="px-2">
-                                <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
-                                    hx-get="?{% if current_sort == 'colaborador__first_name' %}{% query_transform sort='-colaborador__first_name' %}{% else %}{% query_transform sort='colaborador__first_name' %}{% endif %}"
-                                    hx-target="#content" 
-                                    hx-swap="innerHTML">
-                                    <div class="flex items-center gap-1">
-                                        Solicitante
-                                        <span class="flex items-center justify-center w-4 h-4">
-                                            {% if current_sort == 'colaborador__first_name' %}
-                                                <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
-                                            {% elif current_sort == '-colaborador__first_name' %}
-                                                <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
-                                            {% else %}
-                                                <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                </th>
+                                {% include "partials/_solicitacao_sort_header.html" with field="colaborador__first_name" label="Solicitante" %}
 
-                                <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
-                                    hx-get="?{% if current_sort == 'colaborador__lotacao__nome_lotacao' %}{% query_transform sort='-colaborador__lotacao__nome_lotacao' %}{% else %}{% query_transform sort='colaborador__lotacao__nome_lotacao' %}{% endif %}"
-                                    hx-target="#content" 
-                                    hx-swap="innerHTML">
-                                    <div class="flex items-center gap-1">
-                                        Lotação
-                                        <span class="flex items-center justify-center w-4 h-4">
-                                            {% if current_sort == 'colaborador__lotacao__nome_lotacao' %}
-                                                <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
-                                            {% elif current_sort == '-colaborador__lotacao__nome_lotacao' %}
-                                                <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
-                                            {% else %}
-                                                <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                </th>
+                                {% include "partials/_solicitacao_sort_header.html" with field="colaborador__lotacao__nome_lotacao" label="Lotação" %}
 
-                                <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
-                                    hx-get="?{% if current_sort == 'tipo_documento__nome_documento' %}{% query_transform sort='-tipo_documento__nome_documento' %}{% else %}{% query_transform sort='tipo_documento__nome_documento' %}{% endif %}"
-                                    hx-target="#content" 
-                                    hx-swap="innerHTML">
-                                    <div class="flex items-center gap-1">
-                                        Documento
-                                        <span class="flex items-center justify-center w-4 h-4">
-                                            {% if current_sort == 'tipo_documento__nome_documento' %}
-                                                <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
-                                            {% elif current_sort == '-tipo_documento__nome_documento' %}
-                                                <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
-                                            {% else %}
-                                                <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                </th>
+                                {% include "partials/_solicitacao_sort_header.html" with field="tipo_documento__nome_documento" label="Documento" %}
 
-                                <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
-                                    hx-get="?{% if current_sort == 'data' %}{% query_transform sort='-data' %}{% else %}{% query_transform sort='data' %}{% endif %}"
-                                    hx-target="#content" 
-                                    hx-swap="innerHTML">
-                                    <div class="flex items-center gap-1">
-                                        Data
-                                        <span class="flex items-center justify-center w-4 h-4">
-                                            {% if current_sort == 'data' %}
-                                                <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
-                                            {% elif current_sort == '-data' %}
-                                                <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
-                                            {% else %}
-                                                <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                </th>
+                                {% include "partials/_solicitacao_sort_header.html" with field="data" label="Data" %}
 
                                 <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600">
                                     Informações
                                 </th>
 
-                                <th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
-                                    hx-get="?{% if current_sort == 'status' %}{% query_transform sort='-status' %}{% else %}{% query_transform sort='status' %}{% endif %}"
-                                    hx-target="#content" 
-                                    hx-swap="innerHTML">
-                                    <div class="flex items-center gap-1">
-                                        Status
-                                        <span class="flex items-center justify-center w-4 h-4">
-                                            {% if current_sort == 'status' %}
-                                                <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
-                                            {% elif current_sort == '-status' %}
-                                                <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
-                                            {% else %}
-                                                <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                </th>
+                                {% include "partials/_solicitacao_sort_header.html" with field="status" label="Status" %}
                             </tr>
                         </thead>
                         <tbody>
@@ -189,7 +112,9 @@
                     <div class="flex gap-2">
                         {% if solicitacoes.has_previous %}
                         <button 
-                            hx-get="{% url 'gestor:solicitacoes' %}?page={{ solicitacoes.previous_page_number }}{{ url_params }}"
+                            hx-get="{% url 'gestor:solicitacoes' %}?page={{ solicitacoes.previous_page_number }}"
+                            hx-push-url="true"
+                            hx-include="#filter-form"
                             hx-target="#solicitacoes" 
                             hx-swap="outerHTML"
                             class="px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 transition-colors">
@@ -201,7 +126,9 @@
 
                         {% if solicitacoes.has_next %}
                         <button 
-                            hx-get="{% url 'gestor:solicitacoes' %}?page={{ solicitacoes.next_page_number }}{{ url_params }}"
+                            hx-get="{% url 'gestor:solicitacoes' %}?page={{ solicitacoes.next_page_number }}"
+                            hx-push-url="true"
+                            hx-include="#filter-form"
                             hx-target="#solicitacoes" 
                             hx-swap="outerHTML"
                             class="px-3 py-1 text-sm bg-primary hover:bg-secondary text-white rounded-md transition-colors shadow-sm">

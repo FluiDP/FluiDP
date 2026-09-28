@@ -1,0 +1,32 @@
+{% load custom_filters %}
+{% with descending="-"|add:field %}
+{% if current_sort == field %}
+    {% query_transform sort=descending reset_page=False as sort_query %}
+{% else %}
+    {% query_transform sort=field reset_page=False as sort_query %}
+{% endif %}
+<th class="p-2 text-left text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors group select-none"
+    aria-sort="{% if current_sort == field %}ascending{% elif current_sort == descending %}descending{% else %}none{% endif %}">
+    <a class="flex items-center gap-1 w-full text-left cursor-pointer"
+            href="{{ list_url }}?{{ sort_query }}"
+            hx-get="{{ list_url }}?sort={% if current_sort == field %}{{ descending }}{% else %}{{ field }}{% endif %}&amp;page={{ request.GET.page|default:'1'|urlencode }}"
+            hx-include="#filter-form"
+            hx-params="not sort,page"
+            hx-sync="#filter-form:replace"
+            hx-target="#solicitacoes"
+            hx-swap="outerHTML"
+            hx-push-url="true"
+            title="Ordenar por {{ label }}">
+        {{ label }}
+        <span class="flex items-center justify-center w-4 h-4" aria-hidden="true">
+            {% if current_sort == field %}
+                <ion-icon name="chevron-up-outline" class="text-primary font-bold"></ion-icon>
+            {% elif current_sort == descending %}
+                <ion-icon name="chevron-down-outline" class="text-primary font-bold"></ion-icon>
+            {% else %}
+                <ion-icon name="swap-vertical-outline" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></ion-icon>
+            {% endif %}
+        </span>
+    </a>
+</th>
+{% endwith %}

@@ -18,4 +18,5 @@ staticfiles/
 staticfiles_prod/
 media/
 logs/
+/tmp/
 import/
