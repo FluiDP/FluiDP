@@ -1,26 +1,36 @@
 {% if aviso_solicitacoes_login %}
-<div x-data="{ open: true }" x-show="open" x-cloak
-     @keydown.escape.window="open = false"
-     class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-    <div @click.outside="open = false"
-         class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl text-center">
-        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-            <ion-icon name="alert-circle-outline" class="text-3xl"></ion-icon>
+<div id="aviso-solicitacoes-login" x-data="{ open: true }" x-show="open" x-cloak
+     role="dialog" aria-modal="true" aria-labelledby="aviso-solicitacoes-titulo"
+     class="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+    <div class="w-full max-w-2xl max-h-[90dvh] rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
+        <div class="px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-100 text-center">
+            <h2 id="aviso-solicitacoes-titulo" class="text-lg sm:text-xl font-bold text-slate-900">
+                Atualizações das suas solicitações
+            </h2>
+            <p class="mt-1 text-sm text-slate-500">Confira o que aconteceu desde a última vez que você entrou.</p>
         </div>
-        <h2 class="text-xl font-bold text-slate-900">Atualização das suas solicitações</h2>
-        <div class="mt-4 space-y-2 text-sm leading-relaxed text-slate-600">
-            {% if aviso_solicitacoes_login.canceladas %}
-                <p><strong>{{ aviso_solicitacoes_login.canceladas }}</strong> solicitaç{{ aviso_solicitacoes_login.canceladas|pluralize:"ão,ões" }} {{ aviso_solicitacoes_login.canceladas|pluralize:"foi,foram" }} cancelada{{ aviso_solicitacoes_login.canceladas|pluralize:"s" }} automaticamente pelo sistema.</p>
-            {% endif %}
-            {% if aviso_solicitacoes_login.recusadas %}
-                <p><strong>{{ aviso_solicitacoes_login.recusadas }}</strong> solicitaç{{ aviso_solicitacoes_login.recusadas|pluralize:"ão,ões" }} {{ aviso_solicitacoes_login.recusadas|pluralize:"foi,foram" }} recusada{{ aviso_solicitacoes_login.recusadas|pluralize:"s" }}.</p>
-            {% endif %}
-            <p>Para conferir o motivo, veja o <strong>histórico de aprovações</strong> nos detalhes da solicitação.</p>
+
+        <div class="min-h-0 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 space-y-3">
+            {% for notificacao in aviso_solicitacoes_login %}
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4 text-left">
+                    <p class="text-sm font-semibold text-slate-900">
+                        Solicitação #{{ notificacao.solicitacao_id }}
+                        {% if notificacao.solicitacao %}— {{ notificacao.solicitacao.tipo_documento.nome_documento }}{% endif %}
+                    </p>
+                    <p class="mt-1 text-xs font-semibold text-primary">{{ notificacao.titulo }}</p>
+                    <p class="mt-1 text-sm text-slate-600 break-words">{{ notificacao.mensagem }}</p>
+                </div>
+            {% endfor %}
         </div>
-        <button type="button" @click="open = false"
-                class="mt-6 w-full rounded-full bg-primary px-5 py-3 font-semibold text-white shadow-sm hover:bg-secondary">
-            Entendi
-        </button>
+
+        <form hx-post="{% url 'confirmar_aviso_solicitacoes_login' %}"
+              hx-target="#aviso-solicitacoes-login" hx-swap="outerHTML"
+              class="shrink-0 border-t border-slate-100 px-5 py-4 sm:px-6">
+            {% csrf_token %}
+            <button type="submit" class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-secondary">
+                Entendi
+            </button>
+        </form>
     </div>
 </div>
 {% endif %}

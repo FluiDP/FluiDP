@@ -131,22 +131,26 @@ def notificar_cancelamento_automatico(solicitacao, motivo):
 
 
 def preparar_aviso_login(request, usuario):
-    """Agrupa recusas/cancelamentos novos para exibição única após o login."""
-    tipos = [Notificacao.TipoChoices.RECUSADA, Notificacao.TipoChoices.CANCELADA_SISTEMA]
+    """Separa notificações novas para confirmação após o login."""
+    tipos = [
+        Notificacao.TipoChoices.COMENTARIO,
+        Notificacao.TipoChoices.APROVADA_DP,
+        Notificacao.TipoChoices.CANCELADA_SISTEMA,
+        Notificacao.TipoChoices.RECUSADA,
+    ]
     pendentes = Notificacao.todos_objetos.filter(
         destinatario=usuario,
+        solicitacao__colaborador=usuario,
         tipo__in=tipos,
+        visualizada_em__isnull=True,
         aviso_login_exibido_em__isnull=True,
         excluida_em__isnull=True,
     )
-    contagens = dict(pendentes.values_list('tipo').annotate(total=Count('id')))
-    if not contagens:
-        return
-    pendentes.update(aviso_login_exibido_em=timezone.now())
-    request.session['aviso_solicitacoes_login'] = {
-        'canceladas': contagens.get(Notificacao.TipoChoices.CANCELADA_SISTEMA, 0),
-        'recusadas': contagens.get(Notificacao.TipoChoices.RECUSADA, 0),
-    }
+    ids = list(pendentes.values_list('id', flat=True))
+    if ids:
+        request.session['aviso_solicitacoes_login'] = ids
+    else:
+        request.session.pop('aviso_solicitacoes_login', None)
 
 
 def criar_resumos_semanais(data_referencia=None):

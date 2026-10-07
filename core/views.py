@@ -14,6 +14,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy, reverse
 from django.utils import timezone
@@ -66,6 +67,24 @@ def marcar_todas_notificacoes_lidas_view(request):
         visualizada_em=timezone.now()
     )
     return _renderizar_notificacoes(request)
+
+
+@login_required
+@require_POST
+def confirmar_aviso_solicitacoes_login_view(request):
+    ids = request.session.pop('aviso_solicitacoes_login', [])
+    Notificacao.objects.filter(
+        pk__in=ids,
+        destinatario=request.user,
+        solicitacao__colaborador=request.user,
+    ).update(visualizada_em=timezone.now(), aviso_login_exibido_em=timezone.now())
+    response = HttpResponse('')
+    response['HX-Trigger'] = json.dumps({
+        'notificacoesAtualizadas': {
+            'temNaoLidas': request.user.notificacoes.filter(visualizada_em__isnull=True).exists()
+        }
+    })
+    return response
 
 
 @login_required

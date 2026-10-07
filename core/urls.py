@@ -21,6 +21,7 @@ urlpatterns = [
     path('notificacoes/<int:notificacao_id>/marcar-lida/', views.marcar_notificacao_lida_view, name='marcar_notificacao_lida'),
     path('notificacoes/<int:notificacao_id>/abrir/', views.abrir_notificacao_view, name='abrir_notificacao'),
     path('notificacoes/marcar-todas-lidas/', views.marcar_todas_notificacoes_lidas_view, name='marcar_todas_notificacoes_lidas'),
+    path('notificacoes/confirmar-aviso-login/', views.confirmar_aviso_solicitacoes_login_view, name='confirmar_aviso_solicitacoes_login'),
     path('notificacoes/<int:notificacao_id>/excluir/', views.excluir_notificacao_view, name='excluir_notificacao'),
 
     path('administracao/', include('core.urls_dp')),

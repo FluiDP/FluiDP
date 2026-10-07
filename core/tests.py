@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
-from django.test import Client, SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from django.urls import reverse
 
@@ -148,30 +148,73 @@ class ReferenciaMensalTipoDocumentoTests(SimpleTestCase):
         self.assertIsNone(motivo)
 
 
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
 class AvisoLoginTests(TestCase):
-    def test_agrupa_eventos_e_nao_exibe_novamente(self):
+    def test_exibe_apenas_solicitacoes_proprias_e_confirma_visualizacao(self):
         usuario = CustomUser.objects.create_user(
             username='usuario_teste', password='senha-segura', cpf='12345678909'
         )
-        for tipo in [
+        outro = CustomUser.objects.create_user(username='outro_aviso', cpf='11122233396')
+        tipo_documento = TipoDocumento.objects.create(nome_documento='Documento aviso')
+        solicitacoes = [Solicitacao.objects.create(colaborador=usuario, tipo_documento=tipo_documento)
+                        for _ in range(3)]
+        solicitacao_outro = Solicitacao.objects.create(
+            colaborador=outro, colaborador_secundario=usuario, tipo_documento=tipo_documento,
+        )
+        solicitacao_aprovada_por_usuario = Solicitacao.objects.create(
+            colaborador=outro, aprovador_atual=usuario, tipo_documento=tipo_documento,
+        )
+        notificacoes = []
+        for solicitacao, tipo in zip(solicitacoes, [
+            Notificacao.TipoChoices.COMENTARIO,
+            Notificacao.TipoChoices.APROVADA_DP,
             Notificacao.TipoChoices.CANCELADA_SISTEMA,
-            Notificacao.TipoChoices.CANCELADA_SISTEMA,
-            Notificacao.TipoChoices.RECUSADA,
-        ]:
-            Notificacao.objects.create(
-                destinatario=usuario, tipo=tipo, titulo='Aviso', mensagem='Mensagem'
-            )
-
-        primeira_requisicao = SimpleNamespace(session={})
-        preparar_aviso_login(primeira_requisicao, usuario)
-        self.assertEqual(
-            primeira_requisicao.session['aviso_solicitacoes_login'],
-            {'canceladas': 2, 'recusadas': 1},
+        ]):
+            notificacoes.append(Notificacao.objects.create(
+                destinatario=usuario, solicitacao=solicitacao,
+                tipo=tipo, titulo='Aviso', mensagem='Mensagem',
+            ))
+        Notificacao.objects.create(
+            destinatario=usuario, solicitacao=solicitacao_outro,
+            tipo=Notificacao.TipoChoices.COMENTARIO, titulo='Outro', mensagem='Mensagem',
+        )
+        Notificacao.objects.create(
+            destinatario=usuario, solicitacao=solicitacao_aprovada_por_usuario,
+            tipo=Notificacao.TipoChoices.COMENTARIO, titulo='Aprovador', mensagem='Mensagem',
+        )
+        Notificacao.objects.create(
+            destinatario=usuario, solicitacao=solicitacoes[0],
+            tipo=Notificacao.TipoChoices.SOLICITACAO_ABERTA,
+            titulo='Abertura', mensagem='Mensagem',
         )
 
-        segunda_requisicao = SimpleNamespace(session={})
-        preparar_aviso_login(segunda_requisicao, usuario)
-        self.assertNotIn('aviso_solicitacoes_login', segunda_requisicao.session)
+        requisicao = SimpleNamespace(session={})
+        preparar_aviso_login(requisicao, usuario)
+        ids = requisicao.session['aviso_solicitacoes_login']
+        self.assertCountEqual(ids, [notificacao.pk for notificacao in notificacoes])
+        self.assertEqual(Notificacao.objects.filter(pk__in=ids, visualizada_em__isnull=True).count(), 3)
+
+        self.client.force_login(usuario)
+        sessao = self.client.session
+        sessao['aviso_solicitacoes_login'] = ids
+        sessao.save()
+        pagina = self.client.get(reverse('painel'), follow=True)
+        self.assertEqual(len(pagina.context['aviso_solicitacoes_login']), 3)
+        self.assertContains(pagina, 'max-w-2xl max-h-[90dvh]')
+        for solicitacao in solicitacoes:
+            self.assertContains(pagina, f'Solicitação #{solicitacao.pk}')
+        resposta = self.client.post(reverse('confirmar_aviso_solicitacoes_login'))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertNotIn('aviso_solicitacoes_login', self.client.session)
+        self.assertEqual(Notificacao.objects.filter(pk__in=ids, visualizada_em__isnull=False).count(), 3)
+        self.assertEqual(Notificacao.objects.filter(pk__in=ids, aviso_login_exibido_em__isnull=False).count(), 3)
+
+        nova_requisicao = SimpleNamespace(session={})
+        preparar_aviso_login(nova_requisicao, usuario)
+        self.assertNotIn('aviso_solicitacoes_login', nova_requisicao.session)
 
 
 class RestricaoEmailDirecaoTests(TestCase):
