@@ -279,8 +279,6 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     user = request.user
 
     is_dp = user.groups.filter(name='DP').exists()
-    is_dono = solicitacao.colaborador == user
-    
     pode_aprovar = False
     pode_aprovar = services._pode_ator_aprovar(solicitacao, user, request.user)
     
@@ -328,13 +326,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
 
         campos_com_valores.append(campo)
         
-    estados_irreversiveis = [
-        Solicitacao.StatusChoices.FINALIZADO,
-        Solicitacao.StatusChoices.RECUSADO,
-        Solicitacao.StatusChoices.CANCELADO
-    ]
-    pode_ser_cancelada = solicitacao.status not in estados_irreversiveis
-    pode_cancelar = is_dono and pode_ser_cancelada
+    pode_cancelar = solicitacao.can_cancel(request.user)
     
     context = {
         'is_dp': is_dp,
