@@ -222,6 +222,40 @@ class RelatorioGeralStatusIntegrationTests(TestCase):
         self.assertEqual(resposta_encerradas.status_code, 200)
         self.assertEqual(resposta_encerradas.context['ranking_data'][0]['total'], 2)
 
+    def test_horas_extras_com_intervalo_e_formulario_antigo(self):
+        tipo_horas = TipoDocumento.objects.create(
+            nome_documento='Pagamento de Hora Extra em Folha', definicao_formulario=[]
+        )
+        Solicitacao.objects.create(
+            colaborador=self.colaborador, tipo_documento=tipo_horas,
+            status=Solicitacao.StatusChoices.FINALIZADO,
+            dados_preenchidos={
+                'schema': [{'name': 'cronograma_he', 'type': 'repeater', 'sub_fields': [
+                    {'name': name} for name in (
+                        'hora_inicio', 'inicio_intervalo', 'fim_intervalo', 'hora_fim'
+                    )
+                ]}],
+                'values': {'cronograma_he': [
+                    {'data_programada': '2025-12-31', 'hora_inicio': '08:00', 'inicio_intervalo': '12:00',
+                     'fim_intervalo': '13:00', 'hora_fim': '17:00'},
+                    {'data_programada': '2025-12-31', 'hora_inicio': '22:00', 'inicio_intervalo': '23:30',
+                     'fim_intervalo': '00:00', 'hora_fim': '02:00'},
+                ]},
+            },
+        )
+        Solicitacao.objects.create(
+            colaborador=self.colaborador, tipo_documento=tipo_horas,
+            status=Solicitacao.StatusChoices.FINALIZADO,
+            dados_preenchidos={
+                'schema': [{'name': 'total_geral_horas', 'type': 'calculated',
+                            'calc_format': 'time', 'label': 'Total de Horas Extras'}],
+                'values': {'total_geral_horas': '02:00'},
+            },
+        )
+
+        resposta = self.client.get(reverse('relatorio_geral'))
+        self.assertEqual(resposta.context['horas_extras'], '13:30')
+
 
 class SchedulerNaoCancelaPorPrazoTests(TestCase):
     def test_solicitacao_em_andamento_permanece_ativa_apos_fim_do_periodo(self):

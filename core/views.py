@@ -436,6 +436,23 @@ def relatorio_geral_view(request):
         m = mins % 60
         return f"{h:02d}:{m:02d}"
 
+    def duration_minutes(start, end):
+        """Duração entre horários HH:MM, inclusive quando cruza a meia-noite."""
+        def clock_minutes(value):
+            try:
+                hour, minute = map(int, value.split(':'))
+                if 0 <= hour < 24 and 0 <= minute < 60:
+                    return hour * 60 + minute
+            except (AttributeError, TypeError, ValueError):
+                pass
+            return None
+
+        start_minutes = clock_minutes(start)
+        end_minutes = clock_minutes(end)
+        if start_minutes is None or end_minutes is None:
+            return None
+        return (end_minutes - start_minutes) % (24 * 60)
+
     for sol in qs_base:
         if sol.status == Solicitacao.StatusChoices.FINALIZADO:
             dados = sol.dados_preenchidos
@@ -443,6 +460,23 @@ def relatorio_geral_view(request):
             schema = dados.get('schema', []) if isinstance(dados, dict) else []
             
             if isinstance(valores, dict) and isinstance(schema, list):
+                cronograma_he = next(
+                    (campo for campo in schema if campo.get('name') == 'cronograma_he'
+                     and campo.get('type') == 'repeater'), None,
+                )
+                campos_cronograma = {
+                    campo.get('name') for campo in cronograma_he.get('sub_fields', [])
+                } if cronograma_he else set()
+                if {'hora_inicio', 'inicio_intervalo', 'fim_intervalo', 'hora_fim'} <= campos_cronograma:
+                    for linha in valores.get('cronograma_he', []):
+                        if not isinstance(linha, dict):
+                            continue
+                        periodo = duration_minutes(linha.get('hora_inicio'), linha.get('hora_fim'))
+                        intervalo = duration_minutes(linha.get('inicio_intervalo'), linha.get('fim_intervalo'))
+                        if periodo is not None and intervalo is not None and intervalo <= periodo:
+                            total_minutos_extras += periodo - intervalo
+                    continue
+
                 calc_time_fields = [
                     campo for campo in schema 
                     if campo.get('type') == 'calculated' and campo.get('calc_format') == 'time'
