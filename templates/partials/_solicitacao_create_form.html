@@ -1,5 +1,42 @@
-<div x-data="{ open: true }" 
-     @keydown.escape.window="open = false" 
+<div x-data="{
+        open: true,
+        confirming: false,
+        summary: [],
+        displayValue(input) {
+            if (!input) return '—';
+            if (input.type === 'checkbox') return input.checked ? 'Sim' : 'Não';
+            if (input.tagName === 'SELECT') return input.selectedOptions[0]?.textContent.trim() || '—';
+            if (input.type === 'date' && input.value) return input.value.split('-').reverse().join('/');
+            return input.value?.trim() || '—';
+        },
+        review() {
+            const form = this.$refs.requestForm;
+            if (!form.reportValidity()) return;
+            const schema = JSON.parse(document.getElementById('solicitacao-schema').textContent);
+            this.summary = schema.map(campo => {
+                if (campo.type === 'repeater') {
+                    const container = [...form.querySelectorAll('[data-repeater]')]
+                        .find(element => element.dataset.repeater === campo.name);
+                    const rows = [...(container?.querySelectorAll('.repeater-row') || [])].map((row, index) => ({
+                        label: 'Linha ' + (index + 1),
+                        fields: campo.sub_fields.map(sub => ({
+                            label: sub.label,
+                            value: this.displayValue(row.querySelector('[name=' + CSS.escape(campo.name + '_' + sub.name + '[]') + ']'))
+                        }))
+                    }));
+                    return { label: campo.label, rows };
+                }
+                const inputs = [...form.querySelectorAll('[name=' + CSS.escape(campo.name) + ']')];
+                const input = campo.type === 'radio' ? inputs.find(element => element.checked) : inputs[0];
+                const value = campo.type === 'radio' && input
+                    ? form.querySelector('label[for=' + CSS.escape(input.id) + ']')?.textContent.trim() || input.value
+                    : this.displayValue(input);
+                return { label: campo.label, value };
+            });
+            this.confirming = true;
+        }
+     }"
+     @keydown.escape.window="confirming ? confirming = false : open = false"
      x-show="open" 
      x-transition:enter="ease-out duration-300"
      x-transition:enter-start="opacity-0"
@@ -11,7 +48,8 @@
 
     <div class="absolute inset-0 z-0"></div>
 
-    <form id="modal-content"
+    <form id="modal-content" x-ref="requestForm"
+          @submit.capture="if (!confirming) { $event.preventDefault(); $event.stopImmediatePropagation(); review(); }"
           hx-post="{% url 'colaborador:salvar_solicitacao' tipo_documento.id %}"
           hx-swap="innerHTML" 
           hx-target="#modal-spot"
@@ -23,9 +61,11 @@
           x-transition:leave="ease-in duration-200"
           x-transition:leave-start="opacity-100 scale-100 translate-y-0"
           x-transition:leave-end="opacity-0 scale-95 translate-y-4"
+          :class="confirming ? 'min-h-[70dvh]' : ''"
           class="relative z-10 w-full max-w-2xl max-h-[90dvh] bg-white rounded-2xl shadow-2xl grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
           
           {% csrf_token %}
+          {{ campos_formulario|json_script:"solicitacao-schema" }}
         
         <div class="px-4 py-4 sm:px-6 sm:py-5 border-b border-gray-100 bg-white flex justify-between items-center z-10">
             <div class="min-w-0">
@@ -161,6 +201,7 @@
                                     addNew() { this.items.push({id: Date.now()}) },
                                     remove(index) { this.items.splice(index, 1) } 
                                 }" 
+                                data-repeater="{{ campo.name }}"
                                 class="w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
 
                                 <div class="space-y-0 w-full divide-y divide-gray-100 flex-1">
@@ -367,7 +408,7 @@
                 Descartar
             </button>
 
-            <button type="submit" 
+            <button type="button" x-ref="reviewButton" @click="review()"
                     class="group relative w-full sm:w-auto flex justify-center items-center rounded-xl bg-primary px-8 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-white shadow-md hover:shadow-lg hover:opacity-90 transition-all disabled:opacity-70 disabled:cursor-not-allowed">
                 
                 <span class="flex items-center gap-2 group-[.htmx-request]:hidden">
@@ -383,6 +424,48 @@
                     Processando...
                 </span>
             </button>
+        </div>
+
+        <div x-show="confirming" x-cloak x-effect="if (confirming) $nextTick(() => $refs.confirmButton.focus())"
+             role="dialog" aria-modal="true" aria-labelledby="confirmar-solicitacao-titulo"
+             class="absolute inset-0 z-20 flex flex-col bg-white rounded-2xl overflow-hidden">
+            <div class="px-4 py-4 sm:px-6 border-b border-gray-100">
+                <h3 id="confirmar-solicitacao-titulo" class="text-lg sm:text-xl font-bold text-gray-900">Confirmar solicitação</h3>
+                <p class="mt-2 text-sm text-gray-600 leading-relaxed">Tem certeza que deseja confirmar? Após enviar uma solicitação, as ações de cancelamento e edição serão possíveis até que o gestor aprove. Após isso, não é possível intervir no processo de aprovações.</p>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 sm:px-6 sm:py-4">
+                <h4 class="text-sm font-semibold text-gray-800 mb-3">Resumo da solicitação</h4>
+                <div class="space-y-3">
+                    <template x-for="(entry, index) in summary" :key="index">
+                        <div class="rounded-lg border border-gray-200 bg-slate-50 p-3">
+                            <p class="text-xs font-semibold text-gray-600" x-text="entry.label"></p>
+                            <p x-show="!entry.rows" class="mt-1 text-sm text-gray-900 whitespace-pre-wrap break-words" x-text="entry.value"></p>
+                            <template x-if="entry.rows">
+                                <div class="mt-2 space-y-2">
+                                    <template x-for="(row, rowIndex) in entry.rows" :key="rowIndex">
+                                        <div class="border-l-2 border-primary/40 pl-3">
+                                            <p class="text-xs font-semibold text-gray-700" x-text="row.label"></p>
+                                            <template x-for="(field, fieldIndex) in row.fields" :key="fieldIndex">
+                                                <p class="text-xs text-gray-700 break-words"><span class="font-medium" x-text="field.label + ': '"></span><span x-text="field.value"></span></p>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            <div class="px-4 py-4 sm:px-6 border-t border-gray-100 flex flex-col-reverse sm:flex-row justify-end gap-3">
+                <button type="button" @click="confirming = false; $nextTick(() => $refs.reviewButton.focus())"
+                        class="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold text-primary bg-white border border-primary rounded-xl hover:bg-gray-50">
+                    Desejo revisar
+                </button>
+                <button type="submit" x-ref="confirmButton" :disabled="!confirming"
+                        class="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold text-white bg-primary rounded-xl hover:opacity-90 disabled:opacity-70">
+                    Confirmar envio
+                </button>
+            </div>
         </div>
     </form>
 </div>

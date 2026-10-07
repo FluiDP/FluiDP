@@ -10,11 +10,64 @@ from django.urls import reverse
 
 from .models import Cargo, CustomUser, Lotacao, Notificacao, Solicitacao, TipoDocumento
 from .services import (
+    criar_solicitacao,
     criar_resumo_semanal_usuario,
     deve_enviar_email_notificacao,
+    editar_solicitacao,
     obter_status_relatorio,
     preparar_aviso_login,
 )
+
+
+class DatasTrocaTests(TestCase):
+    def setUp(self):
+        self.sebastiao = CustomUser.objects.create_user(username='sebastiao_troca', cpf='11122233396')
+        self.ramom = CustomUser.objects.create_user(username='ramom_troca', cpf='52998224725')
+        self.outro = CustomUser.objects.create_user(username='outro_troca', cpf='12345678909')
+        self.schema = [
+            {'name': name, 'type': 'date', 'label': name, 'required': True}
+            for name in ('data_plantao_origem', 'data_plantao_destino')
+        ] + [{'name': 'colaborador_substituto', 'type': 'select', 'label': 'Colega',
+              'required': True, 'options_source': 'colaboradores_mesmo_cargo'}]
+        self.tipo = TipoDocumento.objects.create(
+            nome_documento='Troca de Plantão', definicao_formulario=self.schema,
+        )
+
+    def abrir(self, autor, colega, origem, destino):
+        valores = {
+            'data_plantao_origem': origem, 'data_plantao_destino': destino,
+            'colaborador_substituto': str(colega.pk),
+        }
+        return criar_solicitacao(autor, self.tipo, {'schema': self.schema, 'values': valores}, self.schema)
+
+    def test_bloqueia_reuso_do_destino_como_destino_ou_origem(self):
+        self.abrir(self.sebastiao, self.ramom, '2026-11-09', '2026-11-12')
+        with self.assertRaisesMessage(ValidationError, '12/11/2026'):
+            self.abrir(self.sebastiao, self.ramom, '2026-11-11', '2026-11-12')
+        with self.assertRaisesMessage(ValidationError, '12/11/2026'):
+            self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-14')
+
+    def test_bloqueia_colega_e_edicao_mas_libera_terceiros_e_canceladas(self):
+        primeira = self.abrir(self.sebastiao, self.ramom, '2026-11-09', '2026-11-12')
+        with self.assertRaisesMessage(ValidationError, '12/11/2026'):
+            self.abrir(self.ramom, self.outro, '2026-11-12', '2026-11-14')
+        outra = self.abrir(self.outro, self.sebastiao, '2026-11-15', '2026-11-16')
+        with self.assertRaisesMessage(ValidationError, '12/11/2026'):
+            editar_solicitacao(outra, self.outro, {'data_plantao_destino': '2026-11-12'})
+        Solicitacao.objects.filter(pk=primeira.pk).update(status=Solicitacao.StatusChoices.CANCELADO)
+        self.abrir(self.sebastiao, self.ramom, '2026-11-11', '2026-11-12')
+
+    def test_troca_de_folga_tambem_ocupa_dia_de_plantao(self):
+        tipo_folga = TipoDocumento.objects.create(nome_documento='Troca de Folga')
+        Solicitacao.objects.create(
+            colaborador=self.sebastiao, tipo_documento=tipo_folga,
+            status=Solicitacao.StatusChoices.FINALIZADO,
+            dados_preenchidos={'values': {
+                'data_folga_origem': '2026-11-09', 'data_folga_destino': '2026-11-12',
+            }},
+        )
+        with self.assertRaisesMessage(ValidationError, '12/11/2026'):
+            self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-14')
 
 
 class ReferenciaMensalTipoDocumentoTests(SimpleTestCase):

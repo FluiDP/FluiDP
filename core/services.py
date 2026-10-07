@@ -1,7 +1,7 @@
 import os
 import re
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 from email.mime.image import MIMEImage
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -395,6 +395,44 @@ def recusar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, detalhes: st
 
     return solicitacao
 
+CAMPOS_DATA_TROCA = (
+    'data_folga_origem', 'data_folga_destino',
+    'data_plantao_origem', 'data_plantao_destino',
+)
+
+
+def validar_datas_troca_disponiveis(valores, participantes, solicitacao_id=None):
+    """Impede reutilizar um dia de troca de qualquer participante envolvido."""
+    datas = {valores.get(campo) for campo in CAMPOS_DATA_TROCA if valores.get(campo)}
+    if not datas:
+        return
+    if len(datas) < sum(bool(valores.get(campo)) for campo in CAMPOS_DATA_TROCA):
+        raise ValidationError('Os dias de origem e destino da troca devem ser diferentes.')
+
+    participantes = sorted({int(pk) for pk in participantes if pk})
+    list(CustomUser.objects.select_for_update().filter(pk__in=participantes).order_by('pk'))
+    filtro_datas = Q()
+    for campo in CAMPOS_DATA_TROCA:
+        filtro_datas |= Q(**{f'dados_preenchidos__values__{campo}__in': datas})
+
+    conflito = (Solicitacao.objects.filter(
+        Q(colaborador_id__in=participantes) | Q(colaborador_secundario_id__in=participantes),
+        filtro_datas,
+    ).exclude(
+        status__in=[Solicitacao.StatusChoices.CANCELADO, Solicitacao.StatusChoices.RECUSADO],
+    ).exclude(pk=solicitacao_id).first())
+    if conflito:
+        valores_existentes = conflito.dados_preenchidos.get('values', {})
+        data_conflito = next(
+            (valores_existentes.get(campo) for campo in CAMPOS_DATA_TROCA
+             if valores_existentes.get(campo) in datas), None,
+        )
+        raise ValidationError(
+            f'O dia {date.fromisoformat(data_conflito):%d/%m/%Y} já está envolvido '
+            f'na solicitação de troca #{conflito.pk}.'
+        )
+
+
 @transaction.atomic
 def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esquema_formulario: list):
     """
@@ -412,6 +450,10 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
             if valor_preenchido:
                 id_colaborador_secundario = valor_preenchido
                 break
+
+    validar_datas_troca_disponiveis(
+        valores, [colaborador.pk, id_colaborador_secundario],
+    )
 
     nova_solicitacao = Solicitacao(
         colaborador=colaborador,
@@ -532,6 +574,11 @@ def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores
 
     if pode_editar_como_autor:
         valores_atualizados.update(novos_valores)
+        validar_datas_troca_disponiveis(
+            valores_atualizados,
+            [solicitacao.colaborador_id, solicitacao.colaborador_secundario_id],
+            solicitacao_id=solicitacao.pk,
+        )
         log_detalhes = "O solicitante alterou os dados do formulário."
         acao_log = LogAprovacao.AcaoChoices.EDICAO
         
