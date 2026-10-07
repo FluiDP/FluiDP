@@ -12,13 +12,13 @@
 {% comment %} Pendente {% endcomment %}
 {% elif solicitacao.status in 'PENDENTE_DP, PENDENTE_GESTOR' %}
     <span class="inline-flex items-center rounded-full bg-yellow-100 px-4 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
-        {{ solicitacao.get_status_display }}
+        {% if solicitacao.status == 'PENDENTE_DP' and not request.user.is_adm %}Recebido pelo DP{% else %}{{ solicitacao.get_status_display }}{% endif %}
     </span>
 
 {% comment %} Pendente Diretor {% endcomment %}
 {% elif solicitacao.status == 'PENDENTE_DIRETOR' %}
     <span class="inline-flex items-center rounded-full bg-yellow-100 px-4 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
-        {% if request.user.is_adm %}{{ solicitacao.get_status_display }}{% else %}Pendente (DP){% endif %}
+        {% if request.user.is_adm %}{{ solicitacao.get_status_display }}{% else %}Recebido pelo DP{% endif %}
     </span>
 
 {% comment %} Recusado {% endcomment %}
