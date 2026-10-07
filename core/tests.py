@@ -41,15 +41,15 @@ class DatasTrocaTests(TestCase):
         return criar_solicitacao(autor, self.tipo, {'schema': self.schema, 'values': valores}, self.schema)
 
     def test_bloqueia_reuso_do_destino_como_destino_ou_origem(self):
-        self.abrir(self.sebastiao, self.ramom, '2026-11-09', '2026-11-12')
-        with self.assertRaisesMessage(ValidationError, '12/11/2026'):
+        primeira = self.abrir(self.sebastiao, self.ramom, '2026-11-09', '2026-11-12')
+        with self.assertRaisesMessage(ValidationError, f'#{primeira.pk} para sebastiao_troca, ramom_troca'):
             self.abrir(self.sebastiao, self.ramom, '2026-11-11', '2026-11-12')
         with self.assertRaisesMessage(ValidationError, '12/11/2026'):
             self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-14')
 
     def test_bloqueia_colega_e_edicao_mas_libera_terceiros_e_canceladas(self):
         primeira = self.abrir(self.sebastiao, self.ramom, '2026-11-09', '2026-11-12')
-        with self.assertRaisesMessage(ValidationError, '12/11/2026'):
+        with self.assertRaisesMessage(ValidationError, f'#{primeira.pk} para ramom_troca'):
             self.abrir(self.ramom, self.outro, '2026-11-12', '2026-11-14')
         outra = self.abrir(self.outro, self.sebastiao, '2026-11-15', '2026-11-16')
         with self.assertRaisesMessage(ValidationError, '12/11/2026'):

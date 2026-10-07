@@ -414,7 +414,7 @@ def validar_datas_troca_disponiveis(valores, participantes, solicitacao_id=None)
         raise ValidationError('Os dias de origem e destino da troca devem ser diferentes.')
 
     participantes = sorted({int(pk) for pk in participantes if pk})
-    list(CustomUser.objects.select_for_update().filter(pk__in=participantes).order_by('pk'))
+    usuarios = list(CustomUser.objects.select_for_update().filter(pk__in=participantes).order_by('pk'))
     filtro_datas = Q()
     for campo in CAMPOS_DATA_TROCA:
         filtro_datas |= Q(**{f'dados_preenchidos__values__{campo}__in': datas})
@@ -426,6 +426,13 @@ def validar_datas_troca_disponiveis(valores, participantes, solicitacao_id=None)
         status__in=[Solicitacao.StatusChoices.CANCELADO, Solicitacao.StatusChoices.RECUSADO],
     ).exclude(pk=solicitacao_id).first())
     if conflito:
+        envolvidos_no_conflito = {
+            conflito.colaborador_id, conflito.colaborador_secundario_id,
+        } & set(participantes)
+        nomes = ', '.join(
+            usuario.get_full_name() or usuario.username
+            for usuario in usuarios if usuario.pk in envolvidos_no_conflito
+        )
         valores_existentes = conflito.dados_preenchidos.get('values', {})
         data_conflito = next(
             (valores_existentes.get(campo) for campo in CAMPOS_DATA_TROCA
@@ -433,7 +440,7 @@ def validar_datas_troca_disponiveis(valores, participantes, solicitacao_id=None)
         )
         raise ValidationError(
             f'O dia {date.fromisoformat(data_conflito):%d/%m/%Y} já está envolvido '
-            f'na solicitação de troca #{conflito.pk}.'
+            f'na solicitação de troca #{conflito.pk} para {nomes}.'
         )
 
 
