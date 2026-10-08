@@ -63,13 +63,13 @@
           x-transition:leave="ease-in duration-200"
           x-transition:leave-start="opacity-100 scale-100 translate-y-0"
           x-transition:leave-end="opacity-0 scale-95 translate-y-4"
-          :class="confirming ? 'min-h-[70dvh]' : ''"
+          :style="confirming ? 'grid-template-rows:auto' : ''"
           class="relative z-10 w-full max-w-2xl max-h-[90dvh] bg-white rounded-2xl shadow-2xl grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
           
           {% csrf_token %}
           {{ campos_formulario|json_script:"solicitacao-schema" }}
         
-        <div class="px-4 py-4 sm:px-6 sm:py-5 border-b border-gray-100 bg-white flex justify-between items-center z-10">
+        <div x-show="!confirming" class="px-4 py-4 sm:px-6 sm:py-5 border-b border-gray-100 bg-white flex justify-between items-center z-10">
             <div class="min-w-0">
                 <h3 class="text-lg sm:text-xl font-bold text-gray-900 pr-4 break-words">
                     Solicitar: {{ tipo_documento.nome_documento }}
@@ -91,7 +91,7 @@
             }
         </style>
 
-        <div class="overflow-y-auto overscroll-contain bg-slate-50/50 p-4 sm:p-6 md:p-8">
+        <div x-show="!confirming" class="overflow-y-auto overscroll-contain bg-slate-50/50 p-4 sm:p-6 md:p-8">
             <div class="space-y-6 sm:space-y-8" id="campos">
                 
                 {% for campo in campos_formulario %}
@@ -415,7 +415,7 @@
             </div>
         </div>
 
-        <div class="px-4 py-4 sm:px-6 sm:py-5 bg-white border-t border-gray-100 flex flex-col sm:flex-row justify-end items-center gap-3 z-10">
+        <div x-show="!confirming" class="px-4 py-4 sm:px-6 sm:py-5 bg-white border-t border-gray-100 flex flex-col sm:flex-row justify-end items-center gap-3 z-10">
             <button type="button" 
                     @click="open = false" 
                     class="w-full sm:w-auto px-6 py-2.5 sm:py-3 text-sm font-semibold text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition-colors">
@@ -442,7 +442,7 @@
 
         <div x-show="confirming" x-cloak x-effect="if (confirming) $nextTick(() => $refs.confirmButton.focus())"
              role="dialog" aria-modal="true" aria-labelledby="confirmar-solicitacao-titulo"
-             class="absolute inset-0 z-20 flex flex-col bg-white rounded-2xl overflow-hidden">
+             class="relative z-20 flex min-h-0 flex-col bg-white rounded-2xl overflow-hidden">
             <div class="px-4 py-4 sm:px-6 border-b border-gray-100">
                 <h3 id="confirmar-solicitacao-titulo" class="text-lg sm:text-xl font-bold text-gray-900">Confirmar solicitação</h3>
                 <p class="mt-2 text-sm text-gray-600 leading-relaxed">Tem certeza que deseja confirmar o envio?</p>
@@ -458,8 +458,8 @@
                     </div>
                 {% endif %}
             </div>
-            <div class="relative min-h-0 flex-1 overflow-hidden" style="max-height:30dvh">
-                <div class="h-full overflow-y-auto overscroll-contain px-4 py-3 pb-10 sm:px-6 sm:py-4 sm:pb-10">
+            <div class="relative min-h-0 overflow-hidden">
+                <div class="overflow-y-auto overscroll-contain px-4 py-3 pb-6 sm:px-6 sm:py-4 sm:pb-6" style="max-height:30dvh">
                     <h4 class="text-sm font-semibold text-gray-800 mb-3">Resumo da solicitação</h4>
                     <div class="space-y-3">
                     <template x-for="(entry, index) in summary" :key="index">
@@ -482,7 +482,7 @@
                     </template>
                     </div>
                 </div>
-                <div class="pointer-events-none absolute inset-x-0 bottom-0 h-10" style="background:linear-gradient(to top, white, transparent)"></div>
+                <div class="pointer-events-none absolute inset-x-0 bottom-0 h-6" style="background:linear-gradient(to top, white, transparent)"></div>
             </div>
             <div class="mt-auto px-4 py-4 sm:px-6 border-t border-gray-100 flex flex-col-reverse sm:flex-row justify-end gap-3">
                 <button type="button" @click="confirming = false; $nextTick(() => $refs.reviewButton.focus())"
