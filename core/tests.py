@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.template.loader import render_to_string
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from django.urls import reverse
@@ -16,6 +17,7 @@ from .services import (
     editar_solicitacao,
     obter_status_relatorio,
     preparar_aviso_login,
+    validar_datas_troca_disponiveis,
     validar_intervalos_horas_extras,
 )
 
@@ -28,18 +30,69 @@ class DatasTrocaTests(TestCase):
         self.schema = [
             {'name': name, 'type': 'date', 'label': name, 'required': True}
             for name in ('data_plantao_origem', 'data_plantao_destino')
+        ] + [
+            {'name': name, 'type': 'select', 'label': name, 'required': True,
+             'options': [{'value': '1', 'label': 'Diurno'}, {'value': '2', 'label': 'Noturno'}]}
+            for name in ('turno_plantao_origem', 'turno_plantao_destino')
         ] + [{'name': 'colaborador_substituto', 'type': 'select', 'label': 'Colega',
               'required': True, 'options_source': 'colaboradores_mesmo_cargo'}]
         self.tipo = TipoDocumento.objects.create(
             nome_documento='Troca de Plantão', definicao_formulario=self.schema,
         )
 
-    def abrir(self, autor, colega, origem, destino):
+    def abrir(self, autor, colega, origem, destino, turno_origem='1', turno_destino='2'):
         valores = {
             'data_plantao_origem': origem, 'data_plantao_destino': destino,
+            'turno_plantao_origem': turno_origem, 'turno_plantao_destino': turno_destino,
             'colaborador_substituto': str(colega.pk),
         }
         return criar_solicitacao(autor, self.tipo, {'schema': self.schema, 'values': valores}, self.schema)
+
+    def test_dias_diferentes_com_turnos_diferentes_respeitam_as_demais_regras(self):
+        self.tipo.tipo_referencia = TipoDocumento.TipoReferenciaChoices.MENSAL
+        self.tipo.dia_abertura_mes_anterior = 25
+        self.tipo.dia_limite_mes_referencia = 10
+        self.tipo.limite_dias_antecedencia = 2
+        self.tipo.restringir_datas_ao_mes_referencia = True
+        for campo in self.schema:
+            if campo['type'] == 'date':
+                campo['is_event_date'] = True
+                campo['reference_month_date'] = True
+        self.tipo.definicao_formulario = self.schema
+        with patch('core.models.timezone.localdate', return_value=date(2026, 10, 25)):
+            solicitacao = self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-14')
+        self.assertEqual(solicitacao.mes_referencia, date(2026, 11, 1))
+        self.assertEqual(solicitacao.dados_preenchidos['values']['turno_plantao_destino'], '2')
+
+    def test_mesmo_dia_aceita_turnos_diferentes(self):
+        solicitacao = self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-12')
+        self.assertIsNotNone(solicitacao.pk)
+
+    def test_mesmo_dia_recusa_turnos_iguais(self):
+        with self.assertRaisesMessage(ValidationError, 'No mesmo dia'):
+            self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-12', '1', '1')
+
+    def test_dias_diferentes_aceitam_turnos_iguais(self):
+        solicitacao = self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-14', '1', '1')
+        self.assertIsNotNone(solicitacao.pk)
+
+    def test_edicao_recusa_mesmo_dia_e_turno(self):
+        solicitacao = self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-14', '1', '1')
+        with self.assertRaisesMessage(ValidationError, 'No mesmo dia'):
+            editar_solicitacao(solicitacao, self.sebastiao, {'data_plantao_destino': '2026-11-12'})
+
+    def test_troca_de_folga_aceita_mesmo_dia_com_turnos_diferentes(self):
+        validar_datas_troca_disponiveis(
+            {'data_folga_origem': '2026-11-12', 'data_folga_destino': '2026-11-12',
+             'turno_folga_origem': '1', 'turno_folga_destino': '2'},
+            [self.sebastiao.pk],
+        )
+        with self.assertRaisesMessage(ValidationError, 'No mesmo dia'):
+            validar_datas_troca_disponiveis(
+                {'data_folga_origem': '2026-11-12', 'data_folga_destino': '2026-11-12',
+                 'turno_folga_origem': '1', 'turno_folga_destino': '1'},
+                [self.sebastiao.pk],
+            )
 
     def test_bloqueia_reuso_do_destino_como_destino_ou_origem(self):
         primeira = self.abrir(self.sebastiao, self.ramom, '2026-11-09', '2026-11-12')
@@ -47,6 +100,7 @@ class DatasTrocaTests(TestCase):
             self.abrir(self.sebastiao, self.ramom, '2026-11-11', '2026-11-12')
         with self.assertRaisesMessage(ValidationError, '12/11/2026'):
             self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-14')
+
 
     def test_bloqueia_colega_e_edicao_mas_libera_terceiros_e_canceladas(self):
         primeira = self.abrir(self.sebastiao, self.ramom, '2026-11-09', '2026-11-12')
@@ -69,6 +123,24 @@ class DatasTrocaTests(TestCase):
         )
         with self.assertRaisesMessage(ValidationError, '12/11/2026'):
             self.abrir(self.sebastiao, self.ramom, '2026-11-12', '2026-11-14')
+
+
+class AvisoConfirmacaoTrocaTests(SimpleTestCase):
+    def test_aviso_de_cancelamento_aparece_nas_duas_trocas(self):
+        for nome in ('Troca de Plantão', 'Troca de Folga'):
+            with self.subTest(nome=nome):
+                html = render_to_string('partials/_solicitacao_create_form.html', {
+                    'tipo_documento': SimpleNamespace(id=1, nome_documento=nome),
+                    'campos_formulario': [],
+                })
+                self.assertIn('Atenção à troca', html)
+                self.assertIn('não poderá editar ou cancelar pelo sistema', html)
+
+        html = render_to_string('partials/_solicitacao_create_form.html', {
+            'tipo_documento': SimpleNamespace(id=1, nome_documento='Horas Extras'),
+            'campos_formulario': [],
+        })
+        self.assertNotIn('Atenção à troca', html)
 
 
 class ReferenciaMensalTipoDocumentoTests(SimpleTestCase):

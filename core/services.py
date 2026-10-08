@@ -406,12 +406,21 @@ CAMPOS_DATA_TROCA = (
 
 
 def validar_datas_troca_disponiveis(valores, participantes, solicitacao_id=None):
-    """Impede reutilizar um dia de troca de qualquer participante envolvido."""
+    """Valida a troca e impede reutilizar dias de participantes envolvidos."""
     datas = {valores.get(campo) for campo in CAMPOS_DATA_TROCA if valores.get(campo)}
     if not datas:
         return
-    if len(datas) < sum(bool(valores.get(campo)) for campo in CAMPOS_DATA_TROCA):
-        raise ValidationError('Os dias de origem e destino da troca devem ser diferentes.')
+    for tipo in ('plantao', 'folga'):
+        data_origem = valores.get(f'data_{tipo}_origem')
+        data_destino = valores.get(f'data_{tipo}_destino')
+        if not (data_origem and data_destino):
+            continue
+        turno_origem = valores.get(f'turno_{tipo}_origem')
+        turno_destino = valores.get(f'turno_{tipo}_destino')
+        if not turno_origem or not turno_destino:
+            raise ValidationError('Informe os turnos de origem e destino da troca.')
+        if data_origem == data_destino and str(turno_origem) == str(turno_destino):
+            raise ValidationError('No mesmo dia, os turnos de origem e destino devem ser diferentes.')
 
     participantes = sorted({int(pk) for pk in participantes if pk})
     usuarios = list(CustomUser.objects.select_for_update().filter(pk__in=participantes).order_by('pk'))

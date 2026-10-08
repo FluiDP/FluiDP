@@ -446,11 +446,11 @@
             <div class="px-4 py-4 sm:px-6 border-b border-gray-100">
                 <h3 id="confirmar-solicitacao-titulo" class="text-lg sm:text-xl font-bold text-gray-900">Confirmar solicitação</h3>
                 <p class="mt-2 text-sm text-gray-600 leading-relaxed">Tem certeza que deseja confirmar o envio?</p>
-                {% if tipo_documento.nome_documento == 'Troca de Plantão' %}
+                {% if tipo_documento.nome_documento == 'Troca de Plantão' or tipo_documento.nome_documento == 'Troca de Folga' %}
                     <div class="mt-3 rounded-xl border-2 px-4 py-3 text-left shadow-sm" style="border-color:#fbbf24;background-color:#fffbeb" role="alert">
                         <p class="flex items-center gap-2 text-sm font-bold" style="color:#78350f">
                             <ion-icon name="alert-circle-outline" class="text-xl shrink-0"></ion-icon>
-                            Atenção à troca de plantão
+                            Atenção à troca
                         </p>
                         <p class="mt-1 text-sm font-semibold leading-relaxed" style="color:#78350f">
                             Após a aprovação do gestor, você não poderá editar ou cancelar pelo sistema. O cancelamento posterior só poderá ocorrer por impedimento legal ou institucional relacionado aos dias da troca.
