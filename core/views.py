@@ -491,7 +491,10 @@ def relatorio_geral_view(request):
                         if not isinstance(linha, dict):
                             continue
                         periodo = duration_minutes(linha.get('hora_inicio'), linha.get('hora_fim'))
-                        intervalo = duration_minutes(linha.get('inicio_intervalo'), linha.get('fim_intervalo'))
+                        sem_intervalo = linha.get('sem_intervalo') in (True, 'true', 'on', '1')
+                        intervalo = 0 if sem_intervalo else duration_minutes(
+                            linha.get('inicio_intervalo'), linha.get('fim_intervalo')
+                        )
                         if periodo is not None and intervalo is not None and intervalo <= periodo:
                             total_minutos_extras += periodo - intervalo
                     continue

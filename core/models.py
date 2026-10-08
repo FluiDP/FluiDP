@@ -23,7 +23,7 @@ FORM_SCHEMA = {
             "label": {"type": "string", "minLength": 3},
             "type": {
                 "type": "string",
-                "enum": ["text", "number", "date", "textarea", "select", "checkbox", "radio", "repeater", "calculated"]
+                "enum": ["text", "number", "date", "textarea", "select", "checkbox", "radio", "repeater", "calculated", "label"]
             },
             "required": {"type": "boolean"},
             "placeholder": {"type": "string"},

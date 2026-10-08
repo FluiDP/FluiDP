@@ -16,6 +16,7 @@ from .services import (
     editar_solicitacao,
     obter_status_relatorio,
     preparar_aviso_login,
+    validar_intervalos_horas_extras,
 )
 
 
@@ -146,6 +147,19 @@ class ReferenciaMensalTipoDocumentoTests(SimpleTestCase):
             data_consulta=date(2026, 2, 9),
         )
         self.assertIsNone(motivo)
+
+
+class IntervaloHorasExtrasTests(SimpleTestCase):
+    def test_intervalo_e_obrigatorio_quando_nao_marcado(self):
+        valores = {'cronograma_he': [{'sem_intervalo': 'false', 'inicio_intervalo': '', 'fim_intervalo': ''}]}
+        with self.assertRaisesMessage(ValidationError, 'Informe o início e o fim do intervalo'):
+            validar_intervalos_horas_extras(valores)
+
+    def test_sem_intervalo_limpa_horarios_da_linha(self):
+        valores = {'cronograma_he': [{'sem_intervalo': 'true', 'inicio_intervalo': '12:00', 'fim_intervalo': '13:00'}]}
+        validar_intervalos_horas_extras(valores)
+        self.assertEqual(valores['cronograma_he'][0]['inicio_intervalo'], '')
+        self.assertEqual(valores['cronograma_he'][0]['fim_intervalo'], '')
 
 
 @override_settings(STORAGES={
@@ -336,6 +350,9 @@ class RelatorioGeralStatusIntegrationTests(TestCase):
                      'fim_intervalo': '13:00', 'hora_fim': '17:00'},
                     {'data_programada': '2025-12-31', 'hora_inicio': '22:00', 'inicio_intervalo': '23:30',
                      'fim_intervalo': '00:00', 'hora_fim': '02:00'},
+                    {'data_programada': '2025-12-31', 'hora_inicio': '18:00',
+                     'sem_intervalo': 'true', 'inicio_intervalo': '',
+                     'fim_intervalo': '', 'hora_fim': '20:00'},
                 ]},
             },
         )
@@ -350,7 +367,7 @@ class RelatorioGeralStatusIntegrationTests(TestCase):
         )
 
         resposta = self.client.get(reverse('relatorio_geral'))
-        self.assertEqual(resposta.context['horas_extras'], '13:30')
+        self.assertEqual(resposta.context['horas_extras'], '15:30')
 
 
 class SchedulerNaoCancelaPorPrazoTests(TestCase):

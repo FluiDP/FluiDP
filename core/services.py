@@ -444,6 +444,20 @@ def validar_datas_troca_disponiveis(valores, participantes, solicitacao_id=None)
         )
 
 
+def validar_intervalos_horas_extras(valores):
+    """Exige horários de intervalo apenas nas linhas que não marcaram ausência de pausa."""
+    for linha in valores.get('cronograma_he', []):
+        if not isinstance(linha, dict):
+            continue
+        if 'sem_intervalo' not in linha:
+            continue
+        if linha.get('sem_intervalo') in (True, 'true', 'on', '1'):
+            linha['inicio_intervalo'] = ''
+            linha['fim_intervalo'] = ''
+        elif not linha.get('inicio_intervalo') or not linha.get('fim_intervalo'):
+            raise ValidationError('Informe o início e o fim do intervalo ou marque "Não há intervalo".')
+
+
 @transaction.atomic
 def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esquema_formulario: list):
     """
@@ -452,6 +466,7 @@ def criar_solicitacao(colaborador, tipo_documento, dados_preenchidos: dict, esqu
     
     valores = dados_preenchidos.get('values', {})
     mes_referencia = tipo_documento.validar_regras(valores)
+    validar_intervalos_horas_extras(valores)
     id_colaborador_secundario = None
     
     for campo in esquema_formulario:
@@ -585,6 +600,7 @@ def editar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, novos_valores
 
     if pode_editar_como_autor:
         valores_atualizados.update(novos_valores)
+        validar_intervalos_horas_extras(valores_atualizados)
         validar_datas_troca_disponiveis(
             valores_atualizados,
             [solicitacao.colaborador_id, solicitacao.colaborador_secundario_id],

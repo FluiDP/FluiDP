@@ -194,7 +194,7 @@ def salvar_solicitacao_view(request, tipo_doc_id):
         campo_nome = campo.get('name')
         campo_tipo = campo.get('type')
 
-        if campo_nome:
+        if campo_nome and campo_tipo != 'label':
             if campo_tipo == 'repeater':
                 lista_final_objetos = []
                 sub_campos = campo.get('sub_fields', [])

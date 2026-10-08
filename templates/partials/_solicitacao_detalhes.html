@@ -166,7 +166,10 @@
                     <div class="space-y-3 sm:space-y-4">
                         {% for campo in campos_formulario %}
                             
-                            {% if campo.type in 'text,date,email,number' %}
+                            {% if campo.type == 'label' %}
+                            <p class="rounded-xl border px-4 py-3 text-sm font-medium leading-relaxed" style="border-color:#bfdbfe;background:#eff6ff;color:#1e3a8a">{{ campo.label }}</p>
+
+                            {% elif campo.type in 'text,date,email,number' %}
                             <div class="flex flex-col">
                                 <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
                                 <input type="{{ campo.type }}" 
@@ -228,6 +231,10 @@
                                                                     {% if not valor_salvo %}-{% endif %}
                                                                 {% endwith %}
                                                             
+                                                            {% elif sub.type == 'checkbox' %}
+                                                                {% with marcado=item|get_item:sub.name %}
+                                                                    {% if marcado == 'true' or marcado == True %}Sim{% else %}Não{% endif %}
+                                                                {% endwith %}
                                                             {% elif sub.type == 'date' %}
                                                                 {{ item|get_item:sub.name|string_to_date }}
                                                             {% else %}
