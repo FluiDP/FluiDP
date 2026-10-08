@@ -86,7 +86,10 @@
                             <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2 transition-all group">
                                 
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full text-slate-700 font-medium whitespace-nowrap">
-                                    {{ solicitacao.colaborador }}
+                                    <div>{{ solicitacao.colaborador }}</div>
+                                    {% if solicitacao.colaborador_secundario %}
+                                        <div class="text-xs font-normal text-slate-500">Substituto: {{ solicitacao.colaborador_secundario.get_full_name|default:solicitacao.colaborador_secundario.username }}</div>
+                                    {% endif %}
                                 </td>
                                 
                                 <td class="p-2 text-slate-600 text-sm whitespace-nowrap">

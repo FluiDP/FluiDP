@@ -86,6 +86,9 @@
                     <div class="text-xs text-slate-500 font-medium">
                         {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}
                     </div>
+                    {% if solicitacao.colaborador_secundario %}
+                        <div class="text-[11px] text-slate-400">Substituto: {{ solicitacao.colaborador_secundario.get_full_name|default:solicitacao.colaborador_secundario.username }}</div>
+                    {% endif %}
                 </div>
             {% empty %}
                 <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center gap-2">
@@ -109,6 +112,9 @@
                     <div class="text-xs text-slate-500 font-medium">
                         {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}
                     </div>
+                    {% if solicitacao.colaborador_secundario %}
+                        <div class="text-[11px] text-slate-400">Substituto: {{ solicitacao.colaborador_secundario.get_full_name|default:solicitacao.colaborador_secundario.username }}</div>
+                    {% endif %}
                 </div>
             {% empty %}
                 <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center gap-2">
@@ -132,6 +138,9 @@
                     <div class="text-xs text-slate-500 font-medium">
                         {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}
                     </div>
+                    {% if solicitacao.colaborador_secundario %}
+                        <div class="text-[11px] text-slate-400">Substituto: {{ solicitacao.colaborador_secundario.get_full_name|default:solicitacao.colaborador_secundario.username }}</div>
+                    {% endif %}
                 </div>
             {% empty %}
                 <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center gap-2">
@@ -155,6 +164,9 @@
                     <div class="text-xs text-slate-500 font-medium">
                         {{ solicitacao.colaborador.get_full_name|default:solicitacao.colaborador.username }}
                     </div>
+                    {% if solicitacao.colaborador_secundario %}
+                        <div class="text-[11px] text-slate-400">Substituto: {{ solicitacao.colaborador_secundario.get_full_name|default:solicitacao.colaborador_secundario.username }}</div>
+                    {% endif %}
                 </div>
             {% empty %}
                 <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center gap-2">

@@ -17,12 +17,15 @@ def mobile_index_view(request):
         q_search = Q(
             Q(id__icontains=search_query) |
             Q(colaborador__first_name__icontains=search_query) |
+            Q(colaborador_secundario__first_name__icontains=search_query) |
+            Q(colaborador_secundario__last_name__icontains=search_query) |
+            Q(colaborador_secundario__username__icontains=search_query) |
             Q(tipo_documento__nome_documento__icontains=search_query)
         )
 
     solicitacoes_totais = Solicitacao.objects.filter(
         Q(colaborador=user) | Q(colaborador_secundario=user)
-    ).filter(q_search).distinct().order_by('-data')
+    ).filter(q_search).select_related('colaborador_secundario').distinct().order_by('-data')
 
     status_encerrados = [
         Solicitacao.StatusChoices.FINALIZADO,
@@ -57,7 +60,7 @@ def mobile_index_view(request):
 
     solicitacoes_pendentes = Solicitacao.objects.filter(
         q_pendencias
-    ).filter(q_search).distinct().order_by('-data')
+    ).filter(q_search).select_related('colaborador_secundario').distinct().order_by('-data')
 
     sort_param = request.GET.get('sort', '-data')
     campos_permitidos = [
@@ -70,10 +73,6 @@ def mobile_index_view(request):
     
     if sort_param not in campos_permitidos:
         sort_param = '-data'
-
-    solicitacoes_list = solicitacoes_list.order_by(sort_param)
-
-    context['current_sort'] = sort_param
 
     context = {
         'usuario': user,

@@ -654,6 +654,9 @@ def dp_solicitacoes_view(request):
         solicitacoes_list = solicitacoes_list.filter(
             Q(id__icontains=search_query) |
             Q(colaborador__first_name__icontains=search_query) |
+            Q(colaborador_secundario__first_name__icontains=search_query) |
+            Q(colaborador_secundario__last_name__icontains=search_query) |
+            Q(colaborador_secundario__username__icontains=search_query) |
             Q(tipo_documento__nome_documento__icontains=search_query)
         )
     
@@ -684,7 +687,7 @@ def dp_solicitacoes_view(request):
     if sort_param not in campos_permitidos:
         sort_param = '-data'
 
-    solicitacoes_list = solicitacoes_list.order_by(sort_param, 'pk')
+    solicitacoes_list = solicitacoes_list.select_related('colaborador_secundario').order_by(sort_param, 'pk')
 
     paginator = Paginator(solicitacoes_list, 15)
     page_obj = paginator.get_page(page_number)

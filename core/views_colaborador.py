@@ -66,11 +66,14 @@ def colaborador_solicitacoes_view(request):
     
     solicitacoes_list = Solicitacao.objects.filter(
         Q(colaborador=user) | Q(colaborador_secundario=user)
-    ).distinct()
+    ).select_related('colaborador_secundario').distinct()
 
     if search_query:
         solicitacoes_list = solicitacoes_list.filter(
             Q(id__icontains=search_query) |
+            Q(colaborador_secundario__first_name__icontains=search_query) |
+            Q(colaborador_secundario__last_name__icontains=search_query) |
+            Q(colaborador_secundario__username__icontains=search_query) |
             Q(tipo_documento__nome_documento__icontains=search_query)
         )
 
