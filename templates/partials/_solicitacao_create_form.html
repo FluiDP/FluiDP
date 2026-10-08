@@ -213,9 +213,9 @@
                                     <template x-for="(item, index) in items" :key="item.id">
                                         <div class="w-full border-b border-slate-200 last:border-b-0 border-l-4 border-l-primary/40 p-2.5 sm:p-3 relative repeater-row group flex flex-col gap-2" :class="index % 2 === 0 ? 'bg-white' : 'bg-slate-50'">
                                             
-                                            <div class="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 sm:gap-3 w-full min-w-0">
+                                            <div class="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 sm:gap-3 w-full min-w-0 {% if campo.name == 'cronograma_he' %}he-cronograma-grid{% endif %}">
                                                 {% for sub in campo.sub_fields %}
-                                                    <div class="min-w-0" {% if campo.name == 'cronograma_he' and sub.name == 'inicio_intervalo' or campo.name == 'cronograma_he' and sub.name == 'fim_intervalo' %}x-show="!item.semIntervalo"{% endif %}>
+                                                    <div class="min-w-0" data-subfield="{{ sub.name }}" {% if campo.name == 'cronograma_he' and sub.name == 'inicio_intervalo' or campo.name == 'cronograma_he' and sub.name == 'fim_intervalo' %}x-show="!item.semIntervalo"{% endif %}>
                                                         {% if campo.name != 'cronograma_he' or sub.name != 'sem_intervalo' %}
                                                             <label class="block text-[10px] sm:text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">{{ sub.label }}</label>
                                                         {% endif %}

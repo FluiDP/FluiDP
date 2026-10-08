@@ -176,15 +176,16 @@
                                     addNew() { this.items.push({id: Date.now()}) },
                                     remove(index) { this.items.splice(index, 1) } 
                                 }" 
+                                data-repeater="{{ campo.name }}"
                                 class="w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
 
                                 <div class="space-y-0 w-full divide-y divide-gray-100 flex-1">
                                     <template x-for="(item, index) in items" :key="item.id">
                                         <div class="w-full p-4 hover:bg-slate-50 transition-colors relative repeater-row group flex flex-col sm:flex-row flex-wrap gap-4 items-end">
                                             
-                                            <div class="flex-1 flex flex-wrap gap-4 w-full">
+                                            <div class="flex-1 w-full {% if campo.name == 'cronograma_he' %}he-cronograma-grid{% else %}flex flex-wrap gap-4{% endif %}">
                                                 {% for sub in campo.sub_fields %}
-                                                    <div class="flex-1 min-w-[45%] sm:min-w-[120px]" {% if campo.name == 'cronograma_he' and sub.name == 'inicio_intervalo' or campo.name == 'cronograma_he' and sub.name == 'fim_intervalo' %}x-show="!(item.sem_intervalo === true || item.sem_intervalo === 'true')"{% endif %}>
+                                                    <div class="{% if campo.name == 'cronograma_he' %}min-w-0{% else %}flex-1 min-w-[45%] sm:min-w-[120px]{% endif %}" data-subfield="{{ sub.name }}" {% if campo.name == 'cronograma_he' and sub.name == 'inicio_intervalo' or campo.name == 'cronograma_he' and sub.name == 'fim_intervalo' %}x-show="!(item.sem_intervalo === true || item.sem_intervalo === 'true')"{% endif %}>
                                                         {% if campo.name != 'cronograma_he' or sub.name != 'sem_intervalo' %}
                                                             <label class="block text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-wider mb-1.5">{{ sub.label }}</label>
                                                         {% endif %}

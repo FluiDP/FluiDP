@@ -8,3 +8,23 @@
   * the scope of this path.
   */
 @source "../../../**/*.{html,py,js}";
+
+/* Cronograma de horas extras: data e opção ocupam a linha inteira; horários formam pares. */
+.he-cronograma-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.he-cronograma-grid > [data-subfield] { min-width: 0; }
+.he-cronograma-grid > [data-subfield="data_programada"] { grid-column: 1 / -1; order: 1; }
+.he-cronograma-grid > [data-subfield="hora_inicio"] { order: 2; }
+.he-cronograma-grid > [data-subfield="hora_fim"] { order: 3; }
+.he-cronograma-grid > [data-subfield="inicio_intervalo"] { order: 4; }
+.he-cronograma-grid > [data-subfield="fim_intervalo"] { order: 5; }
+.he-cronograma-grid > [data-subfield="sem_intervalo"] { grid-column: 1 / -1; order: 6; }
+
+@media (max-width: 419px) {
+  .he-cronograma-grid { grid-template-columns: minmax(0, 1fr); }
+}
