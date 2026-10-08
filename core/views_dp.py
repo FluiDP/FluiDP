@@ -1,5 +1,6 @@
 import copy
 import uuid
+from datetime import date
 from django.core.cache import cache, caches
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import redirect, render, get_object_or_404
@@ -10,6 +11,7 @@ from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
 from django.utils.safestring import mark_safe
+from django.utils import timezone
 
 from django.core.files.storage import default_storage
 from django_q.tasks import async_task
@@ -160,6 +162,57 @@ def dp_lotacoes_view(request):
         return render(request, 'painel/dp/_content_lotacoes.html', context)
     
     return render(request, 'painel/dp/lotacoes.html', context)
+
+
+@dp_required
+def visualizar_lotacao_modal_view(request, lotacao_id):
+    lotacao = get_object_or_404(
+        Lotacao.objects.select_related('chefia', 'chefia_secundaria'), pk=lotacao_id,
+    )
+    colaboradores = CustomUser.objects.filter(lotacao=lotacao).select_related('cargo').order_by('first_name', 'pk')
+    chefia_secundaria_ativa = bool(
+        lotacao.chefia_secundaria and not lotacao.chefia_secundaria.is_ausente
+        and (not lotacao.chefia or lotacao.chefia.is_ausente)
+    )
+    return render(request, 'partials/_lotacao_visualizacao_modal.html', {
+        'lotacao': lotacao,
+        'colaboradores': colaboradores,
+        'chefia_secundaria_ativa': chefia_secundaria_ativa,
+    })
+
+
+@dp_required
+def visualizar_colaborador_modal_view(request, colaborador_id):
+    colaborador = get_object_or_404(
+        CustomUser.objects.select_related('cargo', 'lotacao'), pk=colaborador_id,
+    )
+    hoje = timezone.localdate()
+    inicio_padrao = hoje.replace(day=1)
+
+    def ler_data(parametro, padrao):
+        try:
+            return date.fromisoformat(request.GET[parametro])
+        except (KeyError, ValueError):
+            return padrao
+
+    data_inicio = ler_data('data_inicio', inicio_padrao)
+    data_fim = ler_data('data_fim', hoje)
+    if data_inicio > data_fim:
+        data_inicio, data_fim = data_fim, data_inicio
+
+    solicitacoes = Solicitacao.objects.filter(
+        Q(colaborador=colaborador) | Q(colaborador_secundario=colaborador),
+        data__date__gte=data_inicio,
+        data__date__lte=data_fim,
+    ).select_related('tipo_documento', 'colaborador', 'colaborador_secundario').order_by('-data', '-pk')
+
+    return render(request, 'partials/_colaborador_visualizacao_modal.html', {
+        'colaborador': colaborador,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'total_solicitacoes': solicitacoes.count(),
+        'solicitacoes': solicitacoes[:10],
+    })
 
 @dp_required
 def create_lotacao_modal_view(request):

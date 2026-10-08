@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.dp_dashboard_view, name='dashboard'),
 
     path('lotacoes/', views.dp_lotacoes_view, name='lotacoes'),
+    path('lotacoes/<int:lotacao_id>/visualizar/', views.visualizar_lotacao_modal_view, name='visualizar_lotacao'),
     path('lotacoes/criar/', views.create_lotacao_modal_view, name='create_lotacao'),
     path('lotacoes/editar/<int:lotacao_id>/', views.edit_lotacao_modal_view, name='edit_lotacao'),
     path('lotacoes/arquivar/<int:pk>/', views.archive_lotacao_modal_view, name='archive_lotacao'),
@@ -19,6 +20,7 @@ urlpatterns = [
     path('cargos/excluir/<int:pk>/', views.delete_cargo_view, name='delete_cargo'),
 
     path('colaboradores/', views.dp_colaboradores_view, name='colaboradores'),
+    path('colaboradores/<int:colaborador_id>/visualizar/', views.visualizar_colaborador_modal_view, name='visualizar_colaborador'),
     path('colaboradores/criar/', views.create_colaborador_modal_view, name='create_colaborador'),
     path('colaboradores/editar/<int:pk>/', views.edit_colaborador_modal_view, name='edit_colaborador'),
     path('colaboradores/arquivar/<int:pk>/', views.archive_colaborador_modal_view, name='archive_colaborador'),

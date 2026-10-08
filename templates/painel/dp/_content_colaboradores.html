@@ -53,7 +53,12 @@
 
                             <tr class="px-2 rounded-full hover:shadow hover:bg-white p-2 transition-all">
                                 <td class="p-2 first:rounded-l-full last:rounded-r-full">{{ colaborador.matricula }}</td>
-                                <td class="p-2">{{ colaborador.first_name }}</td>
+                                <td class="p-2">
+                                    <a href="{% url 'administracao:visualizar_colaborador' colaborador.id %}"
+                                       hx-get="{% url 'administracao:visualizar_colaborador' colaborador.id %}"
+                                       hx-target="#modal-spot" hx-swap="innerHTML"
+                                       class="font-medium text-primary hover:underline">{{ colaborador.first_name|default:colaborador.username }}</a>
+                                </td>
                                 <td class="p-2">{{ colaborador.cargo|default:"-" }}</td>
                                 <td class="p-2">{{ colaborador.lotacao|default:"-" }}</td>
                                 

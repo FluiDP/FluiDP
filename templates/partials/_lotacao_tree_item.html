@@ -8,7 +8,10 @@
     
     <div class="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg hover:shadow-sm hover:border-emphasis transition-all mb-2 group">
         
-        <div class="flex items-center gap-3">
+        <a href="{% url 'administracao:visualizar_lotacao' lotacao.id %}"
+           hx-get="{% url 'administracao:visualizar_lotacao' lotacao.id %}"
+           hx-target="#modal-spot" hx-swap="innerHTML"
+           class="flex min-w-0 flex-1 items-center gap-3 hover:text-primary">
             <div class="text-primary">
                 <ion-icon name="folder-open-outline" class="text-xl"></ion-icon>
             </div>
@@ -23,7 +26,7 @@
                     <span class="text-xs text-orange-400 italic">Sem chefia definida</span>
                 {% endif %}
             </div>
-        </div>
+        </a>
 
         <div class="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
              {% include "partials/_generic_edit_button.html" with item=lotacao url=url_editar_lotacao %}
