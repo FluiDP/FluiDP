@@ -57,7 +57,7 @@
                                     <a href="{% url 'administracao:visualizar_colaborador' colaborador.id %}"
                                        hx-get="{% url 'administracao:visualizar_colaborador' colaborador.id %}"
                                        hx-target="#modal-spot" hx-swap="innerHTML"
-                                       class="font-medium text-primary hover:underline">{{ colaborador.first_name|default:colaborador.username }}</a>
+                                       class="font-medium text-slate-700 hover:text-slate-900 hover:underline focus-visible:underline">{{ colaborador.first_name|default:colaborador.username }}</a>
                                 </td>
                                 <td class="p-2">{{ colaborador.cargo|default:"-" }}</td>
                                 <td class="p-2">{{ colaborador.lotacao|default:"-" }}</td>
