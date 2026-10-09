@@ -1,41 +1,43 @@
 {% url 'administracao:create_lotacao' as url_criar_lotacao %}
-
-<section id="lotacoes"
-         hx-get="{% url 'administracao:lotacoes' %}"
-         hx-trigger="updateContent from:body"
-         hx-swap="outerHTML"
-         class="flex-1 flex flex-col gap-2 h-full">
-         
-    <header class="p-2 flex justify-between items-center">
-        <h2 class="text-2xl font-bold">Gerenciar Lotações</h2>
-    </header>
-
+<section id="lotacoes" hx-get="{% url 'administracao:lotacoes' %}" hx-trigger="updateContent from:body" hx-swap="outerHTML"
+         x-data="lotacoesExplorer($el)" class="flex-1 flex flex-col gap-2 h-full">
+    <header class="p-2 flex justify-between items-center"><h2 class="text-2xl font-bold">Gerenciar Lotações</h2></header>
     <div class="flex flex-1 flex-col gap-2 min-h-0">
-
         <main class="flex-1 flex flex-col p-6 bg-white rounded-2xl shadow-lg overflow-hidden">
             <div class="flex flex-col flex-1 min-h-0">
-                
                 <div class="flex flex-row gap-2 justify-between">
                     <h3 class="text-xl font-semibold pt-2 pb-4 text-slate-700">Estrutura Organizacional</h3>
                     {% include "partials/_generic_create_button.html" with url=url_criar_lotacao text="" icon_name="add-circle-outline" %}
                 </div>
-                
-                <div id="lotacoes-tree" class="p-4 bg-slate-50 border border-slate-100 rounded-xl overflow-y-auto min-h-0 flex-1">
-                    
+                <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <nav aria-label="Caminho das lotações" class="flex flex-wrap items-center gap-1 text-sm min-w-0">
+                        <button type="button" @click="go(null)" class="font-medium hover:text-primary" :class="current ? 'text-slate-500' : 'text-primary'">Todas as lotações</button>
+                        <template x-for="crumb in breadcrumbs" :key="crumb.id">
+                            <span class="flex items-center gap-1 min-w-0">
+                                <ion-icon name="chevron-forward-outline" class="text-slate-300"></ion-icon>
+                                <button type="button" @click="go(crumb.id)" class="truncate max-w-48 hover:text-primary" :class="current === crumb.id ? 'font-semibold text-primary' : 'text-slate-500'" x-text="crumb.name"></button>
+                            </span>
+                        </template>
+                    </nav>
+                    <label class="relative block w-full sm:w-72 shrink-0">
+                        <ion-icon name="search-outline" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></ion-icon>
+                        <input type="search" x-model="query" @input="current = null" placeholder="Buscar lotação" aria-label="Buscar lotação"
+                               class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-700 outline-none focus:border-slate-400 focus:ring-1 focus:ring-primary">
+                    </label>
+                </div>
+                <div id="lotacoes-tree" x-ref="tree" class="p-4 bg-slate-50 border border-slate-100 rounded-xl overflow-y-auto min-h-0 flex-1">
                     {% for lotacao in lotacoes %}
                         {% include "partials/_lotacao_tree_item.html" with lotacao=lotacao %}
-                    
                     {% empty %}
                         <div class="flex flex-col items-center justify-center h-full text-slate-400">
-                            <ion-icon name="file-tray-outline" class="text-4xl mb-2"></ion-icon>
-                            <p>Nenhuma lotação encontrada.</p>
+                            <ion-icon name="file-tray-outline" class="text-4xl mb-2"></ion-icon><p>Nenhuma lotação encontrada.</p>
                         </div>
                     {% endfor %}
-
+                    <p x-show="query.trim() && resultCount === 0" x-cloak class="py-8 text-center text-sm text-slate-500">Nenhuma lotação corresponde à busca.</p>
+                    <p x-show="current && byId[current] && !byId[current].querySelector('.lotacao-item')" x-cloak class="py-4 text-sm text-slate-500">Esta lotação não possui sub-lotações.</p>
                 </div>
             </div>
         </main>
     </div>
 </section>
-
 <div id="modal-spot"></div>
