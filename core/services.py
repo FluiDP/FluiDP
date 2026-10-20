@@ -291,7 +291,43 @@ def _pode_ator_aprovar(solicitacao: Solicitacao, ator: CustomUser, request_user:
     return False
 
 @transaction.atomic
+def cancelar_solicitacao_por_prazo(solicitacao, data_consulta=None):
+    """Cancela uma troca vencida uma única vez, com histórico e notificação."""
+    atual = Solicitacao.objects.select_for_update().get(pk=solicitacao.pk)
+    motivo = atual.motivo_prazo_aprovacao_expirado(data_consulta)
+    if not motivo:
+        return None
+    sistema, _ = CustomUser.objects.get_or_create(
+        username='sistema_automacao',
+        defaults={'first_name': 'SISTEMA', 'is_active': False, 'cpf': '00000000000', 'password': '!'},
+    )
+    atual.status = Solicitacao.StatusChoices.CANCELADO
+    atual.aprovador_atual = None
+    atual.save()
+    registrar_log_acao(
+        atual, sistema, LogAprovacao.AcaoChoices.CANCELAMENTO_SISTEMA,
+        f'Cancelamento automático: {motivo}.',
+    )
+    notificar_cancelamento_automatico(atual, motivo)
+    solicitacao.status = atual.status
+    solicitacao.aprovador_atual = None
+    return motivo
+
+
 def aprovar_solicitacao(solicitacao: Solicitacao, ator: CustomUser, request_user: CustomUser, detalhes: str = ""):
+    # O erro fica fora da transação para preservar o cancelamento por prazo.
+    with transaction.atomic():
+        Solicitacao.objects.select_for_update().get(pk=solicitacao.pk)
+        solicitacao.refresh_from_db()
+        if not _pode_ator_aprovar(solicitacao, ator, request_user):
+            raise PermissionError(f"O usuário {ator} não tem permissão para aprovar esta solicitação no status {solicitacao.status}.")
+        motivo = cancelar_solicitacao_por_prazo(solicitacao)
+        if not motivo:
+            return _aprovar_solicitacao_no_prazo(solicitacao, ator, request_user, detalhes)
+    raise ValidationError(f'Solicitação cancelada automaticamente: {motivo}. Não é possível aprovar após o prazo.')
+
+
+def _aprovar_solicitacao_no_prazo(solicitacao: Solicitacao, ator: CustomUser, request_user: CustomUser, detalhes: str = ""):
     """
     Executa a lógica de aprovação, move para o próximo status e define o próximo aprovador.
     """

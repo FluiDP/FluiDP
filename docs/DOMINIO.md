@@ -38,7 +38,9 @@ Troca de plantão é representada como um tipo de documento, dentro do fluxo gen
 
 A migração `0002_referencia_mensal` configura os documentos existentes chamados “Troca de Plantão” para abertura do dia 25 do mês anterior ao dia 10 do mês de referência, com antecedência mínima de dois dias. Ela marca os campos `data_plantao_origem` e `data_plantao_destino` para validar antecedência e pertencimento ao mês de referência. Essas regras dependem da configuração do documento.
 
-O encerramento da janela de abertura não cancela solicitações em andamento. A rotina `request_scheduler` trata encaminhamentos, cancelamento de pedidos sem colega no estágio de aceite, arquivamento após 30 dias da finalização e resumos semanais.
+Ao encerrar a janela de abertura, trocas de plantão e folga ainda não finalizadas são canceladas automaticamente, inclusive em etapas de direção, DP e lançamento. O último dia configurado permanece válido até o fim do dia no fuso da aplicação. A reabertura de um novo ciclo não revalida pedidos do ciclo anterior. A antecedência mínima continua sendo uma regra de criação, sem antecipar o encerramento da janela de aprovação.
+
+A rotina `request_scheduler` deve executar a cada minuto para cancelar pedidos vencidos com histórico e notificação. A aprovação individual e em lote também verifica o prazo e cancela imediatamente um pedido vencido, mesmo antes da próxima execução da rotina. Pedidos já finalizados, recusados ou cancelados e outros tipos de documento são preservados. A rotina também trata encaminhamentos, cancelamento de pedidos sem colega no estágio de aceite, arquivamento após 30 dias da finalização e resumos semanais.
 
 ## Recursos de apoio
 

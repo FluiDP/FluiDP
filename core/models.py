@@ -563,7 +563,8 @@ class TipoDocumento(models.Model):
 
         return mes_referencia
 
-    def motivo_prazo_expirado(self, dados_valores, data_abertura, mes_referencia=None, data_consulta=None):
+    def motivo_prazo_expirado(self, dados_valores, data_abertura, mes_referencia=None, data_consulta=None,
+                              verificar_antecedencia=True):
         """Retorna o motivo de expiração de uma solicitação ativa, ou ``None``."""
         hoje = data_consulta or timezone.localdate()
         if isinstance(hoje, datetime):
@@ -590,7 +591,7 @@ class TipoDocumento(models.Model):
                 return f'o prazo configurado para este documento encerrou em {encerramento:%d/%m/%Y}'
 
         antecedencia = self.limite_dias_antecedencia or 0
-        if antecedencia > 0:
+        if verificar_antecedencia and antecedencia > 0:
             data_minima = hoje + timedelta(days=antecedencia)
             for campo in self.definicao_formulario:
                 if not campo.get('is_event_date'):
@@ -629,6 +630,27 @@ class Solicitacao(models.Model):
         FINALIZADO = 'FINALIZADO', 'Aprovado'
         RECUSADO = 'RECUSADO', 'Recusado'
         CANCELADO = 'CANCELADO', 'Cancelado'
+
+    def motivo_prazo_aprovacao_expirado(self, data_consulta=None):
+        """Trocas devem concluir o fluxo dentro da janela em que foram abertas."""
+        if self.is_finalizada:
+            return None
+        tipo = self.tipo_documento
+        nome = tipo.nome_documento.casefold().replace('ã', 'a')
+        campos = {campo.get('name') for campo in tipo.definicao_formulario}
+        is_troca = (
+            ('troca' in nome and ('plantao' in nome or 'folga' in nome))
+            or bool(campos & {'data_plantao_origem', 'data_folga_origem'})
+        )
+        if not is_troca:
+            return None
+        abertura = timezone.localtime(self.data).date()
+        referencia = self.mes_referencia or tipo.obter_mes_referencia(abertura)
+        return tipo.motivo_prazo_expirado(
+            self.dados_preenchidos.get('values', {}), abertura,
+            mes_referencia=referencia, data_consulta=data_consulta,
+            verificar_antecedencia=False,
+        )
 
     @property
     def is_pendente(self):

@@ -34,7 +34,7 @@ As regras estão distribuídas entre modelos, serviços e views. `TipoDocumento.
 
 Django Q2 processa tarefas com fila no próprio banco (`orm: default`), incluindo e-mails e importações. O acompanhamento de importações usa cache em tabela do banco. Alguns envios são enfileirados após o commit da transação.
 
-O comando `request_scheduler` executa a rotina de acompanhamento de solicitações e resumos semanais. Sua execução periódica precisa ser configurada operacionalmente; o Compose não define um serviço separado para esse comando.
+O comando `request_scheduler` executa a rotina de acompanhamento de solicitações e resumos semanais. Deve rodar a cada minuto, com `flock` para impedir sobreposição, conforme o exemplo em `deploy/cron/request_scheduler`. Sua execução periódica precisa ser configurada operacionalmente; o Compose não define um serviço separado para esse comando.
 
 ## Execução e implantação
 

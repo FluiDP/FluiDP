@@ -35,6 +35,8 @@ A troca de plantão segue regras próprias:
 
 Se uma data ou período não for permitido, o sistema informa a regra que precisa ser corrigida.
 
+Trocas de Plantão e Folga precisam concluir o fluxo até o último dia do período de abertura. Após esse prazo, pedidos ainda não finalizados são cancelados automaticamente, com motivo no histórico e notificação ao solicitante. Tentativas de aprovação individual ou em lote também cancelam imediatamente pedidos vencidos. A abertura do próximo período não recupera pedidos antigos.
+
 ## Acompanhar solicitações
 
 Em **Início** aparecem solicitações ativas. Em **Solicitações** fica o histórico completo, com busca, filtros, paginação, data, etapa atual e indicadores de prazo.

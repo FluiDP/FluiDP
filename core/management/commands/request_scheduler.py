@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 from core.models import Solicitacao, LogAprovacao, Cargo
-from core.services import notificar_cancelamento_automatico
+from core.services import notificar_cancelamento_automatico, cancelar_solicitacao_por_prazo
 
 User = get_user_model()
 
@@ -11,8 +11,7 @@ class Command(BaseCommand):
     help = """
     Verifica gestores ausentes (férias) ou mudanças de hierarquia e escalona solicitações pendentes.
     Adicionalmente, trata solicitações que envolvam colaboradores indisponíveis.
-    O encerramento do período mensal impede novas solicitações, mas nunca cancela
-    solicitações que já estejam em andamento.
+    Cancela trocas de plantão e folga em andamento ao encerrar a janela de abertura.
     """
 
     data_hora = None
@@ -55,6 +54,7 @@ class Command(BaseCommand):
         )
 
         solicitacoes_finalizadas = Solicitacao.objects.filter(
+            arquivado=False,
             status__in=[
                 Solicitacao.StatusChoices.CANCELADO,
                 Solicitacao.StatusChoices.RECUSADO,
@@ -65,6 +65,21 @@ class Command(BaseCommand):
         count_escalonadas = 0
         count_canceladas = 0
         count_arquivadas = 0
+
+        # Antes de qualquer escalonamento, encerra trocas fora da janela original.
+        em_andamento = Solicitacao.objects.exclude(status__in=[
+            Solicitacao.StatusChoices.CANCELADO,
+            Solicitacao.StatusChoices.RECUSADO,
+            Solicitacao.StatusChoices.FINALIZADO,
+        ]).select_related('tipo_documento')
+        for sol in em_andamento.iterator():
+            if not sol.motivo_prazo_aprovacao_expirado():
+                continue
+            motivo = cancelar_solicitacao_por_prazo(sol)
+            if motivo:
+                count_canceladas += 1
+                self.stdout.write(self.style.WARNING(
+                    f'{self.data_hora} - Solicitação #{sol.pk} cancelada: {motivo}.'))
 
         for sol in solicitacoes_pendencia_secundaria:
             colega = sol.colaborador_secundario

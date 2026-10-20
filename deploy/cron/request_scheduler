@@ -1,0 +1,3 @@
+# Crontab do usuário da aplicação. Criar previamente os diretórios tmp e logs.
+# flock impede sobreposição de execuções. Adaptar o Python ao ambiente implantado.
+* * * * * cd /var/www/sistemadp && /usr/bin/flock -n /var/www/sistemadp/tmp/request_scheduler.lock /var/www/sistemadp/.venv/bin/python manage.py request_scheduler >> /var/www/sistemadp/logs/sistemadp_escalonamento.log 2>&1
