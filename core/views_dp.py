@@ -412,12 +412,18 @@ def delete_cargo_view(request, pk):
 
 @dp_required
 def dp_colaboradores_view(request):
-    exclude_colaboradores = (Q(is_active=False) | Q(username='admin') | Q(matricula='000000'))
+    exclude_colaboradores = (Q(username='admin') | Q(matricula='000000'))
 
     search_query = request.GET.get('q', '')
     page_number = request.GET.get('page')
 
-    colaboradores = CustomUser.objects.filter(is_active=True).exclude(exclude_colaboradores)
+    situacao = request.GET.get('situacao', 'ativos')
+    if situacao not in ('ativos', 'arquivados', 'todos'):
+        situacao = 'ativos'
+
+    colaboradores = CustomUser.objects.select_related('cargo', 'lotacao').exclude(exclude_colaboradores)
+    if situacao != 'todos':
+        colaboradores = colaboradores.filter(is_active=(situacao == 'ativos'))
 
     if search_query:
         colaboradores = colaboradores.filter(
@@ -433,7 +439,7 @@ def dp_colaboradores_view(request):
         sort_param = 'first_name'
 
     # CORREÇÃO: A ordenação deve vir ANTES da paginação!
-    colaboradores = colaboradores.order_by(sort_param)
+    colaboradores = colaboradores.order_by(sort_param, 'pk')
 
     paginator = Paginator(colaboradores, 15)
     page_obj = paginator.get_page(page_number)
@@ -445,6 +451,7 @@ def dp_colaboradores_view(request):
         'active_link': 'colaboradores',
         'search_query': search_query,
         'current_sort': sort_param,
+        'situacao': situacao,
     }
 
     if request.htmx:
@@ -500,7 +507,6 @@ def archive_colaborador_modal_view(request, pk):
     colaborador = get_object_or_404(CustomUser, pk=pk)
     
     if request.method == 'POST':
-        colaborador.arquivado = True
         colaborador.is_active = False
         colaborador.save()
         response = render(request, 'partials/_message_sucess.html', {'message': "Colaborador arquivado!"})

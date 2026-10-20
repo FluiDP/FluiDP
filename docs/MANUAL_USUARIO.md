@@ -88,6 +88,8 @@ O painel de administração contém:
 
 Cadastros podem ser criados, editados, arquivados e, quando permitido, excluídos. Use arquivamento para preservar histórico. Importações de colaboradores, cargos e lotações aceitam os formatos disponibilizados pela interface e são processadas em segundo plano.
 
+Em **Gerenciar Colaboradores**, use o filtro **Situação** para consultar **Ativos** (padrão), **Arquivados/Inativos** ou **Todos**. A busca e a paginação respeitam a situação selecionada. O nome do colaborador abre seus dados e solicitações, inclusive para cadastros inativos. Como o arquivamento desativa o cadastro, a opção **Arquivados/Inativos** também inclui usuários desativados pelo formulário de edição.
+
 Na etapa do DP, confira documentos e informações, registre correções quando permitidas e avance até o recebimento/processamento e a aprovação final.
 
 ## Notificações
