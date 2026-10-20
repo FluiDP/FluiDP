@@ -72,7 +72,9 @@ class Command(BaseCommand):
             Solicitacao.StatusChoices.RECUSADO,
             Solicitacao.StatusChoices.FINALIZADO,
         ]).select_related('tipo_documento')
-        for sol in em_andamento.iterator():
+        # A fila de e-mails pode fechar conexões; não manter um cursor aberto
+        # durante os cancelamentos e seus callbacks de notificação.
+        for sol in em_andamento:
             if not sol.motivo_prazo_aprovacao_expirado():
                 continue
             motivo = cancelar_solicitacao_por_prazo(sol)
