@@ -14,8 +14,16 @@
 
     {% tailwind_css %}
 
+    <link rel="stylesheet" href="{% static 'vendor/codemirror/codemirror.css' %}">
+    <link rel="stylesheet" href="{% static 'css/json-editor.css' %}">
+
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="{% static 'js/lotacoes.js' %}" defer></script>
+    <script src="{% static 'vendor/codemirror/codemirror.js' %}" defer></script>
+    <script src="{% static 'vendor/codemirror/javascript.js' %}" defer></script>
+    <script src="{% static 'vendor/codemirror/closebrackets.js' %}" defer></script>
+    <script src="{% static 'vendor/codemirror/matchbrackets.js' %}" defer></script>
+    <script src="{% static 'js/json-editor.js' %}" defer></script>
     <script src="https://unpkg.com/alpinejs@3.13.10/dist/cdn.min.js" defer></script> 
 
     <style>

@@ -1,0 +1,50 @@
+/* Tema restrito ao editor JSON; não altera os demais campos nem o modal. */
+.json-editor.cm-s-fluidp-json.CodeMirror {
+    height: 360px;
+    max-height: 55vh;
+    border: 1px solid #334155;
+    border-radius: 0 0 8px 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font: 13px/1.6 Consolas, "Liberation Mono", monospace;
+}
+.json-editor, .json-editor * { transition: none; }
+.json-editor.CodeMirror-focused { outline: 2px solid var(--color-secondary, #6366f1); }
+.json-editor .CodeMirror-gutters { background: #111c30; border-right: 1px solid #334155; }
+.json-editor .CodeMirror-linenumber { color: #94a3b8; }
+.json-editor .CodeMirror-cursor { border-left: 1px solid #f8fafc; }
+.json-editor .CodeMirror-selected { background: #334155; }
+.json-editor.CodeMirror-focused .CodeMirror-selected { background: #374969; }
+.json-editor .CodeMirror-lines { padding: 10px 0; }
+.json-editor .cm-string { color: #86efac; }
+.json-editor .cm-property { color: #7dd3fc; }
+.json-editor .cm-number { color: #fdba74; }
+.json-editor .cm-atom { color: #c4b5fd; }
+.json-editor .cm-keyword { color: #f9a8d4; }
+.json-editor .cm-error { color: #fca5a5; text-decoration: underline wavy; }
+.json-editor span.CodeMirror-matchingbracket { color: #fef08a; background: #334155; }
+.json-editor span.CodeMirror-nonmatchingbracket { color: #fca5a5; }
+.json-editor-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid #334155;
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    background: #1e293b;
+    color: #cbd5e1;
+    font-size: 12px;
+}
+.json-editor-toolbar button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #bae6fd;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+}
+.json-editor-toolbar button:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 3px; }
+.json-editor-feedback { color: #e2e8f0; }

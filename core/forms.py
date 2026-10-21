@@ -1,3 +1,5 @@
+import json
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -234,6 +236,18 @@ class EditCustomUserForm(forms.ModelForm):
                 
         return user
 
+class JSONTextarea(forms.Textarea):
+    """Exibe JSON com indentação, preservando texto inválido para correção."""
+
+    def format_value(self, value):
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (TypeError, ValueError):
+                return super().format_value(value)
+        return json.dumps(value, ensure_ascii=False, indent=2)
+
+
 class TipoDocumentoForm(forms.ModelForm):
     """
     Formulário para criar e editar Tipos de Documento.
@@ -261,7 +275,11 @@ class TipoDocumentoForm(forms.ModelForm):
             'dia_limite_mes_referencia': forms.NumberInput(attrs={'class': STYLE_INPUT, 'min': 1, 'max': 31}),
             'restringir_datas_ao_mes_referencia': forms.CheckboxInput(attrs={'class': 'h-4 w-4 text-secondary focus:ring-secondary border-gray-300 rounded'}),
             'limite_dias_antecedencia': forms.NumberInput(attrs={'class': STYLE_INPUT, 'min': 0}),
-            'definicao_formulario': forms.Textarea(attrs={'rows': 10, 'class': STYLE_INPUT, 'style': 'font-family: monospace; font-size: 0.9em;'}),
+            'definicao_formulario': JSONTextarea(attrs={
+                'rows': 18, 'class': STYLE_INPUT, 'spellcheck': 'false', 'wrap': 'off',
+                'data-json-editor': 'true',
+                'style': 'font-family: monospace; font-size: 0.9em; tab-size: 2;',
+            }),
             'disponivel': forms.CheckboxInput(attrs={'class': 'h-4 w-4 text-secondary focus:ring-secondary border-gray-300 rounded'})
         }
 
