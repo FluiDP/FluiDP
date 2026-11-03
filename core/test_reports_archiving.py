@@ -21,13 +21,26 @@ class HorasRelatorioTests(SimpleTestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 minutos_duracao(value)
 
-    def test_compensacao_usa_as_duas_pontas_sem_perder_duracao_negativa(self):
+    def test_compensacao_usa_total_compensado_sem_perder_duracao_negativa(self):
         schema = [{'name': name, 'type': 'calculated', 'calc_format': 'time'}
                   for name in ('total_ocorrencia', 'total_compensacao')]
         for origem, plano in (('10:00', '-08:00'), ('-10:00', '08:00')):
             self.assertEqual(horas_solicitacao(self.sol(schema, {
                 'total_ocorrencia': origem, 'total_compensacao': plano,
             })), (0, 480))
+
+    def test_ajuste_dp_na_compensacao_nao_e_limitado_ao_saldo_da_ocorrencia(self):
+        schema = [{'name': name, 'type': 'calculated', 'calc_format': 'time'}
+                  for name in ('total_ocorrencia', 'total_compensacao')]
+        for origem, compensacao in (('-00:31', '00:38'), ('00:31', '-00:38'), ('-00:31', '-00:38')):
+            with self.subTest(origem=origem, compensacao=compensacao):
+                self.assertEqual(horas_solicitacao(self.sol(schema, {
+                    'total_ocorrencia': origem, 'total_compensacao': compensacao,
+                })), (0, 38))
+
+    def test_total_compensado_independe_de_saldo_da_ocorrencia_ausente(self):
+        schema = [{'name': 'total_compensacao', 'type': 'calculated', 'calc_format': 'time'}]
+        self.assertEqual(horas_solicitacao(self.sol(schema, {'total_compensacao': '26:15'})), (0, 1575))
 
     def test_total_salvo_pelo_dp_prevalece_sobre_linhas(self):
         schema = [{'name': 'total_geral_horas', 'type': 'calculated', 'calc_format': 'time'},
@@ -178,3 +191,32 @@ class RelatorioArquivamentoTests(TestCase):
             else:
                 self.assertContains(response, 'name="arquivadas"')
                 self.assertEqual(list(response.context['solicitacoes_totais']), [sol])
+
+    def test_relatorio_respeita_ajustes_reais_do_dp_em_arquivadas(self):
+        from .services import editar_solicitacao
+        comp = TipoDocumento.objects.create(nome_documento='Compensação de Jornada', definicao_formulario=[])
+        he = TipoDocumento.objects.create(nome_documento='Pagamento de Hora Extra em Folha', definicao_formulario=[])
+        for tipo, schema, values, ajuste in (
+            (comp, [{'name': name, 'type': 'calculated', 'calc_format': 'time'}
+                    for name in ('total_ocorrencia', 'total_compensacao')],
+             {'total_ocorrencia': '-00:31', 'total_compensacao': '00:10'}, {'total_compensacao': '00:38'}),
+            (he, [{'name': 'total_geral_horas', 'type': 'calculated', 'calc_format': 'time'}],
+             {'total_geral_horas': '08:00'}, {'total_geral_horas': '06:42'}),
+        ):
+            sol = Solicitacao.objects.create(colaborador=self.colab, tipo_documento=tipo,
+                status='PENDENTE_DP', dados_preenchidos={'schema': schema, 'values': values})
+            editar_solicitacao(sol, self.dp, ajuste)
+            self.assertTrue(sol.logs.filter(acao='EDICAO', detalhes__contains='Departamento Pessoal').exists())
+            Solicitacao.objects.filter(pk=sol.pk).update(status='FINALIZADO', arquivado=True, data=self.data)
+            for status in ('RECUSADO', 'CANCELADO'):
+                sol.pk = None
+                sol.status = status
+                sol.arquivado = True
+                sol.save()
+                Solicitacao.objects.filter(pk=sol.pk).update(data=self.data)
+        self.client.force_login(self.diretor)
+        response = self.report()
+        self.assertEqual(response.context['horas_extras'], '06:42')
+        self.assertEqual(response.context['horas_compensadas'], '00:38')
+        self.assertEqual(response.context['total_solicitacoes'], 25)
+        self.assertEqual(response.context['total_arquivadas'], 24)

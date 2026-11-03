@@ -54,7 +54,8 @@ def horas_solicitacao(sol):
     """Retorna extras e compensadas; respeita os totais salvos pelo DP.
 
     Formulários novos de HE não possuem total calculado e usam o cronograma.
-    Na compensação, contabiliza apenas a menor das duas pontas registradas.
+    Na compensação, o Total Compensado é a quantidade efetivamente registrada;
+    o saldo da ocorrência não limita os ajustes posteriores feitos pelo DP.
     """
     dados = sol.dados_preenchidos
     if not isinstance(dados, dict):
@@ -66,10 +67,9 @@ def horas_solicitacao(sol):
     campos = [c for c in schema if isinstance(c, dict)]
     calculados = [c for c in campos if c.get('type') == 'calculated' and c.get('calc_format') == 'time']
     por_nome = {c.get('name'): c for c in calculados}
-    if {'total_ocorrencia', 'total_compensacao'} <= set(por_nome):
-        origem = minutos_duracao(valores.get('total_ocorrencia'))
+    if 'total_compensacao' in por_nome:
         plano = minutos_duracao(valores.get('total_compensacao'))
-        return 0, min(abs(origem), abs(plano))
+        return 0, abs(plano)
     extras = compensadas = 0
     for campo in calculados:
         nome = campo.get('name', '')
