@@ -1,3 +1,4 @@
+from .archiving import filtrar_arquivadas
 from django.db.models import Q
 from django.shortcuts import render
 from django.contrib.auth import get_user_model
@@ -26,6 +27,8 @@ def mobile_index_view(request):
     solicitacoes_totais = Solicitacao.objects.filter(
         Q(colaborador=user) | Q(colaborador_secundario=user)
     ).filter(q_search).select_related('colaborador_secundario').distinct().order_by('-data')
+
+    solicitacoes_totais, archive_context = filtrar_arquivadas(solicitacoes_totais, request)
 
     status_encerrados = [
         Solicitacao.StatusChoices.FINALIZADO,
@@ -62,6 +65,8 @@ def mobile_index_view(request):
         q_pendencias
     ).filter(q_search).select_related('colaborador_secundario').distinct().order_by('-data')
 
+    solicitacoes_pendentes = solicitacoes_pendentes.filter(arquivado=False)
+
     sort_param = request.GET.get('sort', '-data')
     campos_permitidos = [
         'data', '-data', 
@@ -75,6 +80,7 @@ def mobile_index_view(request):
         sort_param = '-data'
 
     context = {
+        **archive_context,
         'usuario': user,
         'usuario_tagname': user.first_name.split()[0] if user.first_name else user.username,
         'solicitacoes_totais': solicitacoes_totais,

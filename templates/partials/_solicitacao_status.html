@@ -1,3 +1,6 @@
+{% if solicitacao.arquivado %}
+    <span class="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600" title="Arquivada; permanece contabilizada no relatório">Arquivada</span>
+{% endif %}
 {% if solicitacao.status == 'FINALIZADO' %}
     <span class="inline-flex items-center rounded-full bg-green-100 px-4 py-1 text-xs font-medium text-green-800 ring-1 ring-inset ring-green-600/20">
         {{ solicitacao.get_status_display }}

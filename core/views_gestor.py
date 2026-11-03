@@ -1,3 +1,4 @@
+from .archiving import filtrar_arquivadas
 from urllib import response
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import render, get_object_or_404, redirect
@@ -212,6 +213,8 @@ def gestor_solicitacoes_view(request):
     elif request.user.groups.filter(name='DP').exists() or (request.user.cargo and request.user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR):
         solicitacoes_list = Solicitacao.objects.all()
 
+    solicitacoes_list, archive_context = filtrar_arquivadas(solicitacoes_list, request)
+
     if search_query:
         solicitacoes_list = solicitacoes_list.filter(
             Q(id__icontains=search_query) |
@@ -267,6 +270,7 @@ def gestor_solicitacoes_view(request):
     page_obj = paginator.get_page(page_number)
 
     context = {
+        **archive_context,
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'is_aprovador': True,

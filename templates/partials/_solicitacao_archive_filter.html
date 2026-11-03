@@ -1,0 +1,11 @@
+{% if pode_ver_arquivadas %}
+<label class="inline-flex items-center gap-2 bg-white rounded-full shadow px-3 py-2 text-sm text-slate-700"
+       title="Solicitações arquivadas são aquelas que foram finalizadas há mais de {{ dias_arquivamento }} dias (incluindo recusadas e canceladas). Continuam sendo contabilizadas no relatório.">
+    <span>Arquivadas</span>
+    <select name="arquivadas" aria-label="Exibição de solicitações arquivadas" class="bg-transparent focus:outline-none cursor-pointer">
+        <option value="ocultar" {% if arquivadas_filter == 'ocultar' %}selected{% endif %}>Ocultar</option>
+        <option value="incluir" {% if arquivadas_filter == 'incluir' %}selected{% endif %}>Incluir</option>
+        <option value="somente" {% if arquivadas_filter == 'somente' %}selected{% endif %}>Somente arquivadas</option>
+    </select>
+</label>
+{% endif %}

@@ -1,3 +1,4 @@
+from .archiving import filtrar_arquivadas
 import copy
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -68,6 +69,8 @@ def colaborador_solicitacoes_view(request):
         Q(colaborador=user) | Q(colaborador_secundario=user)
     ).select_related('colaborador_secundario').distinct()
 
+    solicitacoes_list, archive_context = filtrar_arquivadas(solicitacoes_list, request)
+
     if search_query:
         solicitacoes_list = solicitacoes_list.filter(
             Q(id__icontains=search_query) |
@@ -105,6 +108,7 @@ def colaborador_solicitacoes_view(request):
     solicitacoes_list = solicitacoes_list.order_by(sort_param, 'pk')
 
     context = {
+        **archive_context,
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'solicitacoes': solicitacoes_list,

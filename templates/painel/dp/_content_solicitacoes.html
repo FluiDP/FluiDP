@@ -21,6 +21,7 @@
             
             <div class="flex flex-row gap-2 items-center w-full">
                 {% include "partials/_search_bar.html" with target_ids="solicitacoes" placeholder="Buscar solicitações..." value=search_query disable_htmx=True %}
+                {% include "partials/_solicitacao_archive_filter.html" %}
                 {% include "partials/_solicitacao_create_button.html" with colaborador=usuario %}
             </div>
 

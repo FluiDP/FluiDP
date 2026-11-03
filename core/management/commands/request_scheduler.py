@@ -1,3 +1,4 @@
+from core.archiving import DIAS_ARQUIVAMENTO_SOLICITACOES
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -20,7 +21,6 @@ class Command(BaseCommand):
         self.data_hora = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %H:%M:%S")
         self.stdout.write(f"{self.data_hora} - Iniciando verificação de escalonamento...")
 
-        dias_arquivamento_apos_finalizacao = 30
         
         sistema_user, created = User.objects.get_or_create(
             username='sistema_automacao',
@@ -154,7 +154,7 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f"{self.data_hora} - Solicitação #{sol.id} enviada ao DP (Sem chefia disponível)."))
                     count_escalonadas += 1
 
-        prazo_arquivamento = timezone.now() - timedelta(days=dias_arquivamento_apos_finalizacao)
+        prazo_arquivamento = timezone.now() - timedelta(days=DIAS_ARQUIVAMENTO_SOLICITACOES)
 
         for sol in solicitacoes_finalizadas:
             if sol.data_finalizacao and sol.data_finalizacao < prazo_arquivamento:

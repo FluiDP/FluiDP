@@ -14,13 +14,14 @@
               hx-target="#solicitacoes" 
               hx-swap="outerHTML"
               hx-sync="this:replace"
-              hx-trigger="input from:input[type='search'] delay:500ms, submit, updateContent from:body"
+              hx-trigger="input from:input[type='search'] delay:500ms, change from:select, submit, updateContent from:body"
               hx-push-url="true"
               onsubmit="event.preventDefault();"
               class="flex flex-col gap-3">
             
             <div class="flex flex-row gap-2 items-center w-full">
                 {% include "partials/_search_bar.html" with target_ids="solicitacoes" placeholder="Buscar solicitações..." value=search_query disable_htmx=True %}
+                {% include "partials/_solicitacao_archive_filter.html" %}
                 {% include "partials/_solicitacao_create_button.html" with colaborador=usuario %}
             </div>
             <input type="hidden" name="sort" value="{{ current_sort }}">

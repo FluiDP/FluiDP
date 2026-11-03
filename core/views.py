@@ -13,7 +13,7 @@ from django.contrib.auth import logout as auth_logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy, reverse
@@ -391,181 +391,40 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
 
 @login_required
 def relatorio_geral_view(request):
+    from .reports import periodo_relatorio, resumir_solicitacoes
+
     user = request.user
-    minhas_lotacoes = set()
-    q_lotacoes = Lotacao.objects.filter(
-        Q(chefia=user) | Q(chefia_secundaria=user, chefia__isnull=True)
-    )
-    
-    for lotacao in q_lotacoes:
-        if not lotacao.arquivado:
-            minhas_lotacoes.add(lotacao)
-            minhas_lotacoes.update(lotacao.get_descendentes(include_self=True))
+    acesso_global = user.is_adm
+    qs = Solicitacao.objects.all()
+    if not acesso_global:
+        lotacoes = set()
+        chefias = Lotacao.objects.filter(
+            Q(chefia=user) | Q(chefia_secundaria=user, chefia__isnull=True)
+        )
+        for lotacao in chefias:
+            lotacoes.update(lotacao.get_descendentes(include_self=True))
+        qs = qs.filter(colaborador__lotacao__in=lotacoes)
 
-    if (user.cargo and user.cargo.hierarquia == Cargo.HierarquiaChoices.DIRETOR) or user.groups.filter(name='DP').exists():
-        minhas_lotacoes = set(Lotacao.objects.filter(arquivado=False))
-
-    hoje = timezone.now().date()
-    padrao_inicio = hoje.replace(day=1)
-    proximo_mes = (padrao_inicio.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
-    padrao_fim = proximo_mes - datetime.timedelta(days=1)
-    
-    data_inicio_str = request.GET.get('data_inicio', padrao_inicio.strftime('%Y-%m-%d'))
-    data_fim_str = request.GET.get('data_fim', padrao_fim.strftime('%Y-%m-%d'))
-    
-    try:
-        data_inicio = datetime.datetime.strptime(data_inicio_str, '%Y-%m-%d')
-        data_fim_base = datetime.datetime.strptime(data_fim_str, '%Y-%m-%d')
-        data_fim = data_fim_base.replace(hour=23, minute=59, second=59)
-    except ValueError:
-        data_inicio = datetime.datetime.combine(padrao_inicio, datetime.time.min)
-        data_fim = datetime.datetime.combine(padrao_fim, datetime.time.max)
-
-    if timezone.is_naive(data_inicio):
-        data_inicio = timezone.make_aware(data_inicio)
-    if timezone.is_naive(data_fim):
-        data_fim = timezone.make_aware(data_fim)
-
-    qs_base = Solicitacao.objects.filter(
-        colaborador__lotacao__in=minhas_lotacoes,
-        arquivado=False,
-        data__range=(data_inicio, data_fim)
-    )
+    inicio, fim_exclusivo, periodo = periodo_relatorio(request.GET)
+    if inicio is None:
+        qs = qs.none()
+    else:
+        qs = qs.filter(data__gte=inicio, data__lt=fim_exclusivo)
     status_selecionados = services.obter_status_relatorio(
         request.GET.getlist('status'),
-        filtro_aplicado=request.GET.get('status_filter_applied') == '1',
+        filtro_aplicado=request.GET.get('status_filter_applied') == '1' or 'status' in request.GET,
     )
-    qs_base = qs_base.filter(status__in=status_selecionados)
-
-    total_minutos_extras = 0
-    total_minutos_compensados = 0
-
-    def time_str_to_minutes(t_str):
-        if isinstance(t_str, str) and ':' in t_str:
-            try:
-                t_str = t_str.replace('-', '').strip()
-                h, m = t_str.split(':')
-                return (int(h) * 60) + int(m)
-            except ValueError:
-                return 0
-        return 0
-
-    def minutes_to_time_str(mins):
-        h = mins // 60
-        m = mins % 60
-        return f"{h:02d}:{m:02d}"
-
-    def duration_minutes(start, end):
-        """Duração entre horários HH:MM, inclusive quando cruza a meia-noite."""
-        def clock_minutes(value):
-            try:
-                hour, minute = map(int, value.split(':'))
-                if 0 <= hour < 24 and 0 <= minute < 60:
-                    return hour * 60 + minute
-            except (AttributeError, TypeError, ValueError):
-                pass
-            return None
-
-        start_minutes = clock_minutes(start)
-        end_minutes = clock_minutes(end)
-        if start_minutes is None or end_minutes is None:
-            return None
-        return (end_minutes - start_minutes) % (24 * 60)
-
-    for sol in qs_base:
-        if sol.status == Solicitacao.StatusChoices.FINALIZADO:
-            dados = sol.dados_preenchidos
-            valores = dados.get('values', dados) if isinstance(dados, dict) else {}
-            schema = dados.get('schema', []) if isinstance(dados, dict) else []
-            
-            if isinstance(valores, dict) and isinstance(schema, list):
-                cronograma_he = next(
-                    (campo for campo in schema if campo.get('name') == 'cronograma_he'
-                     and campo.get('type') == 'repeater'), None,
-                )
-                campos_cronograma = {
-                    campo.get('name') for campo in cronograma_he.get('sub_fields', [])
-                } if cronograma_he else set()
-                if {'hora_inicio', 'inicio_intervalo', 'fim_intervalo', 'hora_fim'} <= campos_cronograma:
-                    for linha in valores.get('cronograma_he', []):
-                        if not isinstance(linha, dict):
-                            continue
-                        periodo = duration_minutes(linha.get('hora_inicio'), linha.get('hora_fim'))
-                        sem_intervalo = linha.get('sem_intervalo') in (True, 'true', 'on', '1')
-                        intervalo = 0 if sem_intervalo else duration_minutes(
-                            linha.get('inicio_intervalo'), linha.get('fim_intervalo')
-                        )
-                        if periodo is not None and intervalo is not None and intervalo <= periodo:
-                            total_minutos_extras += periodo - intervalo
-                    continue
-
-                calc_time_fields = [
-                    campo for campo in schema 
-                    if campo.get('type') == 'calculated' and campo.get('calc_format') == 'time'
-                ]
-                nome_documento = sol.tipo_documento.nome_documento.lower()
-                
-                if len(calc_time_fields) == 2:
-                    val1_str = valores.get(calc_time_fields[0].get('name'), '00:00')
-                    val2_str = valores.get(calc_time_fields[1].get('name'), '00:00')
-                    mins1 = time_str_to_minutes(val1_str)
-                    mins2 = time_str_to_minutes(val2_str)
-                    minutos_compensados_doc = min(mins1, mins2)
-                    total_minutos_compensados += minutos_compensados_doc
-
-                elif len(calc_time_fields) == 1:
-                    campo = calc_time_fields[0]
-                    nome_campo = campo.get('name', '').lower()
-                    label_campo = campo.get('label', '').lower()
-                    valor_str = valores.get(nome_campo, '00:00')
-                    minutos = time_str_to_minutes(valor_str)
-                    
-                    if minutos > 0:
-                        if 'compensa' in nome_campo or 'compensa' in label_campo or 'banco' in nome_documento:
-                            total_minutos_compensados += minutos
-                        elif 'extra' in nome_campo or 'extra' in label_campo or 'ocorrencia' in nome_campo:
-                            total_minutos_extras += minutos
-
-    horas_extras_formatadas = minutes_to_time_str(total_minutos_extras)
-    horas_compensadas_formatadas = minutes_to_time_str(total_minutos_compensados)
-
-    docs_scoped = qs_base.values('tipo_documento__nome_documento').annotate(total=Count('id')).order_by('-total')[:5]
-    lotacoes_scoped = qs_base.values('colaborador__lotacao__nome_lotacao').annotate(total=Count('id')).order_by('-total')[:5]
-
-    ranking_data = []
-    colab_ids = qs_base.values_list('colaborador', flat=True).distinct()
-    colaboradores = CustomUser.objects.filter(id__in=colab_ids)
-    
-    for colab in colaboradores:
-        qs_colab = qs_base.filter(colaborador=colab)
-        total = qs_colab.count()
-        top_tipos = qs_colab.values('tipo_documento__nome_documento').annotate(qtd=Count('id')).order_by('-qtd')
-        lista_textos = [f"{t['tipo_documento__nome_documento']} ({t['qtd']})" for t in top_tipos]
-        texto_principais = ", ".join(lista_textos)
-        
-        ranking_data.append({
-            'colaborador': colab,
-            'total': total,
-            'texto_principais': texto_principais
-        })
-    
-    ranking_data.sort(key=lambda x: x['total'], reverse=True)
-    for idx, item in enumerate(ranking_data, 1):
-        item['posicao'] = idx
-
+    qs = qs.filter(status__in=status_selecionados).select_related(
+        'colaborador__lotacao', 'tipo_documento'
+    ).order_by('pk')
     context = {
-        'ranking_data': ranking_data,
-        'data_inicio': data_inicio_str,
-        'data_fim': data_fim_str,
+        **periodo,
+        **resumir_solicitacoes(qs.iterator()),
         'status_choices': Solicitacao.StatusChoices.choices,
         'status_selecionados': status_selecionados,
-        'chart_docs_labels': [x['tipo_documento__nome_documento'] for x in docs_scoped],
-        'chart_docs_data': [x['total'] for x in docs_scoped],
-        'chart_lot_labels': [x['colaborador__lotacao__nome_lotacao'] for x in lotacoes_scoped],
-        'chart_lot_data': [x['total'] for x in lotacoes_scoped],
+        'status_descricao': ', '.join(label for value, label in Solicitacao.StatusChoices.choices if value in status_selecionados) or 'Nenhum',
+        'escopo_relatorio': 'Todas as lotações' if acesso_global else 'Lotações sob gestão e subordinadas',
         'data_impressao': timezone.now(),
-        'horas_extras': horas_extras_formatadas,
-        'horas_compensadas': horas_compensadas_formatadas
     }
     return render(request, 'pdf/_report_geral.html', context)
 

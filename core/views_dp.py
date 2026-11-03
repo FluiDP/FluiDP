@@ -1,3 +1,4 @@
+from .archiving import filtrar_arquivadas
 import copy
 import uuid
 from datetime import date
@@ -709,6 +710,8 @@ def dp_solicitacoes_view(request):
 
     solicitacoes_list = Solicitacao.objects.all()
 
+    solicitacoes_list, archive_context = filtrar_arquivadas(solicitacoes_list, request)
+
     if search_query:
         solicitacoes_list = solicitacoes_list.filter(
             Q(id__icontains=search_query) |
@@ -762,6 +765,7 @@ def dp_solicitacoes_view(request):
     url_params = f"&{query_params.urlencode()}" if query_params else ""
 
     context = {
+        **archive_context,
         'usuario': request.user,
         'usuario_tagname': request.user.first_name.split()[0] if request.user.first_name else request.user.username,
         'is_dp': True,

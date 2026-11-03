@@ -81,8 +81,8 @@
             <div>
                 <h1 class="text-3xl font-bold text-primary">Relatório de Solicitações</h1>
                 <p class="text-sm text-gray-500 mt-1">
-                    Escopo: Lotações sob Gestão e Subordinadas<br>
-                    Período: <span id="periodo"></span>
+                    Escopo: {{ escopo_relatorio }}<br>
+                    Período de abertura: {{ periodo_inicio|date:"d/m/Y" }} a {{ periodo_fim|date:"d/m/Y" }}
                 </p>
             </div>
             <div class="text-right">
@@ -93,16 +93,24 @@
     </div>
 
     <div class="max-w-7xl mx-auto space-y-8">
+        {% if erro_periodo %}<p role="alert" class="p-4 bg-red-50 text-red-800 rounded-lg">{{ erro_periodo }}</p>{% endif %}
+        <p class="text-sm text-gray-600">
+            <strong>{{ total_solicitacoes }} solicitações</strong> nos filtros selecionados, incluindo {{ total_arquivadas }} arquivadas.
+            Cada solicitação é contabilizada uma vez, por autoria e lotação atual do solicitante.
+        </p>
+        <p class="text-xs text-gray-500">Status considerados: {{ status_descricao }}.</p>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 break-inside-avoid">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 break-inside-avoid">
             <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
-                <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Tipos Mais Solicitados</h3>
+                <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Solicitações por Documento</h3>
+                <p class="text-xs text-gray-500 mb-2">Cinco principais; demais agrupados em “Outros”.</p>
                 <div class="relative h-40">
                     <canvas id="chartDocs"></canvas>
                 </div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
                 <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Horas Extras e Compensadas</h3>
+                <p class="text-xs text-gray-500 mb-2">Somente solicitações finalizadas nos filtros selecionados. Compensação: menor total entre ocorrência e plano, em valor absoluto.</p>
                 <div class="flex flex-col">
                     <div class="flex gap-4 border-b-2 border-gray-200 pb-2 mb-2 items-baseline">
                         <span class="font-black text-primary text-3xl">{{ horas_extras }}</span> horas extras
@@ -114,9 +122,16 @@
             </div>
         </div>
 
+        {% if avisos_horas %}
+        <details class="text-sm text-amber-800 bg-amber-50 p-3 rounded-lg">
+            <summary class="cursor-pointer">{{ avisos_horas|length }} solicitação(ões) com horas inválidas ou incompletas</summary>
+            <p>Contabilizadas no volume, mas suas horas não foram somadas. Revisar códigos: {{ avisos_horas|join:", " }}.</p>
+        </details>
+        {% endif %}
         <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
             <h3 class="text-lg font-bold mb-4 text-center text-gray-700">Solicitações por Setor</h3>
-            <div class="relative h-55">
+            <p class="text-xs text-gray-500 mb-2">Cinco principais; demais agrupados em “Outros”.</p>
+            <div class="relative h-56">
                 <canvas id="chartLots"></canvas>
             </div>
         </div>
@@ -178,22 +193,26 @@
         </div>
     </div>
 
+    {{ chart_docs_labels|json_script:"docs-labels" }}
+    {{ chart_docs_data|json_script:"docs-data" }}
+    {{ chart_lot_labels|json_script:"lot-labels" }}
+    {{ chart_lot_data|json_script:"lot-data" }}
     <script>
-        let dataInicio = new Date("{{ data_inicio }}");
-        let dataFim = new Date("{{ data_fim }}");
-
-        document.getElementById('periodo').textContent = dataInicio.toLocaleDateString('pt-BR') + ' a ' + dataFim.toLocaleDateString('pt-BR');
+        const docsLabels = JSON.parse(document.getElementById('docs-labels').textContent);
+        const docsData = JSON.parse(document.getElementById('docs-data').textContent);
+        const lotLabels = JSON.parse(document.getElementById('lot-labels').textContent);
+        const lotData = JSON.parse(document.getElementById('lot-data').textContent);
 
         const colors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#8B5CF6'];
         
         const ctxDocs = document.getElementById('chartDocs');
-        if (ctxDocs && {{ chart_docs_data|safe }}.length > 0) {
+        if (ctxDocs && docsData.length > 0) {
             new Chart(ctxDocs, {
                 type: 'doughnut',
                 data: {
-                    labels: {{ chart_docs_labels|safe }},
+                    labels: docsLabels,
                     datasets: [{
-                        data: {{ chart_docs_data|safe }},
+                        data: docsData,
                         backgroundColor: colors,
                         borderWidth: 0
                     }]
@@ -205,14 +224,14 @@
         const brandPrimaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#4F46E5';
 
         const ctxLots = document.getElementById('chartLots');
-        if (ctxLots && {{ chart_lot_data|safe }}.length > 0) {
+        if (ctxLots && lotData.length > 0) {
             new Chart(ctxLots, {
                 type: 'bar',
                 data: {
-                    labels: {{ chart_lot_labels|safe }},
+                    labels: lotLabels,
                     datasets: [{
                         label: 'Solicitações',
-                        data: {{ chart_lot_data|safe }},
+                        data: lotData,
                         backgroundColor: brandPrimaryColor,
                         borderRadius: 4
                     }]
