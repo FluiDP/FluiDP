@@ -5,6 +5,7 @@
 {% block title %}{{ solicitacao.data|date:"d.m.Y" }} - {{ solicitacao.tipo_documento.nome_documento }} - {{ solicitacao.colaborador }}{% endblock %}
 
 {% block content %}
+{% verificar_horas solicitacao.dados_preenchidos.schema solicitacao.dados_preenchidos.values as avisos_de_horas %}
     <div class="flex justify-between items-start mb-8 border-b-2 border-primary pb-4">
         <div>
             {% if tema.logo %}
@@ -110,6 +111,7 @@
                                                             {% else %}
                                                                 {{ item|get_item:sub.name|default:"-" }}
                                                             {% endif %}
+                                                            {% aviso_horas avisos_de_horas campo.name forloop.parentloop.counter0 sub.name as aviso %}{% include "partials/_time_warning.html" %}
 
                                                         </td>
                                                     {% endfor %}
@@ -126,7 +128,7 @@
                             <div class="break-inside-avoid">
                                 <span class="block text-xs text-gray-500 font-semibold uppercase mb-1">{{ campo.label }}</span>
                                 <div class="text-sm text-gray-900 bg-gray-50 p-2 rounded border border-gray-100 min-h-10 flex items-center">
-                                    {{ campo.valor_exibicao|default:"-"|linebreaksbr }}
+                                    {{ campo.valor_exibicao|default:"-"|linebreaksbr }}{% aviso_horas avisos_de_horas campo.name as aviso %}{% include "partials/_time_warning.html" %}
                                 </div>
                             </div>
                         {% endif %}

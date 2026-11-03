@@ -21,6 +21,7 @@
                         label: 'Linha ' + (index + 1),
                         fields: campo.sub_fields.map(sub => ({
                             label: sub.label,
+                            aviso: window.FluidpTimeValidation?.warningForForm(form, [campo.name, index, sub.name]) || '',
                             value: sub.type === 'checkbox'
                                 ? (row.querySelector('[name=' + CSS.escape(campo.name + '_' + sub.name + '[]') + ']')?.value === 'true' ? 'Sim' : 'Não')
                                 : this.displayValue(row.querySelector('[name=' + CSS.escape(campo.name + '_' + sub.name + '[]') + ']'))
@@ -33,7 +34,7 @@
                 const value = campo.type === 'radio' && input
                     ? form.querySelector('label[for=' + CSS.escape(input.id) + ']')?.textContent.trim() || input.value
                     : this.displayValue(input);
-                return { label: campo.label, value };
+                return { label: campo.label, value, aviso: window.FluidpTimeValidation?.warningForForm(form, [campo.name]) || '' };
             });
             this.confirming = true;
         }
@@ -50,7 +51,7 @@
 
     <div class="absolute inset-0 z-0"></div>
 
-    <form id="modal-content" x-ref="requestForm"
+    <form data-time-validation id="modal-content" x-ref="requestForm"
           @submit.capture="if (!confirming) { $event.preventDefault(); $event.stopImmediatePropagation(); review(); }"
           hx-post="{% url 'colaborador:salvar_solicitacao' tipo_documento.id %}"
           hx-swap="innerHTML" 
@@ -465,14 +466,14 @@
                     <template x-for="(entry, index) in summary" :key="index">
                         <div class="rounded-lg border border-gray-200 bg-slate-50 p-3">
                             <p class="text-xs font-semibold text-gray-600" x-text="entry.label"></p>
-                            <p x-show="!entry.rows" class="mt-1 text-sm text-gray-900 whitespace-pre-wrap break-words" x-text="entry.value"></p>
+                            <p x-show="!entry.rows" class="mt-1 text-sm text-gray-900 whitespace-pre-wrap break-words"><span x-text="entry.value"></span><span x-show="entry.aviso" class="time-inconsistency" tabindex="0" role="img" :title="entry.aviso" :aria-label="'Inconsistência de horas: ' + entry.aviso"><ion-icon name="warning-outline" aria-hidden="true"></ion-icon><span class="time-inconsistency-tooltip" role="tooltip" x-text="entry.aviso"></span></span></p>
                             <template x-if="entry.rows">
                                 <div class="mt-2 space-y-2">
                                     <template x-for="(row, rowIndex) in entry.rows" :key="rowIndex">
                                         <div class="border-l-2 border-primary/40 pl-3">
                                             <p class="text-xs font-semibold text-gray-700" x-text="row.label"></p>
                                             <template x-for="(field, fieldIndex) in row.fields" :key="fieldIndex">
-                                                <p class="text-xs text-gray-700 break-words"><span class="font-medium" x-text="field.label + ': '"></span><span x-text="field.value"></span></p>
+                                                <p class="text-xs text-gray-700 break-words"><span class="font-medium" x-text="field.label + ': '"></span><span x-text="field.value"></span><span x-show="field.aviso" class="time-inconsistency" tabindex="0" role="img" :title="field.aviso" :aria-label="'Inconsistência de horas: ' + field.aviso"><ion-icon name="warning-outline" aria-hidden="true"></ion-icon><span class="time-inconsistency-tooltip" role="tooltip" x-text="field.aviso"></span></span></p>
                                             </template>
                                         </div>
                                     </template>

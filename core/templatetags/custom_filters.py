@@ -3,6 +3,20 @@ from django import template
 
 register = template.Library()
 
+
+@register.simple_tag
+def verificar_horas(campos, valores=None):
+    from core.time_validation import analisar_periodos
+    if valores is None:
+        valores = {c.get('name'): c.get('value', c.get('valor_exibicao')) for c in campos if isinstance(c, dict)}
+    return analisar_periodos(campos, valores)
+
+
+@register.simple_tag
+def aviso_horas(avisos, campo, linha=None, subcampo=None):
+    chave = (campo,) if linha is None else (campo, linha, subcampo)
+    return avisos.get(chave, '')
+
 @register.filter
 def get_item(dictionary, key):
     return dictionary.get(key)

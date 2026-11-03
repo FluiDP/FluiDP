@@ -1,4 +1,5 @@
 {% load custom_filters %}
+{% verificar_horas campos_formulario as avisos_de_horas %}
 
 <div x-data="{ open: true, showModalRecusa: false }" 
      @keydown.escape.window="if(showModalRecusa) { showModalRecusa = false; } else { open = false; }">
@@ -169,9 +170,15 @@
                             {% if campo.type == 'label' %}
                             <p class="rounded-xl border px-4 py-3 text-sm font-medium leading-relaxed" style="border-color:#bfdbfe;background:#eff6ff;color:#1e3a8a">{{ campo.label }}</p>
 
+                            {% elif campo.type == 'calculated' %}
+                            <div class="flex flex-col">
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}{% aviso_horas avisos_de_horas campo.name as aviso %}{% include "partials/_time_warning.html" %}</label>
+                                <div class="px-3 py-2 border border-slate-200 rounded-lg bg-slate-100/50 text-sm text-slate-700">{{ campo.value|default:"-" }}</div>
+                            </div>
+
                             {% elif campo.type in 'text,date,email,number' %}
                             <div class="flex flex-col">
-                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}{% aviso_horas avisos_de_horas campo.name as aviso %}{% include "partials/_time_warning.html" %}</label>
                                 <input type="{{ campo.type }}" 
                                     name="{{ campo.name }}" 
                                     value="{{ campo.value|default:'' }}"
@@ -181,7 +188,7 @@
                             
                             {% elif campo.type == 'textarea' %}
                             <div class="flex flex-col">
-                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}{% aviso_horas avisos_de_horas campo.name as aviso %}{% include "partials/_time_warning.html" %}</label>
                                 <textarea name="{{ campo.name }}" 
                                         rows="2"
                                         disabled
@@ -191,7 +198,7 @@
 
                             {% elif campo.type == 'select' %}
                             <div class="flex flex-col w-full">
-                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}</label>
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 ml-1">{{ campo.label }}{% aviso_horas avisos_de_horas campo.name as aviso %}{% include "partials/_time_warning.html" %}</label>
                                 <select name="{{ campo.name }}" 
                                         disabled
                                         class="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 border border-slate-200 rounded-lg sm:rounded-xl text-slate-600 text-sm shadow-sm bg-slate-100/50 cursor-not-allowed appearance-none focus:ring-0">
@@ -206,7 +213,7 @@
 
                             {% elif campo.type == 'repeater' %}
                             <div class="flex flex-col mt-1">
-                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5 ml-1">{{ campo.label }}</label>
+                                <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5 ml-1">{{ campo.label }}{% aviso_horas avisos_de_horas campo.name as aviso %}{% include "partials/_time_warning.html" %}</label>
                                 <div class="w-full overflow-x-auto border border-slate-200 rounded-lg sm:rounded-xl shadow-sm bg-white">
                                     <table class="min-w-full divide-y divide-slate-200">
                                         <thead class="bg-slate-50/80">
@@ -240,6 +247,7 @@
                                                             {% else %}
                                                                 {{ item|get_item:sub.name|default:"-" }}
                                                             {% endif %}
+                                                            {% aviso_horas avisos_de_horas campo.name forloop.parentloop.counter0 sub.name as aviso %}{% include "partials/_time_warning.html" %}
                                                         </td>
                                                     {% endfor %}
                                                 </tr>
@@ -277,7 +285,7 @@
                                     value="true"
                                     {% if campo.value %}checked{% endif %} disabled
                                     class="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary cursor-not-allowed">
-                                <label class="ml-2 block text-xs sm:text-sm font-semibold text-slate-700">{{ campo.label }}</label>
+                                <label class="ml-2 block text-xs sm:text-sm font-semibold text-slate-700">{{ campo.label }}{% aviso_horas avisos_de_horas campo.name as aviso %}{% include "partials/_time_warning.html" %}</label>
                             </div>
                             {% endif %}
                             

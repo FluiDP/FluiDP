@@ -13,7 +13,7 @@
 
     <div class="absolute inset-0 z-0" @click="open = false"></div>
 
-    <form hx-post="{{ action_url }}" 
+    <form data-time-validation hx-post="{{ action_url }}"
           hx-target="#modal-edicao-solicitacao" 
           hx-swap="outerHTML" 
           hx-disabled-elt="button[type='submit']"
@@ -27,6 +27,7 @@
           x-transition:leave-end="opacity-0 scale-95 translate-y-4">
           
         {% csrf_token %}
+        {{ campos_formulario|json_script:"edit-time-schema" }}
         
         <div class="px-4 py-4 sm:px-6 sm:py-5 border-b border-gray-100 bg-white flex justify-between items-center z-10">
             <div>
