@@ -140,6 +140,47 @@
     global.FluidpTimeValidation = api;
     if (typeof document === 'undefined') return;
 
+    // O balão fica fora das tabelas e modais para não ser cortado pelo scroll.
+    let floating, activeBadge;
+    function hideTooltip() {
+        if (floating) floating.hidden = true;
+        activeBadge = null;
+    }
+    function showTooltip(badge) {
+        if (!badge) return;
+        if (!floating) {
+            floating = document.createElement('span');
+            floating.className = 'time-inconsistency-floating';
+            floating.dataset.timeWarning = '';
+            floating.setAttribute('role', 'tooltip');
+            document.body.appendChild(floating);
+        }
+        activeBadge = badge;
+        floating.textContent = badge.title;
+        floating.hidden = false;
+        const rect = badge.getBoundingClientRect();
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - floating.offsetWidth - 8));
+        const top = rect.top >= floating.offsetHeight + 12 ? rect.top - floating.offsetHeight - 8 : rect.bottom + 8;
+        floating.style.left = left + 'px';
+        floating.style.top = Math.max(8, Math.min(top, window.innerHeight - floating.offsetHeight - 8)) + 'px';
+    }
+    document.addEventListener('focusin', e => {
+        const badge = e.target.closest('.time-inconsistency');
+        if (badge) showTooltip(badge);
+        else hideTooltip();
+    });
+    document.addEventListener('focusout', e => { if (e.target === activeBadge) hideTooltip(); });
+    document.addEventListener('pointerover', e => {
+        const badge = e.target.closest('.time-inconsistency');
+        if (badge && badge !== activeBadge) showTooltip(badge);
+    });
+    document.addEventListener('pointerout', e => {
+        if (activeBadge && !activeBadge.contains(e.relatedTarget) && document.activeElement !== activeBadge) hideTooltip();
+    });
+    document.addEventListener('scroll', hideTooltip, true);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTooltip(); });
+    window.addEventListener('resize', hideTooltip);
+
     const timers = new WeakMap();
     function readForm(root) {
         const script = root.querySelector('script[type="application/json"]');

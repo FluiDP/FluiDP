@@ -29,6 +29,7 @@ CASES = [
     ('caso_2647', REPEATER, {'cronograma_he': [BAD_ROW]}, {('cronograma_he', 0, 'inicio_intervalo'), ('cronograma_he', 0, 'fim_intervalo')}),
     ('intervalo_valido', SHIFT, {'hora_inicio': '08:00', 'hora_fim': '17:00', 'inicio_intervalo': '12:00', 'fim_intervalo': '13:00'}, set()),
     ('meia_noite', SHIFT, {'hora_inicio': '22:00', 'hora_fim': '06:00', 'inicio_intervalo': '23:30', 'fim_intervalo': '00:30'}, set()),
+    ('plantao_19_as_07_intervalo_01_as_02', SHIFT, {'hora_inicio': '19:00', 'hora_fim': '07:00', 'inicio_intervalo': '01:00', 'fim_intervalo': '02:00'}, set()),
     ('intervalo_no_final', SHIFT, {'hora_inicio': '22:00', 'hora_fim': '06:00', 'inicio_intervalo': '05:30', 'fim_intervalo': '06:00'}, set()),
     ('intervalo_parcialmente_fora', SHIFT, {'hora_inicio': '22:00', 'hora_fim': '06:00', 'inicio_intervalo': '05:30', 'fim_intervalo': '06:30'}, {('inicio_intervalo',), ('fim_intervalo',)}),
     ('sem_intervalo_ignora_dados_antigos', SHIFT, {**BAD_ROW, 'sem_intervalo': 'true'}, set()),
@@ -52,6 +53,16 @@ CASES = [
 
 
 class AvisosHorasTests(SimpleTestCase):
+    def test_plantao_noturno_do_exemplo_tem_onze_horas_e_nenhum_alerta(self):
+        from types import SimpleNamespace
+        from .reports import horas_solicitacao
+        values = {'cronograma_he': [{'hora_inicio': '19:00', 'hora_fim': '07:00',
+            'inicio_intervalo': '01:00', 'fim_intervalo': '02:00'}]}
+        self.assertEqual(analisar_periodos(REPEATER, values), {})
+        sol = SimpleNamespace(dados_preenchidos={'schema': REPEATER, 'values': values},
+            tipo_documento=SimpleNamespace(nome_documento='Pagamento de Hora Extra em Folha'))
+        self.assertEqual(horas_solicitacao(sol), (660, 0))
+
     def test_cenarios_de_periodos_e_duracoes_sem_alterar_valores(self):
         for name, schema, values, expected in CASES:
             with self.subTest(name=name):
