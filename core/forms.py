@@ -17,11 +17,24 @@ STYLE_INPUT = (
 STYLE_CHECKBOX = "h-5 w-5 text-secondary focus:ring-secondary border-gray-300 rounded mt-1"
 
 
+def password_enter_attrs(next_field=None):
+    action = (
+        f"this.form.elements.namedItem('{next_field}').focus();" if next_field else
+        "this.form.requestSubmit(this.form.querySelector('button[type=submit]'));"
+    )
+    return {
+        'enterkeyhint': 'next' if next_field else 'done',
+        'onkeydown': "if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); event.stopPropagation(); if (!event.repeat) { " + action + " } }",
+    }
+
+
 class SenhaDefinitivaForm(SetPasswordForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.update({'class': STYLE_INPUT, 'autocomplete': 'new-password'})
+        self.fields['new_password1'].widget.attrs.update(password_enter_attrs('new_password2'))
+        self.fields['new_password2'].widget.attrs.update(password_enter_attrs())
 
     def clean_new_password1(self):
         password = self.cleaned_data['new_password1']
@@ -153,7 +166,8 @@ class EditCustomUserForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={
             'class': STYLE_INPUT, 
             'placeholder': 'Digite a nova senha',
-            'id': 'input_nova_senha'
+            'id': 'input_nova_senha',
+            **password_enter_attrs('confirmar_senha'),
         })
     )
     confirmar_senha = forms.CharField(
@@ -163,7 +177,8 @@ class EditCustomUserForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={
             'class': STYLE_INPUT, 
             'placeholder': 'Confirme a nova senha',
-            'id': 'input_confirmar_senha'
+            'id': 'input_confirmar_senha',
+            **password_enter_attrs(),
         })
     )
     exigir_redefinicao = forms.BooleanField(

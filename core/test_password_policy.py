@@ -11,6 +11,35 @@ from .forms import EditCustomUserForm
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 })
 class SenhaProvisoriaTests(TestCase):
+    def test_enter_avanca_e_confirma_sem_envio_duplicado(self):
+        import json
+        import shutil
+        import subprocess
+        from .forms import SenhaDefinitivaForm
+        if not shutil.which('node'):
+            self.skipTest('Node necessário para testar eventos de teclado')
+        for form, primeiro, segundo in (
+            (EditCustomUserForm(instance=self.user), 'nova_senha', 'confirmar_senha'),
+            (SenhaDefinitivaForm(self.user), 'new_password1', 'new_password2'),
+        ):
+            payload = {'first': form.fields[primeiro].widget.attrs['onkeydown'],
+                       'last': form.fields[segundo].widget.attrs['onkeydown'], 'next': segundo}
+            code = r"""
+const assert = require('node:assert/strict'); let raw='';
+process.stdin.on('data', x=>raw+=x); process.stdin.on('end',()=>{
+ const data=JSON.parse(raw); let submitted=0,focused=0,prevented=0;
+ const button={type:'submit'};
+ const input={form:{elements:{namedItem:n=>{assert.equal(n,data.next);return {focus:()=>focused++};}},querySelector:()=>button,requestSubmit:b=>{assert.equal(b,button);submitted++;}}};
+ function run(code, props={}){new Function('event',code).call(input,{key:'Enter',repeat:false,isComposing:false,preventDefault:()=>prevented++,stopPropagation:()=>{},...props});}
+ run(data.first); assert.equal(focused,1); assert.equal(submitted,0); assert.equal(prevented,1);
+ run(data.last); assert.equal(submitted,1);
+ run(data.last,{repeat:true}); assert.equal(submitted,1);
+ run(data.first,{isComposing:true}); assert.equal(focused,1);
+ run(data.last,{key:'Tab'}); assert.equal(submitted,1);
+});"""
+            subprocess.run([shutil.which('node'), '-e', code], input=json.dumps(payload),
+                           text=True, encoding='utf-8', capture_output=True, check=True)
+
     def setUp(self):
         self.user = CustomUser.objects.create_user(username='senha_teste', first_name='Teste',
             email='teste@example.com', cpf='52998224725', matricula='991', password='Provisoria!X234', precisa_trocar_senha=True, senha_provisoria_definida_em=timezone.now())
