@@ -15,12 +15,13 @@ class SenhaProvisoriaTests(TestCase):
         import json
         import shutil
         import subprocess
-        from .forms import SenhaDefinitivaForm
+        from .forms import SenhaDefinitivaForm, CustomSetPasswordForm
         if not shutil.which('node'):
             self.skipTest('Node necessário para testar eventos de teclado')
         for form, primeiro, segundo in (
             (EditCustomUserForm(instance=self.user), 'nova_senha', 'confirmar_senha'),
             (SenhaDefinitivaForm(self.user), 'new_password1', 'new_password2'),
+            (CustomSetPasswordForm(self.user), 'new_password1', 'new_password2'),
         ):
             payload = {'first': form.fields[primeiro].widget.attrs['onkeydown'],
                        'last': form.fields[segundo].widget.attrs['onkeydown'], 'next': segundo}
@@ -156,6 +157,9 @@ process.stdin.on('data', x=>raw+=x); process.stdin.on('end',()=>{
         token = default_token_generator.make_token(self.user)
         uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         response = self.client.get(reverse('password_reset_confirm', args=[uid,token]))
+        pagina = self.client.get(response.url)
+        self.assertContains(pagina, 'enterkeyhint="next"')
+        self.assertContains(pagina, 'enterkeyhint="done"')
         response = self.client.post(response.url, {'new_password1':'Definitiva!A567','new_password2':'Definitiva!A567'})
         self.assertRedirects(response, reverse('password_reset_complete'))
         self.user.refresh_from_db()

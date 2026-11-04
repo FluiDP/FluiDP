@@ -28,7 +28,7 @@ def password_enter_attrs(next_field=None):
     }
 
 
-class SenhaDefinitivaForm(SetPasswordForm):
+class CustomSetPasswordForm(SetPasswordForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
@@ -36,6 +36,8 @@ class SenhaDefinitivaForm(SetPasswordForm):
         self.fields['new_password1'].widget.attrs.update(password_enter_attrs('new_password2'))
         self.fields['new_password2'].widget.attrs.update(password_enter_attrs())
 
+
+class SenhaDefinitivaForm(CustomSetPasswordForm):
     def clean_new_password1(self):
         password = self.cleaned_data['new_password1']
         if self.user.check_password(password):

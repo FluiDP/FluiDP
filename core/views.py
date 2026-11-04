@@ -29,7 +29,7 @@ from core import services
 from core.services import get_config, set_config
 from .decorators import dp_required
 from .models import Cargo, CustomUser, Lotacao, Notificacao, Solicitacao
-from .forms import CustomPasswordResetForm, SenhaDefinitivaForm
+from .forms import CustomPasswordResetForm, SenhaDefinitivaForm, CustomSetPasswordForm
 
 User = get_user_model()
 BASE_DIR = getattr(settings, 'BASE_DIR', Path(__file__).resolve().parent.parent)
@@ -212,6 +212,7 @@ class CustomPasswordResetDoneView(auth_views.PasswordResetDoneView):
     template_name = 'login/password_reset_done.html'
 
 class CustomPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
+    form_class = CustomSetPasswordForm
     template_name = 'login/password_reset_confirm.html'
     success_url = reverse_lazy('password_reset_complete')
 
