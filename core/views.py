@@ -5,6 +5,7 @@ from pathlib import Path
 from shutil import copy
 import copy
 import re
+import logging
 
 import dotenv
 from django.conf import settings
@@ -184,7 +185,12 @@ class CustomPasswordResetView(auth_views.PasswordResetView):
     form_class = CustomPasswordResetForm
     html_email_template_name = 'emails/_reset_password.html'
     subject_template_name = 'emails/_reset_password_subject.txt'
-    success_url = reverse_lazy('login')
+    success_url = reverse_lazy('password_reset_done')
+
+    def get_template_names(self):
+        if self.request.headers.get('HX-Request') == 'true':
+            return ['login/_password_reset_panel.html']
+        return super().get_template_names()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -192,10 +198,15 @@ class CustomPasswordResetView(auth_views.PasswordResetView):
         return context
 
     def form_valid(self, form):
-        self.extra_email_context = {
-            'tema': get_config()
-        }
-        return super().form_valid(form)
+        try:
+            response = super().form_valid(form)
+        except Exception:
+            logging.getLogger(__name__).exception('Falha ao enfileirar recuperação de senha.')
+            form.add_error(None, 'Não foi possível solicitar o envio agora. Tente novamente em instantes.')
+            return self.form_invalid(form)
+        if self.request.headers.get('HX-Request') == 'true':
+            return render(self.request, 'login/_password_reset_panel.html', {'enviado': True, 'tema': get_config()})
+        return response
 
 class CustomPasswordResetDoneView(auth_views.PasswordResetDoneView):
     template_name = 'login/password_reset_done.html'

@@ -9,7 +9,7 @@ from .models import Config, LogAprovacao, Notificacao, Solicitacao, Cargo, Custo
 import pandas as pd
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.contrib.auth import get_user_model
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import EmailMultiAlternatives, get_connection
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
@@ -21,6 +21,37 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+
+def enviar_email_recuperacao(user_id, uid, token, domain, protocol, to_email,
+                            from_email, subject_template_name, email_template_name,
+                            html_email_template_name=None):
+    """Executado pelo worker; não envia links invalidados enquanto aguardavam a fila."""
+    user = CustomUser.objects.filter(pk=user_id, is_active=True).first()
+    if not user or not user.has_usable_password() or user.email.casefold() != to_email.casefold():
+        return False
+    if not default_token_generator.check_token(user, token):
+        return False
+    tema = get_config()
+    context = {'user': user, 'uid': uid, 'token': token, 'domain': domain,
+               'protocol': protocol, 'email': to_email, 'site_name': domain, 'tema': tema}
+    subject = ''.join(render_to_string(subject_template_name, context).splitlines())
+    connection = get_connection(timeout=getattr(settings, 'EMAIL_TIMEOUT', None) or 30)
+    message = EmailMultiAlternatives(subject, render_to_string(email_template_name, context), from_email, [to_email], connection=connection)
+    if html_email_template_name:
+        message.attach_alternative(render_to_string(html_email_template_name, context), 'text/html')
+        if tema and tema.logo:
+            try:
+                with open(tema.logo.path, 'rb') as logo:
+                    attachment = MIMEImage(logo.read())
+                attachment.add_header('Content-ID', '<logo_fluidp>')
+                attachment.add_header('Content-Disposition', 'inline', filename='logo.png')
+                message.attach(attachment)
+            except (OSError, ValueError, TypeError):
+                logger.warning('Logo indisponível no e-mail de recuperação.')
+    # Falhas SMTP devem chegar ao Django Q para registro e nova tentativa.
+    message.send(fail_silently=False)
+    return True
 
 
 def deve_enviar_email_notificacao(notificacao):
