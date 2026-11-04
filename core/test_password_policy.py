@@ -39,6 +39,18 @@ class SenhaProvisoriaTests(TestCase):
         form.save()
         self.assertTrue(CustomUser.objects.get(pk=self.user.pk).precisa_trocar_senha)
 
+    def test_senha_administrativa_preserva_exatamente_o_valor_digitado(self):
+        senha = ' Provisoria!X234 '
+        form = EditCustomUserForm(self.dados(alterar_senha='on', exigir_redefinicao='on',
+            nova_senha=senha, confirmar_senha=senha), instance=self.user)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(senha))
+        self.assertFalse(self.user.check_password(senha.strip()))
+        response = self.client.post(reverse('login'), {'username':'991','password':senha})
+        self.assertRedirects(response, reverse('senha_definitiva'))
+
     def test_editar_outros_dados_nao_muda_flag_nem_senha(self):
         for flag in (True, False):
             self.user.precisa_trocar_senha = flag

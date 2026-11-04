@@ -149,6 +149,7 @@ class EditCustomUserForm(forms.ModelForm):
     nova_senha = forms.CharField(
         label='Nova Senha',
         required=False,
+        strip=False,
         widget=forms.PasswordInput(attrs={
             'class': STYLE_INPUT, 
             'placeholder': 'Digite a nova senha',
@@ -158,6 +159,7 @@ class EditCustomUserForm(forms.ModelForm):
     confirmar_senha = forms.CharField(
         label='Confirmar Nova Senha',
         required=False,
+        strip=False,
         widget=forms.PasswordInput(attrs={
             'class': STYLE_INPUT, 
             'placeholder': 'Confirme a nova senha',
