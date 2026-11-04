@@ -15,9 +15,6 @@
 
     <header class="px-4 py-2 flex-col items-center justify-between shrink-0">
         <h2 class="text-2xl font-bold text-slate-800">Solicitações</h2>
-        <span class="text-sm text-slate-500">
-            Somente Visualização - Para abrir e aprovar solicitações, acesse o sistema por um computador.
-        </span>
         
         {% comment %} <button hx-get="{% url 'colaborador:get_create_solicitacao_select' %}" 
                 hx-target="#modal-spot" 
@@ -78,7 +75,10 @@
         
         <div x-show="filtro === 'pendentes'" class="flex flex-col gap-3">
             {% for solicitacao in solicitacoes_pendentes %}
-                <div hx-target="#modal-spot" hx-swap="innerHTML" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
+                <div hx-get="{% url 'mobile:get_solicitacao_detalhes' solicitacao.id %}"
+                     hx-target="#modal-spot"
+                     hx-swap="innerHTML"
+                     class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
                     <div class="flex justify-between items-start gap-3">
                         <span class="font-bold text-slate-800 text-sm leading-tight">
                             {{ solicitacao.tipo_documento }} &bull; {{ solicitacao.data|date:"d/m/Y" }}
@@ -104,7 +104,10 @@
 
         <div x-show="filtro === 'andamento'" x-cloak class="flex flex-col gap-3">
             {% for solicitacao in solicitacoes_andamento %}
-                <div hx-target="#modal-spot" hx-swap="innerHTML" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
+                <div hx-get="{% url 'mobile:get_solicitacao_detalhes' solicitacao.id %}"
+                     hx-target="#modal-spot"
+                     hx-swap="innerHTML"
+                     class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
                     <div class="flex justify-between items-start gap-3">
                         <span class="font-bold text-slate-800 text-sm leading-tight">
                             {{ solicitacao.tipo_documento }} &bull; {{ solicitacao.data|date:"d/m/Y" }}
@@ -130,7 +133,10 @@
 
         <div x-show="filtro === 'encerradas'" x-cloak class="flex flex-col gap-3">
             {% for solicitacao in solicitacoes_encerradas %}
-                <div hx-target="#modal-spot" hx-swap="innerHTML" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
+                <div hx-get="{% url 'mobile:get_solicitacao_detalhes' solicitacao.id %}"
+                     hx-target="#modal-spot"
+                     hx-swap="innerHTML"
+                     class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
                     <div class="flex justify-between items-start gap-3">
                         <span class="font-bold text-slate-800 text-sm leading-tight">
                             {{ solicitacao.tipo_documento }} &bull; {{ solicitacao.data|date:"d/m/Y" }}
@@ -156,7 +162,10 @@
 
         <div x-show="filtro === 'todas'" x-cloak class="flex flex-col gap-3">
             {% for solicitacao in solicitacoes_totais %}
-                <div hx-target="#modal-spot" hx-swap="innerHTML" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
+                <div hx-get="{% url 'mobile:get_solicitacao_detalhes' solicitacao.id %}"
+                     hx-target="#modal-spot"
+                     hx-swap="innerHTML"
+                     class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary/40 active:scale-[0.98] transition-all cursor-pointer flex flex-col gap-1.5">
                     <div class="flex justify-between items-start gap-3">
                         <span class="font-bold text-slate-800 text-sm leading-tight">
                             {{ solicitacao.tipo_documento }} &bull; {{ solicitacao.data|date:"d/m/Y" }}

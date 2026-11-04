@@ -91,7 +91,7 @@
 
         <div class="shrink-0 bg-white border-t border-gray-100 px-4 py-4 sm:px-6 sm:py-5 md:px-8 flex justify-end">
             <button type="button"
-                    hx-get="{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}"
+                    hx-get="{% if request.resolver_match.namespace == 'mobile' %}{% url 'mobile:get_solicitacao_detalhes' solicitacao.id %}{% else %}{% url 'colaborador:get_solicitacao_detalhes' solicitacao.id %}{% endif %}"
                     hx-target="#modal-spot"
                     hx-swap="innerHTML"
                     class="flex w-full sm:w-auto items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm sm:text-base font-medium rounded-full transition-colors active:scale-95">

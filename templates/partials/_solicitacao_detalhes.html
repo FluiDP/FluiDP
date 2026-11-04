@@ -1,5 +1,12 @@
 {% load custom_filters %}
 {% verificar_horas campos_formulario as avisos_de_horas %}
+{% if request.resolver_match.namespace == 'mobile' %}
+    {% url 'mobile:solicitacao_logs' solicitacao.id as logs_url %}
+    {% url 'mobile:gerar_pdf_solicitacao' solicitacao.id as pdf_url %}
+{% else %}
+    {% url 'colaborador:solicitacao_logs' solicitacao.id as logs_url %}
+    {% url 'gerar_pdf_solicitacao' solicitacao.id as pdf_url %}
+{% endif %}
 
 <div x-data="{ open: true, showModalRecusa: false }" 
      @keydown.escape.window="if(showModalRecusa) { showModalRecusa = false; } else { open = false; }">
@@ -302,7 +309,7 @@
                     
                     <div class="flex justify-between w-full sm:w-auto gap-2">
                         <button type="button"
-                                hx-get="{% url 'colaborador:solicitacao_logs' solicitacao.id %}"
+                                hx-get="{{ logs_url }}"
                                 hx-target="#modal-spot"
                                 hx-swap="innerHTML"
                                 class="flex-1 sm:flex-none justify-center text-slate-600 hover:text-primary hover:bg-emphasis px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all text-xs sm:text-sm font-bold border border-slate-200"
@@ -311,7 +318,7 @@
                             <span>Histórico</span>
                         </button>
 
-                        <a href="{% url 'gerar_pdf_solicitacao' solicitacao.id %}" 
+                        <a href="{{ pdf_url }}"
                            target="_blank"
                            class="flex-1 sm:flex-none justify-center text-slate-600 hover:text-primary hover:bg-emphasis px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all text-xs sm:text-sm font-bold border border-slate-200"
                            title="Exportar para PDF">
