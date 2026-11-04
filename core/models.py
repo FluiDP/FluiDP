@@ -264,6 +264,12 @@ class CustomUser(AbstractUser):
     ausencia_fim = models.DateField(verbose_name="Fim do Período de Ausência", null=True, blank=True)
 
     precisa_trocar_senha = models.BooleanField(verbose_name="Precisa trocar senha?", default=False, help_text="Se True, obriga o usuário a trocar a senha no próximo login.")
+    senha_provisoria_definida_em = models.DateTimeField(null=True, blank=True, editable=False)
+
+    @property
+    def redefinicao_senha_obrigatoria(self):
+        # Flags legadas sem data mantêm o comportamento anterior à opção explícita.
+        return self.precisa_trocar_senha and self.senha_provisoria_definida_em is not None
 
     cargo = models.ForeignKey(
         Cargo,

@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="fixed inset-0 flex items-center justify-center bg-slate-100 p-4">
+    <section role="dialog" aria-modal="true" aria-labelledby="titulo-senha" class="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+        <h1 id="titulo-senha" class="text-xl font-bold text-slate-800">Escolha sua senha definitiva</h1>
+        <p class="text-sm text-slate-600 mt-2 mb-4">Você entrou com uma senha provisória. Defina uma nova senha pessoal para continuar no FluiDP.</p>
+        <form method="post" action="{% url 'senha_definitiva' %}">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}
+            <div class="mb-4">
+                <label for="{{ field.id_for_label }}" class="block text-sm font-medium mb-1">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}<p role="alert" class="text-sm text-red-600 mt-1">{{ error }}</p>{% endfor %}
+                {% if field.help_text %}<div class="text-xs text-slate-500 mt-1">{{ field.help_text|safe }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="w-full rounded-lg bg-primary text-white px-4 py-3 font-semibold">Salvar senha e continuar</button>
+        </form>
+        <a href="{% url 'logout' %}" class="block text-center text-sm text-slate-600 mt-4">Sair da conta</a>
+    </section>
+</div>
+{% endblock %}

@@ -11,6 +11,9 @@ from django.conf import settings
 from django.contrib.auth import views as auth_views
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth import get_user_model
+from django.contrib.auth import update_session_auth_hash
+from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
@@ -25,7 +28,7 @@ from core import services
 from core.services import get_config, set_config
 from .decorators import dp_required
 from .models import Cargo, CustomUser, Lotacao, Notificacao, Solicitacao
-from .forms import CustomPasswordResetForm
+from .forms import CustomPasswordResetForm, SenhaDefinitivaForm
 
 User = get_user_model()
 BASE_DIR = getattr(settings, 'BASE_DIR', Path(__file__).resolve().parent.parent)
@@ -139,11 +142,14 @@ class CustomLoginView(auth_views.LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self):
+        if self.request.user.redefinicao_senha_obrigatoria:
+            return reverse('senha_definitiva')
         return reverse_lazy('painel')
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        services.preparar_aviso_login(self.request, self.request.user)
+        if not self.request.user.redefinicao_senha_obrigatoria:
+            services.preparar_aviso_login(self.request, self.request.user)
         return response
     
     def get_context_data(self, **kwargs):
@@ -154,6 +160,24 @@ class CustomLoginView(auth_views.LoginView):
         instituicao_nome = os.environ.get('INSTITUICAO_NOME', 'FluiDP')
         context['instituicao'] = instituicao_nome
         return context
+
+@sensitive_post_parameters('new_password1', 'new_password2')
+@never_cache
+@login_required
+def senha_definitiva_view(request):
+    if not request.user.redefinicao_senha_obrigatoria:
+        return redirect('painel')
+    form = SenhaDefinitivaForm(request.user, request.POST if request.method == 'POST' else None)
+    if request.method == 'POST' and form.is_valid():
+        user = form.save(commit=False)
+        user.precisa_trocar_senha = False
+        user.senha_provisoria_definida_em = None
+        user.save(update_fields=['password', 'precisa_trocar_senha', 'senha_provisoria_definida_em'])
+        update_session_auth_hash(request, user)
+        services.preparar_aviso_login(request, user)
+        return redirect('painel')
+    return render(request, 'login/senha_definitiva.html', {'form': form})
+
 
 class CustomPasswordResetView(auth_views.PasswordResetView):
     template_name = 'login/reset.html'
@@ -179,6 +203,13 @@ class CustomPasswordResetDoneView(auth_views.PasswordResetDoneView):
 class CustomPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
     template_name = 'login/password_reset_confirm.html'
     success_url = reverse_lazy('password_reset_complete')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.user.precisa_trocar_senha = False
+        self.user.senha_provisoria_definida_em = None
+        self.user.save(update_fields=['precisa_trocar_senha', 'senha_provisoria_definida_em'])
+        return response
 
 class CustomPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
     template_name = 'login/password_reset_complete.html'

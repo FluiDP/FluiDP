@@ -43,6 +43,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
     'core.middleware.HtmxRedirectMiddleware',
+    'core.middleware.TrocaSenhaObrigatoriaMiddleware',
     'core.middleware.MobileRedirectMiddleware',
 ]
 

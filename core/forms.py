@@ -1,10 +1,11 @@
 import json
 
 from django import forms
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from .models import Cargo, Lotacao, CustomUser, TipoDocumento, Solicitacao
-from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 from django.core.mail import EmailMultiAlternatives
 from django.template import loader
 from email.mime.image import MIMEImage
@@ -14,6 +15,19 @@ STYLE_INPUT = (
     "focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent bg-white"
 )
 STYLE_CHECKBOX = "h-5 w-5 text-secondary focus:ring-secondary border-gray-300 rounded mt-1"
+
+
+class SenhaDefinitivaForm(SetPasswordForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({'class': STYLE_INPUT, 'autocomplete': 'new-password'})
+
+    def clean_new_password1(self):
+        password = self.cleaned_data['new_password1']
+        if self.user.check_password(password):
+            raise forms.ValidationError('Escolha uma senha diferente da senha provisória.')
+        return password
 
 class CargoForm(forms.ModelForm):
     """
@@ -125,7 +139,7 @@ class EditCustomUserForm(forms.ModelForm):
     alterar_senha = forms.BooleanField(
         label='Alterar senha do colaborador?',
         required=False,
-        help_text='Marque para definir uma nova senha provisória.',
+        help_text='Marque para definir uma nova senha para o colaborador.',
         widget=forms.CheckboxInput(attrs={
             'class': STYLE_CHECKBOX,
             'id': 'chk_alterar_senha',
@@ -149,6 +163,11 @@ class EditCustomUserForm(forms.ModelForm):
             'placeholder': 'Confirme a nova senha',
             'id': 'input_confirmar_senha'
         })
+    )
+    exigir_redefinicao = forms.BooleanField(
+        label='Exigir redefinição de senha no próximo acesso', required=False,
+        help_text='Marcada: a senha acima será provisória e o colaborador deverá escolher outra ao entrar. Desmarcada: poderá usar normalmente a senha definida aqui.',
+        widget=forms.CheckboxInput(attrs={'class': STYLE_CHECKBOX, 'id': 'chk_exigir_redefinicao'}),
     )
     is_dp = forms.BooleanField(
         label='Acesso do Departamento Pessoal (DP)',
@@ -215,7 +234,8 @@ class EditCustomUserForm(forms.ModelForm):
         if self.cleaned_data.get('alterar_senha'):
             nova_senha = self.cleaned_data.get('nova_senha')
             user.set_password(nova_senha)
-            user.precisa_trocar_senha = True
+            user.precisa_trocar_senha = self.cleaned_data.get('exigir_redefinicao', False)
+            user.senha_provisoria_definida_em = timezone.now() if user.precisa_trocar_senha else None
             
         if commit:
             user.save()

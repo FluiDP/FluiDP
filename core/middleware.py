@@ -2,6 +2,26 @@ import re
 from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
+from django.urls import reverse
+from django.http import HttpResponse
+
+
+class TrocaSenhaObrigatoriaMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated and user.redefinicao_senha_obrigatoria:
+            destino = reverse('senha_definitiva')
+            permitido = request.path in (destino, reverse('logout')) or request.path.startswith(settings.STATIC_URL)
+            if not permitido:
+                if request.headers.get('HX-Request') == 'true':
+                    response = HttpResponse('')
+                    response['HX-Redirect'] = destino
+                    return response
+                return redirect(destino)
+        return self.get_response(request)
 
 class HtmxRedirectMiddleware:
     """
@@ -46,7 +66,7 @@ class MobileRedirectMiddleware:
         if request.path.startswith('/admin/'):
             return self.get_response(request)
 
-        rotas_ignoradas = ['/login', '/logout', '/reset']
+        rotas_ignoradas = ['/login', '/logout', '/reset', '/senha-definitiva/']
         if any(request.path.startswith(rota) for rota in rotas_ignoradas):
             return self.get_response(request)
 
@@ -66,4 +86,3 @@ class MobileRedirectMiddleware:
             return redirect('/m/')
 
         return self.get_response(request)
-    

@@ -95,6 +95,11 @@
     function toggleSenhaFields(isChecked) {
         const inputNova = document.getElementById('input_nova_senha');
         const inputConfirma = document.getElementById('input_confirmar_senha');
+        const exigir = document.getElementById('chk_exigir_redefinicao');
+        if (exigir) {
+            exigir.closest('div').style.display = isChecked ? 'block' : 'none';
+            exigir.disabled = !isChecked;
+        }
         
         if (inputNova && inputConfirma) {
             const containerNova = inputNova.closest('div');

@@ -5,6 +5,7 @@ urlpatterns = [
     path('', views.index_view, name='index'),
     path('accounts/', include('django.contrib.auth.urls')),
     path('login/', views.CustomLoginView.as_view(), name='login'),
+    path('senha-definitiva/', views.senha_definitiva_view, name='senha_definitiva'),
     path('logout/', views.logout_view, name='logout'),
 
     path('reset_password/', views.CustomPasswordResetView.as_view(), name='reset_password'),
