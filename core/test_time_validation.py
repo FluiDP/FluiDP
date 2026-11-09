@@ -1,5 +1,6 @@
 import copy
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -10,7 +11,7 @@ from django.contrib.auth.models import Group
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
-from .models import Cargo, CustomUser, Lotacao, Solicitacao, TipoDocumento
+from .models import Cargo, CustomUser, LogAprovacao, Lotacao, Solicitacao, TipoDocumento
 from .time_validation import analisar_periodos, INTERVALO_FORA
 
 
@@ -148,6 +149,47 @@ class AvisosHorasInterfaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(WarningParser(response.content.decode()).warnings), 2)
         self.assertContains(response, 'css/time-validation.css')
+
+    def test_historico_impresso_alinha_todos_os_registros_e_preserva_sigilo(self):
+        url = reverse('gerar_pdf_solicitacao', args=[self.sol.pk])
+        sigiloso = self.sol.logs.create(
+            ator=self.diretor, acao=LogAprovacao.AcaoChoices.APROVADO_DIRETOR,
+            detalhes='Observação sigilosa',
+        )
+        self.sol.logs.create(ator=self.autor, acao=LogAprovacao.AcaoChoices.REVERSAO,
+                             decisao_anulada=sigiloso, detalhes='Reversão sigilosa')
+        self.client.force_login(self.autor)
+        self.assertContains(self.client.get(url), 'colspan="3"')
+        self.gestor.is_staff = True
+        self.gestor.save()
+        self.client.force_login(self.gestor)
+        self.assertContains(self.client.get(url), 'colspan="4"')
+
+        for acao in LogAprovacao.AcaoChoices:
+            ator = self.autor if 'DIRETOR' in acao else self.gestor
+            self.sol.logs.create(ator=ator, acao=acao)
+        for usuario, colunas in ((self.autor, 3), (self.gestor, 4)):
+            with self.subTest(usuario=usuario.username):
+                self.client.force_login(usuario)
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                tabela = response.content.decode().split('id="historico-assinaturas"', 1)[1].split('</table>', 1)[0]
+                linhas = re.findall(r'<tr\b[^>]*>(.*?)</tr>', tabela, flags=re.S)
+                self.assertEqual(len(linhas), len(LogAprovacao.AcaoChoices) - 2 + 1)
+                for linha in linhas:
+                    self.assertEqual(len(re.findall(r'<t[dh]\b', linha)), colunas)
+                for acao in LogAprovacao.AcaoChoices:
+                    if 'DIRETOR' in acao:
+                        self.assertNotIn(acao.label, tabela)
+                    else:
+                        self.assertIn(acao.label, tabela)
+                self.assertNotIn('sigilosa', tabela)
+                self.assertNotIn(self.diretor.username, tabela)
+                if colunas == 4:
+                    self.assertIn('Responsável', tabela)
+                    self.assertRegex(tabela, r'>\s*Sistema\s*</td>')
+                else:
+                    self.assertNotIn(self.gestor.username, tabela)
 
     def test_detalhes_e_impressao_renderizam_aviso_e_intervalo_legiveis(self):
         self.sol.dados_preenchidos = {

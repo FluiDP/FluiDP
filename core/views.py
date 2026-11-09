@@ -419,12 +419,21 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
 
     campos_rows = [campos_formatados[i:i+2] for i in range(0, len(campos_formatados), 2)]
 
-    logs = solicitacao.logs.all().order_by('data_acao')
+    diretor = Cargo.HierarquiaChoices.DIRETOR
+    logs = solicitacao.logs.exclude(
+        Q(ator__cargo__hierarquia=diretor)
+        | Q(acao__contains='DIRETOR')
+        | Q(decisao_anulada__ator__cargo__hierarquia=diretor)
+        | Q(decisao_anulada__acao__contains='DIRETOR')
+    ).select_related('ator__cargo').order_by('data_acao', 'pk')
+    usuario = request.user
 
     context = {
         'solicitacao': solicitacao,
         'campos_rows': campos_rows,
         'logs': logs,
+        'exibir_responsavel': usuario.is_staff or usuario.is_superuser
+        or (usuario.cargo and usuario.cargo.hierarquia == diretor),
         'data_impressao': timezone.now(), 
         'usuario_impressao': request.user
     }

@@ -97,36 +97,48 @@
         </div>
     </div>
 
-    <div class="mt-8 break-inside-avoid">
-        <h3 class="text-sm font-bold text-primary uppercase mb-2 border-b border-gray-200 pb-1">
+    <div class="mt-8">
+        <h3 class="text-sm font-bold text-primary uppercase mb-2 border-b border-gray-200 pb-1" style="break-after: avoid">
             Histórico e Assinaturas Digitais
         </h3>
-        <table class="w-full text-sm border-collapse">
+        <table id="historico-assinaturas" class="w-full text-sm border-collapse" style="table-layout:fixed; overflow-wrap:anywhere">
+            <colgroup>
+                <col style="width:16%">
+                <col style="width:28%">
+                {% if exibir_responsavel %}<col style="width:26%">{% endif %}
+                <col>
+            </colgroup>
             <thead>
                 <tr class="bg-gray-100 border-b border-gray-200 text-xs text-gray-600 uppercase">
-                    <th class="py-2 px-3 text-left font-semibold">Data/Hora</th>
-                    <th class="py-2 px-3 text-left font-semibold">Ação</th>
-                    {% if log.ator.cargo.hierarquia != 1 and 'DIRETOR' not in log.acao %}
-                        <th class="py-2 px-3 text-left font-semibold">Responsável</th>
+                    <th scope="col" class="py-2 px-3 text-left font-semibold">Data/Hora</th>
+                    <th scope="col" class="py-2 px-3 text-left font-semibold">Ação</th>
+                    {% if exibir_responsavel %}
+                        <th scope="col" class="py-2 px-3 text-left font-semibold">Responsável</th>
                     {% endif %}
-                    <th class="py-2 px-3 text-left font-semibold">Observações</th>
+                    <th scope="col" class="py-2 px-3 text-left font-semibold">Observações</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 {% for log in logs %}
-                    
-                    {% if log.ator.cargo.hierarquia != 1 and 'DIRETOR' not in log.acao %}
-                    <tr>
-                        <td class="py-2 px-3 text-gray-500 text-xs">{{ log.data_acao|date:"d/m/Y H:i" }}</td>
-                        <td class="py-2 px-3 font-bold text-primary">{{ log.get_acao_display }}</td>
-                        {% if request.user.is_staff or request.user.is_superuser or request.user.cargo.hierarquia == 1 %}
-                            <td class="py-2 px-3 text-gray-900">{{ log.ator.get_full_name }}</td>
-                            <td class="py-2 px-3 text-gray-900">{{ log.ator.cargo }}</td>
+                    <tr class="break-inside-avoid">
+                        <td class="py-2 px-3 text-gray-500 text-xs" style="vertical-align:top">
+                            {{ log.data_acao|date:"d/m/Y" }}<br>{{ log.data_acao|date:"H:i" }}
+                        </td>
+                        <td class="py-2 px-3 font-bold text-primary" style="vertical-align:top">{{ log.get_acao_display }}</td>
+                        {% if exibir_responsavel %}
+                            <td class="py-2 px-3 text-gray-900" style="vertical-align:top">
+                                {% if log.acao == 'CANCELAMENTO_SISTEMA' or log.ator.username == 'sistema_automacao' %}
+                                    Sistema
+                                {% else %}
+                                    {{ log.ator.get_full_name|default:log.ator.username }}
+                                    {% if log.ator.cargo %}<span class="block text-xs text-gray-500">{{ log.ator.cargo }}</span>{% endif %}
+                                {% endif %}
+                            </td>
                         {% endif %}
-                        <td class="py-2 px-3 text-gray-500 text-xs italic">{{ log.detalhes|default:"-" }}</td>
+                        <td class="py-2 px-3 text-gray-500 text-xs italic" style="vertical-align:top">{{ log.detalhes|default:"—"|linebreaksbr }}</td>
                     </tr>
-                    {% endif %}
-                    
+                {% empty %}
+                    <tr><td colspan="{% if exibir_responsavel %}4{% else %}3{% endif %}" class="py-3 px-3 text-gray-500 text-center">Nenhum registro disponível.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
