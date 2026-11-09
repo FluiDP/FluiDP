@@ -149,6 +149,32 @@ class AvisosHorasInterfaceTests(TestCase):
         self.assertEqual(len(WarningParser(response.content.decode()).warnings), 2)
         self.assertContains(response, 'css/time-validation.css')
 
+    def test_detalhes_e_impressao_renderizam_aviso_e_intervalo_legiveis(self):
+        self.sol.dados_preenchidos = {
+            'schema': [
+                {'type': 'label', 'label': 'Informe apenas o período trabalhado.'},
+                *REPEATER,
+            ],
+            'values': {'cronograma_he': [
+                {'hora_inicio': '06:10', 'hora_fim': '16:21', 'sem_intervalo': 'false',
+                 'inicio_intervalo': '12:22', 'fim_intervalo': '13:21'},
+                {'hora_inicio': '19:00', 'hora_fim': '07:00', 'sem_intervalo': True,
+                 'inicio_intervalo': '03:22', 'fim_intervalo': '04:21'},
+            ]},
+        }
+        self.sol.save()
+        self.client.force_login(self.autor)
+        for rota in ('colaborador:get_solicitacao_detalhes', 'gerar_pdf_solicitacao'):
+            with self.subTest(rota=rota):
+                response = self.client.get(reverse(rota, args=[self.sol.pk]))
+                html = response.content.decode()
+                self.assertContains(response, 'role="note"')
+                self.assertContains(response, 'Informe apenas o período trabalhado.</p>')
+                self.assertRegex(html, r'12:22\s+a\s+13:21')
+                self.assertContains(response, '>Sem intervalo</span>')
+                self.assertNotContains(response, '03:22')
+                self.assertNotContains(response, '>false<')
+
     def test_formularios_criacao_e_edicao_carregam_verificacao_dinamica(self):
         self.client.force_login(self.autor)
         response = self.client.get(reverse('colaborador:get_create_solicitacao_form', args=[self.tipo.pk]))

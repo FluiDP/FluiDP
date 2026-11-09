@@ -22,6 +22,24 @@ def get_item(dictionary, key):
     return dictionary.get(key)
 
 @register.filter
+def marcado(value):
+    return value in (True, 'true', 'on', '1')
+
+
+@register.filter
+def agrupar_intervalo(subcampos):
+    nomes = {sub.get('name') for sub in subcampos}
+    return {'sem_intervalo', 'inicio_intervalo', 'fim_intervalo'} <= nomes
+
+
+@register.filter
+def colunas_intervalo(subcampos, agrupar):
+    if not agrupar:
+        return subcampos
+    return [sub for sub in subcampos if sub.get('name') not in ('sem_intervalo', 'fim_intervalo')]
+
+
+@register.filter
 def string_to_date(value):
     """Converte string YYYY-MM-DD para DD/MM/YYYY"""
     if not value: return ""

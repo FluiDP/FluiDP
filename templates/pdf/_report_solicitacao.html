@@ -75,53 +75,11 @@
                 <div class="grid grid-cols-2 gap-6 break-inside-avoid">
                     {% for campo in row %}
                         
-                        {% if campo.type == 'repeater' %}
+                        {% if campo.type == 'label' %}
+                            <div class="col-span-2">{% include "partials/_solicitacao_aviso.html" %}</div>
+                        {% elif campo.type == 'repeater' %}
                             <div class="col-span-2 mt-2 mb-2">
-                                <span class="block text-xs text-gray-500 font-semibold uppercase mb-2">{{ campo.label }}</span>
-                                <div class="overflow-hidden border border-gray-200 rounded-lg">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                {% for sub in campo.sub_fields %}
-                                                    <th scope="col" class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                                        {{ sub.label }}
-                                                    </th>
-                                                {% endfor %}
-                                            </tr>
-                                        </thead>
-                                        <tbody class="bg-white divide-y divide-gray-200">
-                                            {% for item in campo.valor_exibicao %}
-                                                <tr>
-                                                    {% for sub in campo.sub_fields %}
-                                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
-                                                            
-                                                            {% if sub.type == 'select' %}
-                                                                {% with valor_salvo=item|get_item:sub.name %}
-                                                                    {% for opt in sub.options %}
-                                                                        {% if opt.value|stringformat:"s" == valor_salvo|stringformat:"s" %}
-                                                                            {{ opt.label }}
-                                                                        {% endif %}
-                                                                    {% endfor %}
-                                                                    {% if not valor_salvo %}-{% endif %}
-                                                                {% endwith %}
-                                                            
-                                                            {% elif sub.type == 'date' %}
-                                                                {{ item|get_item:sub.name|string_to_date }}
-                                                            
-                                                            {% else %}
-                                                                {{ item|get_item:sub.name|default:"-" }}
-                                                            {% endif %}
-                                                            {% aviso_horas avisos_de_horas campo.name forloop.parentloop.counter0 sub.name as aviso %}{% include "partials/_time_warning.html" %}
-
-                                                        </td>
-                                                    {% endfor %}
-                                                </tr>
-                                            {% empty %}
-                                                <tr><td colspan="100%" class="px-4 py-2 text-sm text-center text-gray-400 italic">Nenhum item informado.</td></tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                {% include "partials/_solicitacao_tabela.html" with itens=campo.valor_exibicao impressao=True %}
                             </div>
 
                         {% else %}

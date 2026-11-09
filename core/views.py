@@ -390,6 +390,8 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
 
     for campo in campos_schema:
         nome_campo = campo.get('name')
+        if nome_campo == 'colaborador_substituto' and solicitacao.colaborador_secundario_id:
+            continue
         valor_bruto = dados_valores.get(nome_campo)
         valor_exibicao = valor_bruto
 
@@ -415,10 +417,7 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
         campo['valor_exibicao'] = valor_exibicao
         campos_formatados.append(campo)
 
-    campos_rows = []
-    for i in range(0, len(campos_formatados), 2):
-        if campos_formatados[i].get('name') != "colaborador_substituto":
-            campos_rows.append(campos_formatados[i:i+2])
+    campos_rows = [campos_formatados[i:i+2] for i in range(0, len(campos_formatados), 2)]
 
     logs = solicitacao.logs.all().order_by('data_acao')
 

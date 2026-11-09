@@ -1,0 +1,8 @@
+{% load custom_filters %}
+{% if item.sem_intervalo|marcado %}
+    <span class="text-gray-500">Sem intervalo</span>
+{% else %}
+    {{ item.inicio_intervalo|default:"—" }}{% aviso_horas avisos_de_horas campo.name linha 'inicio_intervalo' as aviso %}{% include "partials/_time_warning.html" %}
+    a
+    {{ item.fim_intervalo|default:"—" }}{% aviso_horas avisos_de_horas campo.name linha 'fim_intervalo' as aviso %}{% include "partials/_time_warning.html" %}
+{% endif %}
