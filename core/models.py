@@ -641,6 +641,10 @@ class Solicitacao(models.Model):
         """Trocas devem concluir o fluxo dentro da janela em que foram abertas."""
         if self.is_finalizada:
             return None
+        if self.prazo_aprovacao_excepcional:
+            data_consulta = data_consulta or timezone.localdate()
+            if data_consulta <= self.prazo_aprovacao_excepcional:
+                return None
         tipo = self.tipo_documento
         nome = tipo.nome_documento.casefold().replace('ã', 'a')
         campos = {campo.get('name') for campo in tipo.definicao_formulario}
@@ -704,6 +708,8 @@ class Solicitacao(models.Model):
 
         return ultimo_log_final.data_acao if ultimo_log_final else None
     
+    prazo_aprovacao_excepcional = models.DateField(null=True, blank=True, editable=False)
+
     status = models.CharField(
         verbose_name="Status da Solicitação",
         max_length=50,

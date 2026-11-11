@@ -67,7 +67,7 @@
                             
                             <span class="text-[10px] sm:text-xs text-gray-500 mb-1">
                                 {% if request.user.is_adm or request.user.cargo.hierarquia == 1 %}
-                                    Por <span class="font-medium text-gray-700">{{ log.ator.get_full_name|default:log.ator.username }}</span>
+                                    Por <span class="font-medium text-gray-700">{% if log.acao == 'REVERSAO' and log.ator.username == 'sistema_automacao' %}Automático - Sistema{% else %}{{ log.ator.get_full_name|default:log.ator.username }}{% endif %}</span>
                                     em {{ log.data_acao|date:"d/m/Y H:i" }}
                                 {% else %}
                                     Em {{ log.data_acao|date:"d/m/Y H:i" }}

@@ -127,7 +127,9 @@
                         <td class="py-2 px-3 font-bold text-primary" style="vertical-align:top">{{ log.get_acao_display }}</td>
                         {% if exibir_responsavel %}
                             <td class="py-2 px-3 text-gray-900" style="vertical-align:top">
-                                {% if log.acao == 'CANCELAMENTO_SISTEMA' or log.ator.username == 'sistema_automacao' %}
+                                {% if log.acao == 'REVERSAO' and log.ator.username == 'sistema_automacao' %}
+                                    Automático - Sistema
+                                {% elif log.acao == 'CANCELAMENTO_SISTEMA' or log.ator.username == 'sistema_automacao' %}
                                     Sistema
                                 {% else %}
                                     {{ log.ator.get_full_name|default:log.ator.username }}
