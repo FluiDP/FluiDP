@@ -645,6 +645,11 @@ class Solicitacao(models.Model):
             data_consulta = data_consulta or timezone.localdate()
             if data_consulta <= self.prazo_aprovacao_excepcional:
                 return None
+            acoes = self.logs.model.AcaoChoices
+            if self.decisoes_validas().filter(
+                acao__in=(acoes.APROVADO_GESTOR, acoes.APROVADO_DIRETOR),
+            ).exists():
+                return None
         tipo = self.tipo_documento
         nome = tipo.nome_documento.casefold().replace('ã', 'a')
         campos = {campo.get('name') for campo in tipo.definicao_formulario}

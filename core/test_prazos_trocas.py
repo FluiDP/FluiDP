@@ -55,6 +55,20 @@ class PrazoTrocasTests(TestCase):
             self.assertIsNotNone(sol.motivo_prazo_aprovacao_expirado(date(2026, 10, 13)))
             self.assertIsNotNone(self.nova(tipo).motivo_prazo_aprovacao_expirado(date(2026, 10, 12)))
 
+    def test_aprovacao_valida_da_chefia_preserva_excecao_apos_prazo(self):
+        acoes = LogAprovacao.AcaoChoices
+        for acao in (acoes.APROVADO_GESTOR, acoes.APROVADO_DIRETOR):
+            with self.subTest(acao=acao):
+                sol = self.nova()
+                decisao = sol.logs.create(acao=acao, ator=self.aprovador)
+                depois_do_prazo = date(2026, 10, 13)
+                self.assertIsNotNone(sol.motivo_prazo_aprovacao_expirado(depois_do_prazo))
+                sol.prazo_aprovacao_excepcional = date(2026, 10, 12)
+                sol.save(update_fields=['prazo_aprovacao_excepcional'])
+                self.assertIsNone(cancelar_solicitacao_por_prazo(sol, depois_do_prazo))
+                sol.logs.create(acao=acoes.REVERSAO, ator=self.aprovador, decisao_anulada=decisao)
+                self.assertIsNotNone(sol.motivo_prazo_aprovacao_expirado(depois_do_prazo))
+
     def test_reabertura_nao_revalida_solicitacao_do_ciclo_anterior(self):
         for tipo in (self.plantao, self.folga):
             sol = self.nova(tipo)
