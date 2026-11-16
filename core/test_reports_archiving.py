@@ -89,6 +89,44 @@ class RelatorioArquivamentoTests(TestCase):
             'data_inicio': '2026-10-01', 'data_fim': '2026-10-31', **params,
         })
 
+    def test_filtros_mantem_rankings_consistentes(self):
+        self.client.force_login(self.dp)
+        outro = TipoDocumento.objects.create(nome_documento='Outro documento')
+        s = Solicitacao.objects.create(colaborador=self.colab, tipo_documento=outro, status='FINALIZADO')
+        Solicitacao.objects.filter(pk=s.pk).update(data=self.data)
+        resposta = self.report(setor=self.lotacao.pk, documento=self.doc.pk)
+        self.assertEqual(resposta.context['total_solicitacoes'], 23)
+        self.assertEqual(resposta.context['ranking_setores'], [{'nome': 'Histórico', 'total': 23}])
+        self.assertEqual(resposta.context['ranking_documentos'], [{'nome': 'Documento', 'total': 23}])
+        self.assertEqual(resposta.context['ranking_data'][0]['total'], 23)
+        self.assertEqual(self.report(setor='inválido').context['total_solicitacoes'], 0)
+
+    def test_individual_completo_inclui_arquivadas_recusas_e_participacao(self):
+        self.client.force_login(self.dp)
+        sol = Solicitacao.objects.create(colaborador=self.tic, colaborador_secundario=self.colab,
+                                         tipo_documento=self.doc, status='CANCELADO', arquivado=True)
+        url = reverse('relatorio_colaborador', args=[self.colab.pk])
+        resposta = self.client.get(url)
+        self.assertEqual(len(resposta.context['solicitacoes']), 26)
+        self.assertContains(resposta, 'Colaborador secundário')
+        self.assertContains(resposta, reverse('relatorio_solicitacao_detalhe', args=[self.colab.pk, sol.pk]))
+        self.assertContains(resposta, 'Recusado')
+        resposta = self.client.get(url, {'periodo': 'personalizado', 'data_inicio': '2026-10-31', 'data_fim': '2026-10-31'})
+        self.assertEqual(len(resposta.context['solicitacoes']), 25)
+        busca = self.client.get(reverse('relatorio_colaborador_busca'), {'q': '1915'})
+        self.assertContains(busca, url)
+
+    def test_gestor_nao_acessa_detalhe_de_solicitacao_de_outro_setor(self):
+        externo = CustomUser.objects.create_user(username='externo_relatorio')
+        sol = Solicitacao.objects.create(colaborador=externo, colaborador_secundario=self.colab,
+                                         tipo_documento=self.doc, status='FINALIZADO')
+        self.client.force_login(self.gestor)
+        url = reverse('relatorio_colaborador', args=[self.colab.pk])
+        self.assertNotIn(sol, self.client.get(url).context['solicitacoes'])
+        self.assertEqual(self.client.get(reverse('relatorio_solicitacao_detalhe',
+                                                 args=[self.colab.pk, sol.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse('relatorio_colaborador', args=[externo.pk])).status_code, 404)
+
     def test_25_solicitacoes_com_arquivadas_status_e_ultimo_instante_do_dia(self):
         self.client.force_login(self.diretor)
         resposta = self.report()

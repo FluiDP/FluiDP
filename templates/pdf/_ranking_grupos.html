@@ -1,0 +1,15 @@
+<section class="rounded-xl border border-gray-200 bg-white p-4">
+    <h2 class="mb-3 text-lg font-bold text-primary">{{ titulo }}</h2>
+    <table class="w-full text-left text-sm">
+        <thead class="bg-gray-50">
+            <tr><th scope="col" class="p-2">Pos.</th><th scope="col" class="p-2">Nome</th><th scope="col" class="p-2 text-right">Solicitações</th></tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for grupo in grupos %}
+            <tr><td class="p-2">{{ forloop.counter }}</td><td class="p-2">{{ grupo.nome }}</td><td class="p-2 text-right">{{ grupo.total }}</td></tr>
+            {% empty %}
+            <tr><td class="p-3 text-gray-500" colspan="3">Nenhum resultado.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>

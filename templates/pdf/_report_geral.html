@@ -40,7 +40,7 @@
 <body class="bg-gray-50 text-gray-800 p-8 min-h-screen">
 
     <div class="no-print max-w-7xl mx-auto mb-6 bg-white px-3 py-2 rounded-xl shadow-sm border border-emphasis flex items-center gap-2">
-        <form method="get" class="flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap">
+        <form method="get" class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <input type="hidden" name="status_filter_applied" value="1">
             <div class="flex items-center gap-1">
                 <label class="text-sm font-medium text-gray-700">De:</label>
@@ -50,6 +50,23 @@
                 <label class="text-sm font-medium text-gray-700">Até:</label>
                 <input type="date" name="data_fim" value="{{ data_fim }}" class="px-2 py-1.5 border border-gray-300 rounded-lg text-xs">
             </div>
+            <label class="text-sm font-medium">Setor
+                <select name="setor" class="max-w-48 rounded-lg border px-2 py-1.5 text-xs">
+                    <option value="">Todos</option>
+                    {% if acesso_global %}<option value="sem-lotacao" {% if setor_selecionado == 'sem-lotacao' %}selected{% endif %}>Sem lotação</option>{% endif %}
+                    {% for setor in setores %}
+                    <option value="{{ setor.pk }}" {% if setor_selecionado == setor.pk|stringformat:'s' %}selected{% endif %}>{{ setor.nome_lotacao }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="text-sm font-medium">Documento
+                <select name="documento" class="max-w-48 rounded-lg border px-2 py-1.5 text-xs">
+                    <option value="">Todos</option>
+                    {% for documento in documentos %}
+                    <option value="{{ documento.pk }}" {% if documento_selecionado == documento.pk|stringformat:'s' %}selected{% endif %}>{{ documento.nome_documento }}</option>
+                    {% endfor %}
+                </select>
+            </label>
             <details class="relative">
                 <summary class="cursor-pointer list-none rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
                     Status ({{ status_selecionados|length }}) <span aria-hidden="true">&#9662;</span>
@@ -71,6 +88,7 @@
             </button>
         </form>
 
+        <a href="{% url 'relatorio_colaborador_busca' %}" class="shrink-0 text-sm font-semibold text-primary">Relatório individual</a>
         <button type="button" onclick="window.print()" title="Imprimir / Salvar PDF" aria-label="Imprimir / Salvar PDF" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50">
             <svg class="h-4 w-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
         </button>
@@ -99,6 +117,9 @@
             Cada solicitação é contabilizada uma vez, por autoria e lotação atual do solicitante.
         </p>
         <p class="text-xs text-gray-500">Status considerados: {{ status_descricao }}.</p>
+        {% if setor_selecionado or documento_selecionado %}
+        <p class="text-sm text-gray-600">Setor: {{ nome_setor|default:"Todos" }} · Documento: {{ nome_documento|default:"Todos" }}</p>
+        {% endif %}
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 break-inside-avoid">
             <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
@@ -136,11 +157,17 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden break-inside-avoid">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% include "pdf/_ranking_grupos.html" with titulo="Ranking de setores" grupos=ranking_setores %}
+            {% include "pdf/_ranking_grupos.html" with titulo="Ranking de documentos" grupos=ranking_documentos %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
             <div class="p-5 bg-emphasis border-b border-primary/20 flex justify-between items-center">
                 <div>
                     <h3 class="text-xl font-bold text-primary">Ranking de Colaboradores</h3>
                     <p class="text-sm text-primary opacity-80">Volume de abertura no período filtrado.</p>
+                    {% if nome_documento %}<p class="text-sm text-primary">{{ nome_documento }}</p>{% endif %}
                 </div>
                 <div class="text-2xl font-bold text-primary opacity-60">
                     {{ ranking_data|length }} Colaboradores
@@ -165,7 +192,7 @@
                                 {{ item.posicao }}º
                             </td>
                             <td class="px-6 py-4">
-                                <div class="font-medium text-gray-900">{{ item.colaborador.get_full_name }}</div>
+                                <a class="font-medium text-primary underline" href="{% url 'relatorio_colaborador' item.colaborador.pk %}?periodo=personalizado&amp;data_inicio={{ data_inicio|urlencode }}&amp;data_fim={{ data_fim|urlencode }}">{{ item.colaborador.get_full_name|default:item.colaborador.username }}</a>
                                 <div class="text-xs text-gray-400">{{ item.colaborador.matricula|default:"-" }}</div>
                             </td>
                             <td class="px-6 py-4 text-gray-500">

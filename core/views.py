@@ -17,7 +17,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.functions import Concat
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy, reverse
@@ -28,7 +29,7 @@ from django.views.decorators.http import require_POST
 from core import services
 from core.services import get_config, set_config
 from .decorators import dp_required
-from .models import Cargo, CustomUser, Lotacao, Notificacao, Solicitacao
+from .models import Cargo, CustomUser, Lotacao, Notificacao, Solicitacao, TipoDocumento
 from .forms import CustomPasswordResetForm, SenhaDefinitivaForm, CustomSetPasswordForm
 
 User = get_user_model()
@@ -440,21 +441,48 @@ def gerar_pdf_solicitacao_view(request, solicitacao_id):
 
     return render(request, 'pdf/_report_solicitacao.html', context)
 
+def _lotacoes_do_relatorio(user):
+    if user.is_adm:
+        return Lotacao.objects.all()
+    ids = set()
+    chefias = Lotacao.objects.filter(
+        Q(chefia=user) | Q(chefia_secundaria=user, chefia__isnull=True)
+    )
+    for lotacao in chefias:
+        ids.update(item.pk for item in lotacao.get_descendentes(include_self=True))
+    return Lotacao.objects.filter(pk__in=ids)
+
+
+def _solicitacoes_do_relatorio(user):
+    qs = Solicitacao.objects.all()
+    if not user.is_adm:
+        qs = qs.filter(colaborador__lotacao__in=_lotacoes_do_relatorio(user))
+    return qs
+
+
 @login_required
 def relatorio_geral_view(request):
     from .reports import periodo_relatorio, resumir_solicitacoes
 
     user = request.user
     acesso_global = user.is_adm
-    qs = Solicitacao.objects.all()
-    if not acesso_global:
-        lotacoes = set()
-        chefias = Lotacao.objects.filter(
-            Q(chefia=user) | Q(chefia_secundaria=user, chefia__isnull=True)
-        )
-        for lotacao in chefias:
-            lotacoes.update(lotacao.get_descendentes(include_self=True))
-        qs = qs.filter(colaborador__lotacao__in=lotacoes)
+    qs = _solicitacoes_do_relatorio(user)
+    setores = _lotacoes_do_relatorio(user).order_by('nome_lotacao', 'pk')
+    documentos = TipoDocumento.objects.filter(pk__in=qs.values('tipo_documento_id')).order_by('nome_documento', 'pk')
+    setor = request.GET.get('setor', '')
+    documento = request.GET.get('documento', '')
+    if setor:
+        if setor == 'sem-lotacao' and acesso_global:
+            qs = qs.filter(colaborador__lotacao__isnull=True)
+        elif setor.isascii() and setor.isdigit() and len(setor) <= 18:
+            qs = qs.filter(colaborador__lotacao_id=setor)
+        else:
+            qs = qs.none()
+    if documento:
+        if documento.isascii() and documento.isdigit() and len(documento) <= 18:
+            qs = qs.filter(tipo_documento_id=documento)
+        else:
+            qs = qs.none()
 
     inicio, fim_exclusivo, periodo = periodo_relatorio(request.GET)
     if inicio is None:
@@ -475,9 +503,64 @@ def relatorio_geral_view(request):
         'status_selecionados': status_selecionados,
         'status_descricao': ', '.join(label for value, label in Solicitacao.StatusChoices.choices if value in status_selecionados) or 'Nenhum',
         'escopo_relatorio': 'Todas as lotações' if acesso_global else 'Lotações sob gestão e subordinadas',
+        'acesso_global': acesso_global,
+        'setores': setores,
+        'documentos': documentos,
+        'setor_selecionado': setor,
+        'documento_selecionado': documento,
+        'nome_setor': 'Sem lotação' if setor == 'sem-lotacao' and acesso_global else next(
+            (item.nome_lotacao for item in setores if str(item.pk) == setor), '',
+        ),
+        'nome_documento': next((item.nome_documento for item in documentos if str(item.pk) == documento), ''),
         'data_impressao': timezone.now(),
     }
     return render(request, 'pdf/_report_geral.html', context)
+
+
+@login_required
+def relatorio_colaborador_view(request, colaborador_id=None):
+    from .reports import periodo_relatorio
+
+    qs = _solicitacoes_do_relatorio(request.user)
+    colaboradores = CustomUser.objects.select_related('lotacao')
+    if not request.user.is_adm:
+        colaboradores = colaboradores.filter(lotacao__in=_lotacoes_do_relatorio(request.user))
+    busca = request.GET.get('q', '').strip()[:100]
+    context = {'busca': busca}
+    if colaborador_id is None:
+        if busca:
+            context['resultados'] = colaboradores.annotate(
+                nome_busca=Concat('first_name', Value(' '), 'last_name'),
+            ).filter(
+                Q(nome_busca__icontains=busca)
+                | Q(matricula__icontains=busca) | Q(username__icontains=busca),
+            ).order_by('first_name', 'pk')[:50]
+        return render(request, 'pdf/_report_colaborador.html', context)
+
+    colaborador = get_object_or_404(colaboradores, pk=colaborador_id)
+    qs = qs.filter(Q(colaborador=colaborador) | Q(colaborador_secundario=colaborador))
+    historico_completo = request.GET.get('periodo', 'todos') == 'todos'
+    inicio, fim, periodo = periodo_relatorio(request.GET)
+    if not historico_completo:
+        qs = qs.filter(data__gte=inicio, data__lt=fim) if inicio is not None else qs.none()
+    context.update(periodo)
+    context.update(
+        colaborador=colaborador, historico_completo=historico_completo,
+        solicitacoes=qs.select_related('tipo_documento').order_by('-data', '-pk'),
+    )
+    return render(request, 'pdf/_report_colaborador.html', context)
+
+
+@login_required
+def relatorio_solicitacao_detalhe_view(request, colaborador_id, solicitacao_id):
+    if not request.user.is_adm:
+        get_object_or_404(CustomUser.objects.filter(lotacao__in=_lotacoes_do_relatorio(request.user)), pk=colaborador_id)
+    get_object_or_404(
+        _solicitacoes_do_relatorio(request.user).filter(
+            Q(colaborador_id=colaborador_id) | Q(colaborador_secundario_id=colaborador_id),
+        ), pk=solicitacao_id,
+    )
+    return gerar_pdf_solicitacao_view(request, solicitacao_id)
 
 # ==========================================
 # VIEWS GENÉRICAS DE SOLICITAÇÕES

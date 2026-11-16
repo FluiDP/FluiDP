@@ -1,0 +1,76 @@
+{% extends 'pdf/print.html' %}
+{% block title %}Relatório por colaborador{% endblock %}
+{% block content %}
+<h2 class="text-xl font-bold text-primary">Relatório por colaborador</h2>
+<nav class="no-print my-4 flex flex-wrap gap-4 text-sm">
+    <a class="text-primary underline" href="{% url 'relatorio_geral' %}">Relatório geral</a>
+    {% if colaborador %}
+    <a class="text-primary underline" href="{% url 'relatorio_colaborador_busca' %}">Buscar outro colaborador</a>
+    {% endif %}
+</nav>
+
+{% if colaborador %}
+<h3 class="text-lg font-semibold">{{ colaborador.get_full_name|default:colaborador.username }}</h3>
+<p class="text-sm text-gray-600">Matrícula {{ colaborador.matricula|default:"—" }} · {{ colaborador.lotacao|default:"Sem lotação" }}</p>
+<form method="get" class="no-print my-4 flex flex-wrap items-end gap-3 text-sm">
+    <label>Período
+        <select name="periodo" class="block rounded border p-2">
+            <option value="todos" {% if historico_completo %}selected{% endif %}>Todo o histórico</option>
+            <option value="personalizado" {% if not historico_completo %}selected{% endif %}>Personalizado</option>
+        </select>
+    </label>
+    <label>De <input class="block rounded border p-2" type="date" name="data_inicio" value="{{ data_inicio }}"></label>
+    <label>Até <input class="block rounded border p-2" type="date" name="data_fim" value="{{ data_fim }}"></label>
+    <button class="rounded bg-primary px-4 py-2 text-white" type="submit">Consultar</button>
+</form>
+{% if historico_completo %}
+<p class="my-3 text-sm text-gray-600">Todo o histórico disponível no seu escopo de acesso.</p>
+{% elif erro_periodo %}
+<p role="alert" class="my-3 text-red-700">{{ erro_periodo }}</p>
+{% else %}
+<p class="my-3 text-sm text-gray-600">Aberturas de {{ periodo_inicio|date:"d/m/Y" }} a {{ periodo_fim|date:"d/m/Y" }}.</p>
+{% endif %}
+<p class="mb-3 text-sm font-semibold">{{ solicitacoes|length }} solicitações</p>
+<table class="w-full text-left text-sm">
+    <thead class="bg-gray-100">
+        <tr>
+            <th class="p-2" scope="col">Código</th><th class="p-2" scope="col">Documento</th>
+            <th class="p-2" scope="col">Abertura</th><th class="p-2" scope="col">Participação</th>
+            <th class="p-2" scope="col">Situação</th>
+        </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200">
+        {% for solicitacao in solicitacoes %}
+        <tr class="break-inside-avoid">
+            <td class="p-2"><a class="text-primary underline" target="_blank" rel="noopener" href="{% url 'relatorio_solicitacao_detalhe' colaborador.pk solicitacao.pk %}" aria-label="Ver detalhes da solicitação {{ solicitacao.pk }}">#{{ solicitacao.pk }}</a></td>
+            <td class="p-2">{{ solicitacao.tipo_documento }}</td>
+            <td class="p-2">{{ solicitacao.data|date:"d/m/Y" }}</td>
+            <td class="p-2">{% if solicitacao.colaborador_id == colaborador.pk %}Titular{% else %}Colaborador secundário{% endif %}</td>
+            <td class="p-2">{{ solicitacao.get_status_display }}{% if solicitacao.arquivado %}<br><span class="text-xs text-gray-500">Arquivada</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td class="p-4 text-gray-600" colspan="5">Nenhuma solicitação encontrada.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<form method="get" class="no-print my-4 flex flex-wrap items-end gap-3 text-sm">
+    <label>Nome ou matrícula
+        <input type="search" name="q" value="{{ busca }}" required maxlength="100" class="block rounded border p-2">
+    </label>
+    <button class="rounded bg-primary px-4 py-2 text-white" type="submit">Buscar</button>
+</form>
+{% if busca %}
+<ul class="divide-y divide-gray-200 text-sm">
+    {% for pessoa in resultados %}
+    <li class="py-3">
+        <a class="font-semibold text-primary underline" href="{% url 'relatorio_colaborador' pessoa.pk %}">{{ pessoa.get_full_name|default:pessoa.username }}</a>
+        <span class="text-gray-600"> · {{ pessoa.matricula|default:"—" }} · {{ pessoa.lotacao|default:"Sem lotação" }}</span>
+    </li>
+    {% empty %}
+    <li class="py-3 text-gray-600">Nenhum colaborador encontrado.</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+{% endblock %}

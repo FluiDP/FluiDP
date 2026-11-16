@@ -120,6 +120,10 @@ def grafico_grupos(grupos):
     return [g['nome'] for g in selecionados], [g['total'] for g in selecionados]
 
 
+def ranking_grupos(grupos):
+    return sorted(grupos.values(), key=lambda g: (-g['total'], g['nome'].casefold()))
+
+
 def resumir_solicitacoes(solicitacoes):
     ranking, documentos, lotacoes = {}, {}, {}
     total = arquivadas = extras = compensadas = 0
@@ -156,4 +160,6 @@ def resumir_solicitacoes(solicitacoes):
         'horas_extras': formatar_minutos(extras), 'horas_compensadas': formatar_minutos(compensadas),
         'chart_docs_labels': docs_labels, 'chart_docs_data': docs_data,
         'chart_lot_labels': lot_labels, 'chart_lot_data': lot_data,
+        'ranking_setores': ranking_grupos(lotacoes),
+        'ranking_documentos': ranking_grupos(documentos),
     }

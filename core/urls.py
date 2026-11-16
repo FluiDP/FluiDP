@@ -38,6 +38,9 @@ urlpatterns = [
     path('solicitacao/pdf/<int:solicitacao_id>/', views.gerar_pdf_solicitacao_view, name='gerar_pdf_solicitacao'),
 
     path('relatorio-geral/', views.relatorio_geral_view, name='relatorio_geral'),
+    path('relatorio-geral/colaboradores/', views.relatorio_colaborador_view, name='relatorio_colaborador_busca'),
+    path('relatorio-geral/colaboradores/<int:colaborador_id>/', views.relatorio_colaborador_view, name='relatorio_colaborador'),
+    path('relatorio-geral/colaboradores/<int:colaborador_id>/solicitacoes/<int:solicitacao_id>/', views.relatorio_solicitacao_detalhe_view, name='relatorio_solicitacao_detalhe'),
 
     path('solicitacoes/lote/', views.processar_lote_solicitacoes_view, name='processar_lote_solicitacoes'),
 ]
