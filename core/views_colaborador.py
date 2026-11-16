@@ -285,6 +285,16 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     user = request.user
 
+    solicitante = solicitacao.colaborador
+    gestor_imediato = None
+    if solicitacao.status in (
+        Solicitacao.StatusChoices.PENDENTE_GESTOR,
+        Solicitacao.StatusChoices.PENDENTE_DIRETOR,
+    ):
+        gestor_imediato = solicitacao.aprovador_atual
+    if gestor_imediato is None and solicitante.lotacao_id:
+        gestor_imediato = solicitante.lotacao.find_gestor_disponivel(solicitante=solicitante)
+
     is_dp = user.groups.filter(name='DP').exists()
     pode_aprovar = False
     pode_aprovar = services._pode_ator_aprovar(solicitacao, user, request.user)
@@ -338,6 +348,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
     context = {
         'is_dp': is_dp,
         'solicitacao': solicitacao,
+        'gestor_imediato': gestor_imediato,
         'tipo_documento': solicitacao.tipo_documento,
         'campos_formulario': campos_com_valores,
         'pode_aprovar': pode_aprovar,
