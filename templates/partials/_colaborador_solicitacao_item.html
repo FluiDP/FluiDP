@@ -1,0 +1,14 @@
+{% url 'administracao:visualizar_solicitacao_colaborador' colaborador.id solicitacao.id as detalhes_url %}
+<button type="button" hx-get="{{ detalhes_url }}{% if filtros %}?{{ filtros }}{% endif %}"
+        hx-target="#modal-spot" hx-swap="innerHTML"
+        class="flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left text-sm hover:bg-slate-50">
+    <span>
+        <span class="block font-semibold text-slate-800">#{{ solicitacao.id }} · {{ solicitacao.tipo_documento }}</span>
+        <span class="block text-xs text-slate-500">{{ solicitacao.data|date:'d/m/Y' }} · {% if solicitacao.colaborador_id == colaborador.id %}Aberta pelo colaborador{% else %}Colaborador secundário{% endif %}</span>
+    </span>
+    <span class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="rounded-full bg-slate-100 px-2 py-1 font-medium text-slate-600">{{ solicitacao.get_status_display }}</span>
+        {% if solicitacao.arquivado %}<span class="font-medium text-slate-600">Arquivada</span>{% endif %}
+        <span class="font-semibold text-primary">Ver detalhes</span>
+    </span>
+</button>

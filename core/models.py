@@ -200,13 +200,23 @@ class Lotacao(models.Model):
             return self.lotacao_pai.get_lotacao_raiz(_vistos=_vistos)
         return self
 
-    def find_gestor_disponivel(self, solicitante=None, visited=None):
+    def find_gestor_disponivel(self, solicitante=None, visited=None, *, somente_disponivel=False):
         if visited is None:
             visited = set()
         
         if self.pk in visited:
             return None 
         visited.add(self.pk)
+
+        if somente_disponivel:
+            for chefia in (self.chefia, self.chefia_secundaria):
+                if chefia and chefia != solicitante and chefia.is_active and not chefia.is_ausente:
+                    return chefia
+            if self.lotacao_pai:
+                return self.lotacao_pai.find_gestor_disponivel(
+                    solicitante=solicitante, visited=visited, somente_disponivel=True,
+                )
+            return None
 
         if self.chefia and not self.chefia.is_ausente:
             if solicitante is None or self.chefia != solicitante:

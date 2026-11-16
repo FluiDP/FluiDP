@@ -120,6 +120,10 @@
                 </style>
 
                 <div class="flex-1 overscroll-contain bg-slate-50/50 p-4 sm:p-5" id="campos-detalhes">
+                    {% if voltar_colaborador_url %}
+                    <button type="button" hx-get="{{ voltar_colaborador_url }}" hx-target="#modal-spot" hx-swap="innerHTML"
+                            class="mb-3 text-sm font-semibold text-primary">Voltar ao colaborador</button>
+                    {% endif %}
                     
                     <div class="bg-white border border-slate-200 shadow-sm rounded-xl p-4 mb-4">
                         <h4 class="text-[11px] font-bold text-primary uppercase tracking-wider mb-2.5 flex items-center gap-1.5">

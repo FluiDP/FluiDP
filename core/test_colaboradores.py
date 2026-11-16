@@ -2,7 +2,7 @@ from django.contrib.auth.models import Group
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import CustomUser
+from .models import CustomUser, Lotacao, Solicitacao, TipoDocumento
 
 
 @override_settings(STORAGES={
@@ -85,3 +85,31 @@ class ColaboradoresSituacaoTests(TestCase):
         self.client.force_login(self.ativo)
         self.assertEqual(self.usuarios(self.client.get(self.url, {'situacao': 'arquivados'})),
                          {self.inativo})
+
+    def test_modal_consulta_pendencias_arquivadas_e_chefia_disponivel(self):
+        chefia = CustomUser.objects.create_user(username='chefia_inativa', is_active=False)
+        substituto = CustomUser.objects.create_user(username='chefia_substituta', first_name='Chefia substituta')
+        self.ativo.lotacao = Lotacao.objects.create(
+            nome_lotacao='Setor de teste', chefia=chefia, chefia_secundaria=substituto,
+        )
+        self.ativo.save()
+        tipo = TipoDocumento.objects.create(nome_documento='Documento para consulta')
+        pendente = Solicitacao.objects.create(colaborador=self.ativo, tipo_documento=tipo)
+        arquivada = Solicitacao.objects.create(
+            colaborador=self.dp, colaborador_secundario=self.ativo, tipo_documento=tipo,
+            status=Solicitacao.StatusChoices.FINALIZADO, arquivado=True,
+        )
+        modal = reverse('administracao:visualizar_colaborador', args=[self.ativo.pk])
+        resposta = self.client.get(modal)
+        self.assertContains(resposta, 'Chefia substituta')
+        self.assertEqual(list(resposta.context['pendentes']), [pendente])
+        self.assertEqual(list(resposta.context['anteriores']), [arquivada])
+        for solicitacao in (pendente, arquivada):
+            detalhes = reverse('administracao:visualizar_solicitacao_colaborador',
+                               args=[self.ativo.pk, solicitacao.pk])
+            self.assertContains(resposta, detalhes)
+            self.assertContains(self.client.get(detalhes, {'pagina': 1}), 'Voltar ao colaborador')
+        self.assertEqual(self.client.get(reverse('administracao:visualizar_solicitacao_colaborador',
+                                                args=[self.inativo.pk, pendente.pk])).status_code, 404)
+        self.client.force_login(self.ativo)
+        self.assertEqual(self.client.get(detalhes).status_code, 403)

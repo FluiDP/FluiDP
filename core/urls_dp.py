@@ -21,6 +21,7 @@ urlpatterns = [
 
     path('colaboradores/', views.dp_colaboradores_view, name='colaboradores'),
     path('colaboradores/<int:colaborador_id>/visualizar/', views.visualizar_colaborador_modal_view, name='visualizar_colaborador'),
+    path('colaboradores/<int:colaborador_id>/solicitacoes/<int:solicitacao_id>/', views.visualizar_solicitacao_colaborador_view, name='visualizar_solicitacao_colaborador'),
     path('colaboradores/criar/', views.create_colaborador_modal_view, name='create_colaborador'),
     path('colaboradores/editar/<int:pk>/', views.edit_colaborador_modal_view, name='edit_colaborador'),
     path('colaboradores/arquivar/<int:pk>/', views.archive_colaborador_modal_view, name='archive_colaborador'),

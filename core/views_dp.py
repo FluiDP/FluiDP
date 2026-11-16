@@ -20,6 +20,7 @@ from django_q.tasks import async_task
 from .services import obter_pendencias_do_usuario, registrar_log_acao
 from .models import Cargo, Solicitacao, TipoDocumento, CustomUser, Lotacao
 from .decorators import dp_required
+from .views_colaborador import get_solicitacao_detalhes_view
 from .forms import CustomUserForm, EditCustomUserForm, LotacaoForm, CargoForm, TipoDocumentoForm
 from core import services
 
@@ -187,33 +188,58 @@ def visualizar_colaborador_modal_view(request, colaborador_id):
     colaborador = get_object_or_404(
         CustomUser.objects.select_related('cargo', 'lotacao'), pk=colaborador_id,
     )
-    hoje = timezone.localdate()
-    inicio_padrao = hoje.replace(day=1)
-
-    def ler_data(parametro, padrao):
+    def ler_data(parametro):
         try:
-            return date.fromisoformat(request.GET[parametro])
+            return date.fromisoformat(request.GET.get(parametro, ''))
         except (KeyError, ValueError):
-            return padrao
+            return None
 
-    data_inicio = ler_data('data_inicio', inicio_padrao)
-    data_fim = ler_data('data_fim', hoje)
-    if data_inicio > data_fim:
+    data_inicio = ler_data('data_inicio')
+    data_fim = ler_data('data_fim')
+    if data_inicio and data_fim and data_inicio > data_fim:
         data_inicio, data_fim = data_fim, data_inicio
 
     solicitacoes = Solicitacao.objects.filter(
         Q(colaborador=colaborador) | Q(colaborador_secundario=colaborador),
-        data__date__gte=data_inicio,
-        data__date__lte=data_fim,
-    ).select_related('tipo_documento', 'colaborador', 'colaborador_secundario').order_by('-data', '-pk')
+    ).select_related('tipo_documento').order_by('-data', '-pk')
+    encerrados = (
+        Solicitacao.StatusChoices.FINALIZADO,
+        Solicitacao.StatusChoices.CANCELADO,
+        Solicitacao.StatusChoices.RECUSADO,
+    )
+    anteriores = solicitacoes.filter(Q(status__in=encerrados) | Q(arquivado=True))
+    if data_inicio:
+        anteriores = anteriores.filter(data__date__gte=data_inicio)
+    if data_fim:
+        anteriores = anteriores.filter(data__date__lte=data_fim)
+    gestor = None
+    if colaborador.lotacao_id:
+        gestor = colaborador.lotacao.find_gestor_disponivel(
+            solicitante=colaborador, somente_disponivel=True,
+        )
 
     return render(request, 'partials/_colaborador_visualizacao_modal.html', {
         'colaborador': colaborador,
+        'gestor_atual': gestor,
         'data_inicio': data_inicio,
         'data_fim': data_fim,
-        'total_solicitacoes': solicitacoes.count(),
-        'solicitacoes': solicitacoes[:10],
+        'pendentes': solicitacoes.filter(arquivado=False).exclude(status__in=encerrados),
+        'anteriores': Paginator(anteriores, 10).get_page(request.GET.get('pagina')),
+        'filtros': request.GET.urlencode(),
     })
+
+
+@dp_required
+def visualizar_solicitacao_colaborador_view(request, colaborador_id, solicitacao_id):
+    get_object_or_404(
+        Solicitacao.objects.filter(
+            Q(colaborador_id=colaborador_id) | Q(colaborador_secundario_id=colaborador_id),
+        ), pk=solicitacao_id,
+    )
+    voltar = reverse('administracao:visualizar_colaborador', args=[colaborador_id])
+    if request.GET:
+        voltar += '?' + request.GET.urlencode()
+    return get_solicitacao_detalhes_view(request, solicitacao_id, voltar_colaborador_url=voltar)
 
 @dp_required
 def create_lotacao_modal_view(request):

@@ -281,7 +281,7 @@ def salvar_solicitacao_view(request, tipo_doc_id):
         })
 
 @colaborador_required
-def get_solicitacao_detalhes_view(request, solicitacao_id):
+def get_solicitacao_detalhes_view(request, solicitacao_id, voltar_colaborador_url=None):
     solicitacao = get_object_or_404(Solicitacao, id=solicitacao_id)
     user = request.user
 
@@ -360,6 +360,7 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
         'is_dp': is_dp,
         'solicitacao': solicitacao,
         'gestor_imediato': gestor_imediato,
+        'voltar_colaborador_url': voltar_colaborador_url,
         'tipo_documento': solicitacao.tipo_documento,
         'campos_formulario': campos_com_valores,
         'pode_aprovar': pode_aprovar,
