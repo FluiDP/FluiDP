@@ -292,6 +292,17 @@ def get_solicitacao_detalhes_view(request, solicitacao_id):
         Solicitacao.StatusChoices.PENDENTE_DIRETOR,
     ):
         gestor_imediato = solicitacao.aprovador_atual
+    if solicitacao.status not in (
+        Solicitacao.StatusChoices.PENDENTE_ACEITE_SECUNDARIO,
+        Solicitacao.StatusChoices.PENDENTE_GESTOR,
+    ):
+        acoes = LogAprovacao.AcaoChoices
+        decisoes = solicitacao.decisoes_validas().select_related('ator', 'gestor_na_aprovacao')
+        aprovacao = decisoes.filter(acao=acoes.APROVADO_GESTOR).first()
+        if aprovacao is None:
+            aprovacao = decisoes.filter(acao=acoes.APROVADO_DIRETOR).order_by('data_acao', 'pk').first()
+        if aprovacao:
+            gestor_imediato = aprovacao.gestor_na_aprovacao or aprovacao.ator
     if gestor_imediato is None and solicitante.lotacao_id:
         gestor_imediato = solicitante.lotacao.find_gestor_disponivel(solicitante=solicitante)
 

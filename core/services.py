@@ -282,7 +282,7 @@ def obter_status_relatorio(status_informados=None, filtro_aplicado=False):
         }
     ]
 
-def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogAprovacao.AcaoChoices, detalhes: str = "", *, decisao_anulada=None):
+def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogAprovacao.AcaoChoices, detalhes: str = "", *, decisao_anulada=None, gestor_na_aprovacao=None):
     """
     Registra uma ação no histórico da solicitação.
     """
@@ -292,6 +292,7 @@ def registrar_log_acao(solicitacao: Solicitacao, ator: CustomUser, acao: LogApro
         acao=acao,
         detalhes=detalhes,
         decisao_anulada=decisao_anulada,
+        gestor_na_aprovacao=gestor_na_aprovacao,
     )
 
 def _pode_ator_aprovar(solicitacao: Solicitacao, ator: CustomUser, request_user: CustomUser) -> bool:
@@ -367,6 +368,9 @@ def _aprovar_solicitacao_no_prazo(solicitacao: Solicitacao, ator: CustomUser, re
         raise PermissionError(f"O usuário {ator} não tem permissão para aprovar esta solicitação no status {solicitacao.status}.")
 
     status_atual = solicitacao.status
+    gestor_na_aprovacao = None
+    if status_atual in (Solicitacao.StatusChoices.PENDENTE_GESTOR, Solicitacao.StatusChoices.PENDENTE_DIRETOR):
+        gestor_na_aprovacao = solicitacao.aprovador_atual or ator
     novo_status = None
     novo_aprovador = None
     acao_log = None
@@ -422,7 +426,7 @@ def _aprovar_solicitacao_no_prazo(solicitacao: Solicitacao, ator: CustomUser, re
     solicitacao.aprovador_atual = novo_aprovador
     solicitacao.save()
 
-    registrar_log_acao(solicitacao, ator, acao_log, detalhes)
+    registrar_log_acao(solicitacao, ator, acao_log, detalhes, gestor_na_aprovacao=gestor_na_aprovacao)
 
     if novo_status == Solicitacao.StatusChoices.FINALIZADO:
         criar_notificacao(

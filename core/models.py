@@ -1023,6 +1023,11 @@ class LogAprovacao(models.Model):
         related_name='reversao',
     )
 
+    gestor_na_aprovacao = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, editable=False,
+        on_delete=models.PROTECT, related_name='+',
+    )
+
     solicitacao = models.ForeignKey(
         Solicitacao,
         on_delete=models.CASCADE,
